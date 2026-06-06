@@ -15,7 +15,7 @@ interface SpineProviderProps {
 }
 
 export function SpineProvider({ children, config }: SpineProviderProps) {
-  const [client, setClient] = React.useState<SpineClient | null>(null)
+  const [client] = React.useState<SpineClient | null>(null)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {

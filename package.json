@@ -63,8 +63,8 @@
     "@vitejs/plugin-react": "^4.0.0"
   },
   "scripts": {
-    "build": "tsc && vite build",
-    "dev": "vite dev",
+    "build": "tsc",
+    "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",

@@ -79,7 +79,7 @@ export function createSpineClient(config: SpineConfig): SpineClient {
     },
     
     onAuthStateChange: (callback) => {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         const user = session?.user ? {
           id: session.user.id,
           email: session.user.email!,

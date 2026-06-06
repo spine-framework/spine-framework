@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Thread, Message } from '../types'
+import { Thread } from '../types'
 
 interface UseThreadsOptions {
   target_type?: string

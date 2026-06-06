@@ -3,7 +3,7 @@ interface ListOptions {
   type?: string
 }
 
-export async function listCommand(options: ListOptions) {
+export async function listCommand(_options: ListOptions) {
   console.log('Available Spine Framework apps:')
   
   // Mock app list

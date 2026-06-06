@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react'
+import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
 import { App, AppFilters } from '../types'
 
 interface AppContextValue {
@@ -27,7 +27,7 @@ export function AppProvider({ children }: AppProviderProps) {
     loadApps()
   }, [])
 
-  const loadApps = async (filters?: AppFilters): Promise<App[]> => {
+  const loadApps = async (_filters?: AppFilters): Promise<App[]> => {
     setLoading(true)
     try {
       // Mock implementation - would call actual API

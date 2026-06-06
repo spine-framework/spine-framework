@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react'
+import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
 import { User, AuthResult } from '../types'
 
 interface AuthContextValue {
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(false)
   }, [])
 
-  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+  const signIn = async (email: string, _password: string): Promise<AuthResult> => {
     // Implement actual sign in logic
     const mockUser: User = {
       id: 'mock-user-id',
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  const signUp = async (email: string, password: string, name?: string): Promise<AuthResult> => {
+  const signUp = async (email: string, _password: string, name?: string): Promise<AuthResult> => {
     // Implement actual sign up logic
     const mockUser: User = {
       id: 'mock-user-id',
