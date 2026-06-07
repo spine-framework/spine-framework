@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../.framework/functions/_shared/index.ts"],
+  "out": "../docs/generated",
+  "name": "Spine Framework API",
+  "readme": "../.framework/docs/API.md",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/art-mojo-admin/spine",
+    "Getting Started": "https://github.com/art-mojo-admin/spine/blob/main/.framework/docs/guides/getting-started.md"
+  },
+  "plugin": [],
+  "tsconfig": "tsconfig.cli.json"
+}

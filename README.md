@@ -1,38 +1,55 @@
 # Spine Framework
 
-A comprehensive framework for building enterprise applications with multi-tenant architecture, role-based access control, and extensible app ecosystem.
+A complete enterprise application framework built on Supabase + Netlify + React for building scalable multi-tenant applications with extensible app ecosystems.
 
 ## Overview
 
-Spine Framework provides the foundation for building scalable enterprise applications with:
+Spine Framework is a **complete, runnable framework** that provides everything you need to build enterprise applications:
 
 - **Multi-tenant Architecture**: Support for tenant hierarchies and isolated deployments
-- **Role-Based Access Control**: Fine-grained permissions and authorization
-- **App Ecosystem**: Extensible framework for building and distributing applications
+- **Role-Based Access Control**: Fine-grained permissions and authorization  
+- **App Ecosystem**: Install and manage custom applications
 - **Real-time Features**: Built-in support for real-time collaboration and notifications
 - **AI Integration**: Native support for AI agents and intelligent workflows
 - **Developer Tools**: Comprehensive tooling for development, testing, and deployment
 
-## Installation
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
-- Supabase project (for database and auth)
+- PostgreSQL database (via Supabase recommended)
+- Netlify account (for deployment)
 
-### Quick Start
+### Installation
 
 ```bash
-# Install the framework
-npm install spine-framework
+# Clone the framework
+git clone https://github.com/spine-framework/spine-framework.git
+cd spine-framework
 
-# Initialize a new project
-npx spine init my-project
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your Supabase and Netlify credentials
 
 # Start development
-cd my-project
 npm run dev
+```
+
+### Install Custom Apps
+
+```bash
+# Install Cortex (CRM, Support, Community, Knowledge Base)
+npm run app-install cortex
+
+# Install Customer Portal
+npm run app-install customer-portal
+
+# List available apps
+npm run spine-framework list-apps
 ```
 
 ## Architecture
