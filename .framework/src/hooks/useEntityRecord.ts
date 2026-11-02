@@ -1,58 +1,52 @@
-/**
- * @module src/hooks/useEntityRecord
- * @audience installer
- * @layer frontend-hook
- * @stability stable
- *
- * Schema-driven single-record hook. Fetches a record by ID, exposes its
- * design schema, computes field-level read/write permissions for the
- * current principal, and provides save and delete mutations.
- *
- * **Field permission model:**
- * - `system_admin` role always gets `{ read: true, write: true }` on all fields
- * - Other principals: permissions are read from `design_schema.fields[n].permissions`
- *   as role arrays; defaults to `true` if absent
- *
- * **Save routing:**
- * - Fields marked `fieldDef.system = true` go to top-level record columns
- * - All other fields are nested under the `data` JSONB column
- *
- * **Delete:** sends a `DELETE` request with the configured `deleteAction`;
- *   hard vs. soft delete is determined by the API handler (`config.softDelete`
- *   signals intent to the handler).
- *
- * @seeAlso src/hooks/useApi.ts (useApi + useMutation primitives)
- * @seeAlso src/hooks/useSchemaRecord.ts (companion for schema-driven form data)
- * @seeAlso src/components/runtime/DataDetailPage.tsx (primary consumer)
- * @seeAlso functions/admin-data.ts (API endpoint handling get/update/delete)
- */
-
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useEntityRecord.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/hooks/useEntityRecord.ts"]
+// CIL[DOC-MACRO purpose="React hook for fetching and managing a single entity record"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declares module imports and exposes the useEntityRecord hook for record CRUD and permission handling"]
+// CIL[DOC-CONTEXT module="useEntityRecord" layer="hooks" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Sets up React and API imports used by the useEntityRecord hook." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="internal"]
 import { useCallback } from 'react'
 import { useApi, useMutation } from './useApi'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
+// CIL[DOC-VECTOR type="context" content="purpose='React hook for fetching and managing a single entity record'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useEntityRecord.ts:module_header:module_header"]
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
-
-/**
- * Per-field read/write permission map keyed by field name.
- * Computed from `design_schema.fields[n].permissions` and the current user's roles.
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useEntityRecord.ts:fieldpermissions:interface" type="interface" identity="fieldpermissions" parent="~/.framework/src/hooks/useEntityRecord.ts"]
+// CIL[DOC-MACRO purpose="Field-level read and write permission map"]
+// CIL[DOC-RESPONSIBILITY responsibility="Defines the shape of per-field permissions with read and write booleans"]
+// CIL[DOC-CONTEXT module="useEntityRecord" layer="hooks" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/hooks/useEntityRecord.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="FieldPermissions object" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Maps a field name to an object containing read and write flags." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 interface FieldPermissions {
   [key: string]: { read: boolean; write: boolean }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Field-level read and write permission map'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useEntityRecord.ts:fieldpermissions:interface"]
 
-/**
- * Minimal entity configuration consumed by `useEntityRecord`.
- *
- * @prop entity - Entity table name
- * @prop typeSlug - Optional type slug for schema resolution
- * @prop icon - Icon identifier (used by detail page header)
- * @prop displayField - Field name used as the record title
- * @prop api.endpoint - Netlify function base path
- * @prop api.*Action - Action strings for get/create/update/delete
- * @prop softDelete - Hint for the API handler (true = set is_active=false)
- */
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useEntityRecord.ts:MinimalEntityConfig:interface" type="interface" identity="MinimalEntityConfig" parent="~/.framework/src/hooks/useEntityRecord.ts"]
+// CIL[DOC-MACRO purpose="Minimal configuration shape for an entity"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declares the configuration required to drive entity CRUD and API action overrides"]
+// CIL[DOC-CONTEXT module="useEntityRecord" layer="hooks" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/hooks/useEntityRecord.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="MinimalEntityConfig object" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Defines entity metadata, icon, display field, and optional API action overrides." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 interface MinimalEntityConfig {
   entity: string
   typeSlug?: string
@@ -67,20 +61,23 @@ interface MinimalEntityConfig {
   }
   softDelete?: boolean
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Minimal configuration shape for an entity'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useEntityRecord.ts:MinimalEntityConfig:interface"]
 
-/**
- * Return value of `useEntityRecord`.
- *
- * @prop record - Fetched record or null
- * @prop schema - `design_schema` extracted from the record (or nested type)
- * @prop fieldPermissions - Per-field `{ read, write }` map for the current user
- * @prop loading - True while fetching
- * @prop error - Error message or null
- * @prop refetch - Re-fetch the record
- * @prop save - Trigger the save mutation (create or update based on `id`)
- * @prop delete - Trigger the delete mutation
- * @prop saving / deleting - Mutation loading flags
- */
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useEntityRecord.ts:UseEntityRecordReturn:interface" type="interface" identity="UseEntityRecordReturn" parent="~/.framework/src/hooks/useEntityRecord.ts"]
+// CIL[DOC-MACRO purpose="Return shape for useEntityRecord"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declares the object returned by the useEntityRecord hook including state, schema, permissions, and callbacks"]
+// CIL[DOC-CONTEXT module="useEntityRecord" layer="hooks" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/hooks/useEntityRecord.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="UseEntityRecordReturn object" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Exposes record state, schema, field permissions, loading and error flags, and save/delete mutators." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 interface UseEntityRecordReturn {
   record: any
   schema: any
@@ -93,30 +90,22 @@ interface UseEntityRecordReturn {
   saving: boolean
   deleting: boolean
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Return shape for useEntityRecord'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useEntityRecord.ts:UseEntityRecordReturn:interface"]
 
-// ─── HOOK ────────────────────────────────────────────────────────────────────
-
-/**
- * Fetches, saves, and deletes a single entity record with schema and
- * field-permission awareness.
- *
- * @param entity - Entity table name (e.g. `'accounts'`)
- * @param id - Record UUID; pass `undefined` to enter create mode
- * @param config - Schema-derived config; pass `null` while loading
- * @returns `UseEntityRecordReturn` — see type for full details
- *
- * @inputSpec id: string | undefined — undefined triggers create mode (no GET)
- * @outputSpec schema: DesignSchema | {} — empty object if no design_schema found
- * @outputSpec fieldPermissions: FieldPermissions — computed per-render
- * @sideEffects Network requests via apiFetch; React state mutations
- * @calledBy DataDetailPage.tsx
- *
- * @example
- * ```tsx
- * const { record, save, saving, fieldPermissions } =
- *   useEntityRecord('accounts', id, config)
- * ```
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useEntityRecord.ts:useEntityRecord:hook" type="function" identity="useEntityRecord" parent="~/.framework/src/hooks/useEntityRecord.ts"]
+// CIL[DOC-MACRO purpose="Fetch, save, and delete a single runtime entity record"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provides a React hook that loads a record, derives schema and field permissions, and exposes save and delete mutations"]
+// CIL[DOC-CONTEXT module="useEntityRecord" layer="hooks" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/hooks/useEntityRecord.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="entity: string, id: string | undefined, config: MinimalEntityConfig | null" outputs="UseEntityRecordReturn" errors="Throws on failed API requests; returns error string from useApi" side_effects="Calls apiFetch for GET, PATCH, POST, and DELETE requests via useMutation"]
+// CIL[DOC-MICRO logic_summary="Fetches record by ID when present, derives permissions from user roles and design schema, and performs create/update/delete via useMutation." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function useEntityRecord(
   entity: string,
   id: string | undefined,
@@ -124,14 +113,12 @@ export function useEntityRecord(
 ): UseEntityRecordReturn {
   const { user } = useAuth()
   
-  // Get API configuration with safe defaults
   const endpoint = config?.api?.endpoint || entity
   const getAction = config?.api?.getAction || 'get'
   const createAction = config?.api?.createAction || 'create'
   const updateAction = config?.api?.updateAction || 'update'
   const deleteAction = config?.api?.deleteAction || 'delete'
   
-  // Fetch record - always call useCallback to maintain hook order
   const fetchRecord = useCallback(async () => {
     if (!id) return null
     
@@ -154,17 +141,13 @@ export function useEntityRecord(
     immediate: !!id
   })
   
-  // Extract schema from record (accounts have it at root level, items/types have it nested)
   const schema = record?.design_schema || record?.type?.design_schema || {}
   
-  // Calculate field permissions from record's schema
   const calculatePermissions = (): FieldPermissions => {
     const permissions: FieldPermissions = {}
     
-    // System admin gets full access
     const isSystemAdmin = user?.roles?.includes('system_admin')
     
-    // Get all fields from record's schema
     const recordSchema = record?.design_schema?.fields
     if (!recordSchema) return permissions
     
@@ -172,7 +155,6 @@ export function useEntityRecord(
       if (isSystemAdmin) {
         permissions[fieldName] = { read: true, write: true }
       } else {
-        // Check field-level permissions from schema
         const fieldPerms = fieldSchema?.permissions || {}
         
         const canRead = fieldPerms.read?.some((role: string) => 
@@ -192,10 +174,8 @@ export function useEntityRecord(
   
   const fieldPermissions = calculatePermissions()
   
-  // Save mutation
   const saveMutation = useMutation(
     async (data: any) => {
-      // Separate system fields from custom fields
       const systemData: Record<string, any> = {}
       const customData: Record<string, any> = {}
       
@@ -208,14 +188,12 @@ export function useEntityRecord(
         }
       })
       
-      // Combine system fields with custom data in data field
       const saveData = {
         ...systemData,
         data: Object.keys(customData).length > 0 ? customData : undefined
       }
       
       if (id) {
-        // Update
         const params = new URLSearchParams()
         params.append('action', updateAction)
         params.append('entity', entity)
@@ -236,8 +214,7 @@ export function useEntityRecord(
         
         return response.json()
       } else {
-        // Create
-        const createData = { entity, ...saveData }
+        const createData = { entity, type_slug: config?.typeSlug, ...saveData }
         
         const params = new URLSearchParams()
         params.append('action', createAction)
@@ -268,7 +245,6 @@ export function useEntityRecord(
     }
   )
   
-  // Delete mutation
   const deleteMutation = useMutation(
     async () => {
       if (!id) throw new Error('Cannot delete: no ID provided')
@@ -306,3 +282,10 @@ export function useEntityRecord(
     deleting: deleteMutation.loading
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Fetch, save, and delete a single runtime entity record'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useEntityRecord.ts:useEntityRecord:hook"]

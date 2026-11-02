@@ -1,11 +1,33 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/TypeDetailPage.tsx"]
 /**
- * @module src/pages/admin/TypeDetailPage
- * @audience installer
- * @layer frontend-page
+ * @module   TypeDetailPage
+ * @audience internal
+ * @layer    app-specific
  * @stability stable
  *
- * Create / view / edit / delete page for a single type record.
+ * This module represents the Type Detail Page in the admin section of the application, allowing users to view and manage details of a specific type. It integrates with the API to fetch and update type data, providing a user-friendly interface with various UI components for interaction.
+ * INVARIANT: The user must have appropriate permissions to access this page and perform actions on types.
+ *
+ * @seeAlso useApi (provides API interaction hooks).
+ * @seeAlso Button (UI component for actions).
+ * @seeAlso Modal (UI component for confirmations).
+ * @seeAlso DataTable (UI component for displaying data).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -26,7 +48,31 @@ import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { DataTable } from '../../components/ui/DataTable'
 import { ArrowLeft, Pencil, Trash2, AlertCircle } from 'lucide-react'
 import { formatDateTime } from '../../lib/utils'
+// CIL[END stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:Type:interface" type="interface" identity="Type" parent="~/.framework/src/pages/admin/TypeDetailPage.tsx"]
+/**
+ * The Type interface defines the structure of a type object used in the admin panel, encapsulating various attributes related to types. It serves to standardize the representation of types across the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface Type {
   id: string
   name: string
@@ -39,6 +85,7 @@ interface Type {
     fields: Record<string, any>
     record_permissions?: Record<string, string[]>
   }
+  validation_schema?: Record<string, any>
   ownership: string
   is_active: boolean
   app_id?: string
@@ -46,7 +93,31 @@ interface Type {
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:Type:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:TypeItem:interface" type="interface" identity="TypeItem" parent="~/.framework/src/pages/admin/TypeDetailPage.tsx"]
+/**
+ * The TypeItem interface defines the structure of a type item used in the admin module, encapsulating essential attributes for managing type data. It serves as a blueprint for creating and manipulating type items within the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface TypeItem {
   id: string
   item_type_id: string
@@ -57,7 +128,37 @@ interface TypeItem {
   created_by: string
   account_id: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:TypeItem:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:TypeDetailPage:component" type="component" identity="TypeDetailPage" parent="~/.framework/src/pages/admin/TypeDetailPage.tsx"]
+/**
+ * The TypeDetailPage component manages the creation and editing of type entities within the admin interface. It handles fetching available applications and type details based on the provided parameters.
+ *
+ * @macro       Component for managing type details in an admin interface.
+ * @micro       Utilizes React hooks for state management and side effects, including API calls to fetch data.
+ * @outputSpec  JSX.Element — renders the type detail page UI.
+ * @throws      Error — Type ID or slug is required
+ * @sideEffects Fetches data from external API endpoints.
+ * @stability   stable
+ * @calls       apiFetch, useApi, useParams, useNavigate
+ * @errorHandling Logs errors to the console during API fetch failures.
+ * @cil-generated
+ */
 export function TypeDetailPage() {
   const { id, kind } = useParams<{ id: string, kind: string }>()
   const navigate = useNavigate()
@@ -73,12 +174,14 @@ export function TypeDetailPage() {
     icon: '',
     color: '',
     kind: typeKind,
-    schema: { fields: {} },
+    design_schema: { fields: {} },
     ownership: 'app',
     app_id: '',
     is_active: true
   })
   const [schemaText, setSchemaText] = useState(JSON.stringify({ fields: {} }, null, 2))
+  const [formError, setFormError] = useState<string | null>(null)
+
   const [availableApps, setAvailableApps] = useState<Array<{id: string, name: string}>>([])
 
   React.useEffect(() => {
@@ -130,8 +233,8 @@ export function TypeDetailPage() {
         if (!id) throw new Error('Type ID or slug is required')
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         const url = uuidRegex.test(id)
-          ? `/api/types?action=get&id=${id}`
-          : `/api/types?action=get&slug=${id}`
+          ? `/api/types?action=get&id=${id}&include_schema=true`
+          : `/api/types?action=get&slug=${id}&include_schema=true`
         const response = await apiFetch(url)
         if (!response.ok) {
           throw new Error(response.status === 500 ? 'Type not found' : 'Failed to fetch type')
@@ -163,6 +266,7 @@ export function TypeDetailPage() {
 
   const handleSave = async () => {
     try {
+      setFormError(null)
       const { app_id } = editData
       const ownership = (editData.ownership || '').toLowerCase()
       if (ownership !== 'system' && !app_id) {
@@ -199,7 +303,7 @@ export function TypeDetailPage() {
       }
     } catch (error) {
       console.error(`Error ${isCreateMode ? 'creating' : 'updating'} type:`, error)
-      alert(error instanceof Error ? error.message : 'Unknown error occurred')
+      setFormError(error instanceof Error ? error.message : 'Unknown error occurred')
     }
   }
 
@@ -288,6 +392,18 @@ export function TypeDetailPage() {
     )
   }
 
+
+
+
+
+/**
+ * The 'itemColumns' constant defines the structure of columns for displaying items in a table format, including their keys, titles, and rendering logic. It is used to present item data in a user-friendly manner within the admin interface.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @calls       formatDateTime
+ * @cil-generated
+ */
   const itemColumns = [
     {
       key: 'id' as keyof TypeItem,
@@ -300,8 +416,32 @@ export function TypeDetailPage() {
       key: 'data' as keyof TypeItem,
       title: 'Data',
       render: (row: any) => {
+
+
+
+
+/**
+ * The constant 'firstFieldKey' retrieves the first key from the 'fields' object in the 'design_schema' of a given 'type'. It exists to facilitate access to the first field's key for further processing in the module.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
         const firstFieldKey = Object.keys(type?.design_schema?.fields || {})[0]
+
+
+
+
+
+/**
+ * The constant 'displayValue' determines the value to display based on the presence of 'firstFieldKey'. It defaults to 'No data' if 'firstFieldKey' is not defined or if the corresponding data is unavailable.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
         const displayValue = firstFieldKey ? row.data?.[firstFieldKey] : 'No data'
+
         return (
           <div>
             <div className="font-medium">{displayValue}</div>
@@ -311,6 +451,13 @@ export function TypeDetailPage() {
           </div>
         )
       }
+
+
+
+
+
+
+
     },
     {
       key: 'created_at' as keyof TypeItem,
@@ -344,7 +491,8 @@ export function TypeDetailPage() {
           </div>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
+          {formError && <p className="text-sm text-red-600 mr-auto">{formError}</p>}
           {isEditing ? (
             <>
               <Button variant="outline" onClick={handleCancel}>Cancel</Button>
@@ -372,7 +520,6 @@ export function TypeDetailPage() {
           )}
         </div>
       </div>
-
       {isEditing ? (
         <>
           <Card>
@@ -514,16 +661,25 @@ export function TypeDetailPage() {
               
               <div className="mt-8 space-y-2">
                 <h3 className="text-sm font-medium text-muted-foreground">Schema Definition</h3>
-                <Label>Schema</Label>
+                <Label>Design Schema</Label>
                 <Textarea
                   value={schemaText}
                   onChange={(e) => setSchemaText(e.target.value)}
                   className="font-mono text-sm"
                   rows={8}
-                  placeholder='Enter JSON schema with fields object'
+                  placeholder='Enter JSON design schema with fields, views, and record_permissions'
                 />
-                <p className="text-xs text-muted-foreground">JSON schema defining the fields for this type.</p>
+                {(() => {
+                  try {
+                    JSON.parse(schemaText)
+                    return null
+                  } catch (err) {
+                    return <p className="text-xs text-red-600">Invalid JSON: {(err as Error).message}</p>
+                  }
+                })()}
+                <p className="text-xs text-muted-foreground">JSON schema defining the fields, list/detail views, and record permissions for this type. The validation_schema is generated from this on save.</p>
               </div>
+
             </CardContent>
           </Card>
         </>
@@ -609,6 +765,15 @@ export function TypeDetailPage() {
                   {JSON.stringify(type?.design_schema || { fields: {} }, null, 2)}
                 </pre>
               </div>
+
+              {type?.validation_schema && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Validation Schema (auto-generated on save)</h3>
+                  <pre className="text-xs bg-muted p-3 rounded border overflow-auto max-h-48">
+                    {JSON.stringify(type.validation_schema, null, 2)}
+                  </pre>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -692,3 +857,11 @@ export function TypeDetailPage() {
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TypeDetailPage.tsx:TypeDetailPage:component"]
+
+
+
+
+
+
+

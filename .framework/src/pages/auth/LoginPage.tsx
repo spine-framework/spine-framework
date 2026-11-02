@@ -1,68 +1,45 @@
-/**
- * @module src/pages/auth/LoginPage
- * @audience installer
- * @layer frontend-page
- * @stability stable
- *
- * Unauthenticated login page. Renders a centred card with email/password
- * inputs. On submit, calls `AuthContext.login(email, password)` and
- * navigates to `/dashboard` on success. Displays inline error text on
- * failure. Shows a `LoadingSpinner` inside the submit button while the
- * auth request is in-flight.
- *
- * @seeAlso src/contexts/AuthContext.tsx (login implementation)
- */
+// CIL[BEGIN stable_id="~/.framework/src/pages/auth/LoginPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/auth/LoginPage.tsx"]
+// CIL[DOC-MACRO purpose="Module header for the LoginPage component: imports, dependencies, and module-level context."]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare module-level imports and setup for the authentication login page."]
+// CIL[DOC-CONTEXT module="auth" layer="presentation" related_files=".framework/src/components/ui/LoadingSpinner.tsx,.framework/src/contexts/AuthContext.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports React, routing, auth context, and the LoadingSpinner UI component." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers"]
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { useAppsRegistry } from '../../contexts/AppContext'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { TurnstileWidget, turnstileEnabled } from '../../components/auth/TurnstileWidget'
+import { useBranding } from '../../hooks/useBranding'
 
+// CIL[DOC-VECTOR type="context" content="purpose='Module header for the LoginPage component: imports, dependencies, and module-level context.'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/components/ui/LoadingSpinner.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/auth/LoginPage.tsx:module_header:module_header"]
+// CIL[BEGIN stable_id="~/.framework/src/pages/auth/LoginPage.tsx:LoginPage:component" type="component" identity="LoginPage" parent="~/.framework/src/pages/auth/LoginPage.tsx"]
+// CIL[DOC-MACRO purpose="Render the login form and handle user authentication."]
+// CIL[DOC-RESPONSIBILITY responsibility="Collect email and password, call auth login, and navigate to the appropriate post-login route."]
+// CIL[DOC-CONTEXT module="auth" layer="presentation" related_files=".framework/src/components/ui/LoadingSpinner.tsx,.framework/src/contexts/AuthContext.tsx,.framework/src/pages/auth/LoginPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none (reads from local form state and AuthContext)" outputs="JSX login page" errors="displays authentication error message" side_effects="calls login API and navigates with react-router"]
+// CIL[DOC-MICRO logic_summary="Manages email/password/isLoading state; on submit prevents default, calls login, fetches spine.config.json, resolves default app by role, and navigates." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   
-  const { user, login } = useAuth()
+  const { login } = useAuth()
+  const branding = useBranding()
   const navigate = useNavigate()
-  const { routableApps: apps, loading } = useAppsRegistry()
-
-  // Redirect logged-in users to their qualified app
-  useEffect(() => {
-    if (user && !loading) {
-      // System admin gets special handling
-      if (user.roles?.includes('system_admin')) {
-        navigate('/spine-framework/admin', { replace: true })
-        return
-      }
-
-      // Find app matching user's role, or fall back to first routable app
-      const userRole = user.roles?.[0]
-      const routableApps = apps.filter(a => a.route_prefix && a.renderer !== 'none')
-      const matchingApp = (userRole && routableApps.find(app => app.min_role === userRole))
-        || routableApps[0]
-      if (matchingApp?.route_prefix) {
-        navigate(matchingApp.route_prefix, { replace: true })
-        return
-      }
-
-      // No routable apps installed — stay on login
-    }
-  }, [user, loading, apps, navigate])
-
-  // Show loading while checking auth state (but allow redirect logic to run)
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <LoadingSpinner className="w-8 h-8 mx-auto mb-4" />
-          <p className="text-slate-600">Checking authentication...</p>
-        </div>
-      </div>
-    )
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,15 +47,26 @@ export function LoginPage() {
     setIsLoading(true)
 
     try {
-      console.log('Attempting login...')
-      await login(email, password)
-      // Redirect will be handled by useEffect above
-      console.log('Login successful, redirect will be handled by useEffect...')
+      const user = await login(email, password, captchaToken ?? undefined)
+      const role = user?.roles?.[0]
+      if (!role) {
+        navigate('/')
+        return
+      }
+
+      const res = await fetch('/spine.config.json')
+      if (!res.ok) {
+        navigate('/')
+        return
+      }
+
+      const reg = (await res.json()).registration ?? {}
+      const app = reg.default_app_by_role?.[role] ?? reg.default_app
+      const path = reg.apps?.[app]?.path ?? '/'
+      navigate(path, { replace: true })
     } catch (err: any) {
-      console.error('Login error:', err)
       setError(err.message || 'Login failed')
     } finally {
-      console.log('Login process completed, setting loading to false')
       setIsLoading(false)
     }
   }
@@ -87,11 +75,11 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-slate-900">
-            <span className="text-white font-bold text-xl">S</span>
+          <div className="mx-auto flex items-center justify-center">
+            <img src={branding.logo_url} alt={branding.app_name} className="h-14 w-auto" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-            Sign in to Spine
+            Sign in to {branding.app_name}
           </h2>
           <p className="mt-2 text-center text-sm text-slate-600">
             Or{' '}
@@ -164,10 +152,12 @@ export function LoginPage() {
             </div>
           </div>
 
+          <TurnstileWidget onToken={setCaptchaToken} />
+
           <div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || (turnstileEnabled && !captchaToken)}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent rounded-[5px] shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-blue disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
@@ -185,3 +175,10 @@ export function LoginPage() {
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render the login form and handle user authentication.'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/components/ui/LoadingSpinner.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/auth/LoginPage.tsx:LoginPage:component"]

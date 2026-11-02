@@ -1,66 +1,59 @@
-/**
- * @module src/components/shared/SchemaFields
- * @audience installer
- * @layer frontend-component
- * @stability stable
- *
- * Schema-driven field grid. Renders an ordered list of `FieldDefinition`
- * entries via `FieldRenderer`, managing the name→value mapping and
- * propagating `onChange` calls back to the parent.
- *
- * **Value source resolution** (per field):
- * - `system` flag set → `data[name]` (top-level column)
- * - `system` flag unset → `data.data?.[name] ?? data[name]` (JSONB field
- *   with column fallback)
- *
- * **Layout:** two-column responsive grid by default (`twoColumn=true`);
- * pass `twoColumn=false` for a single-column stacked layout.
- *
- * **Exports:**
- * - `SchemaFields` — full editable/read-only field grid
- * - `SchemaFieldDisplay` — read-only single-field key:value display row
- * - `SchemaField` (unexported) — internal wrapper binding name to value
- *
- * @seeAlso src/components/shared/FieldRenderer.tsx
- * @seeAlso src/types/types.ts (FieldDefinition)
- * @seeAlso src/components/runtime/SchemaDetailForm.tsx (primary consumer)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:module_header:module_header" type="module_header" identity="module_header" parent=""]
+// CIL[DOC-MACRO purpose="Provide the module-level imports for the SchemaFields shared component"]
+// CIL[DOC-RESPONSIBILITY responsibility="Import React, the FieldDefinition type, and the FieldRenderer helper"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports React, the FieldDefinition type from types, and the FieldRenderer helper for rendering schema fields" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers"]
 
 import React from 'react'
 import { FieldDefinition } from '../../types/types'
 import { FieldRenderer } from './FieldRenderer'
+// CIL[DOC-VECTOR type="context" content="purpose='Provide the module-level imports for the SchemaFields shared component'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:module_header:module_header"]
 
-/**
- * Props for `SchemaFields`.
- *
- * @prop fields - Ordered array of field definitions to render
- * @prop data - Record containing current field values; may be flat or
- *   nested under a `.data` key for JSONB fields
- * @prop onChange - `(name, value)` callback; omit for pure read-only display
- * @prop readonly - Passes read-only mode down to every `FieldRenderer`
- * @prop errors - Per-field validation error messages
- * @prop twoColumn - Two-column responsive grid (default: `true`)
- * @prop displayTypes - Widget override map keyed by field name (from view config)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafieldsprops:interface" type="interface" identity="SchemaFieldsProps" parent="module_header"]
+// CIL[DOC-MACRO purpose="Define the props contract for the SchemaFields component"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare the typed shape of props accepted by the SchemaFields function"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="SchemaFieldsProps interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Defines an interface with fields, data, onChange, readonly, errors, twoColumn and displayTypes props" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 interface SchemaFieldsProps {
   fields: FieldDefinition[]
   data: Record<string, any>
   onChange?: (name: string, value: any) => void
   readonly?: boolean
   errors?: Record<string, string>
-  /** Render fields in a two-column grid (default: true) */
   twoColumn?: boolean
-  /** display_type per field key, sourced from view config — never from field definitions */
   displayTypes?: Record<string, string>
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Define the props contract for the SchemaFields component'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafieldsprops:interface"]
 
-/**
- * Renders a full schema field grid.
- *
- * @param props - `SchemaFieldsProps`
- * @returns Two-column (or single-column) field grid, or an empty-state message
- * @sideEffects none (delegates changes to `onChange`)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafields:function" type="function" identity="SchemaFields" parent="module_header"]
+// CIL[DOC-MACRO purpose="Render a grid or list of schema fields for a record"]
+// CIL[DOC-RESPONSIBILITY responsibility="Filter valid fields, resolve values, and render per-field SchemaField children"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="fields FieldDefinition[], data Record<string, any>, onChange function, readonly boolean, errors Record<string, string>, twoColumn boolean, displayTypes Record<string, string>" outputs="JSX.Element | null" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Guard for empty fields, render a two-column or single-column container, and map filtered fields to SchemaField with resolved values" notable_decisions="['System fields read from data[name], non-system fields fall back from data.data[name] to data[name]']"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export function SchemaFields({
   fields,
   data,
@@ -95,8 +88,23 @@ export function SchemaFields({
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render a grid or list of schema fields for a record'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafields:function"]
 
-/** Internal props for the `SchemaField` name-binding wrapper. */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafieldprops:interface" type="interface" identity="SchemaFieldProps" parent="module_header"]
+// CIL[DOC-MACRO purpose="Define the props contract for the SchemaField helper"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare the typed shape of props accepted by the SchemaField function"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="SchemaFieldProps interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Defines an interface with field, value, onChange, readonly, error and displayType props" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 interface SchemaFieldProps {
   field: FieldDefinition
   value: any
@@ -105,6 +113,22 @@ interface SchemaFieldProps {
   error?: string
   displayType?: string
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Define the props contract for the SchemaField helper'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafieldprops:interface"]
+
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafield:function" type="function" identity="SchemaField" parent="module_header"]
+// CIL[DOC-MACRO purpose="Render a single schema field using FieldRenderer"]
+// CIL[DOC-RESPONSIBILITY responsibility="Wrap FieldRenderer with the field definition, resolved value, and conditional change handler"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="field FieldDefinition, value any, onChange function, readonly boolean, error string, displayType string" outputs="FieldRenderer JSX" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Compute an onChange callback for non-readonly fields and delegate rendering to FieldRenderer" notable_decisions="['Only invokes onChange when field.name is defined']"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 
 function SchemaField({ field, value, onChange, readonly, error, displayType }: SchemaFieldProps) {
   return (
@@ -118,16 +142,23 @@ function SchemaField({ field, value, onChange, readonly, error, displayType }: S
     />
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render a single schema field using FieldRenderer'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafield:function"]
 
-/**
- * Read-only display of a single schema field value as a label:value row.
- * Useful for compact detail views outside the full form layout.
- *
- * @param field - Field definition (used for label and data_type formatting)
- * @param value - Raw value to display
- * @returns A `<div>` with label on the left and formatted value on the right
- * @sideEffects none (pure rendering)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafielddisplay:function" type="function" identity="SchemaFieldDisplay" parent="module_header"]
+// CIL[DOC-MACRO purpose="Display a read-only field label and formatted value pair"]
+// CIL[DOC-RESPONSIBILITY responsibility="Format the field value and render a definition list item"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="field FieldDefinition, value any" outputs="JSX definition list item" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Compute a display value via formatFieldValue and render a flex row with label and value" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export function SchemaFieldDisplay({
   field,
   value
@@ -148,22 +179,23 @@ export function SchemaFieldDisplay({
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Display a read-only field label and formatted value pair'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:schemafielddisplay:function"]
 
-/**
- * Formats a raw field value for read-only display, applying type-specific
- * transformations:
- * - `boolean`/`checkbox` → `'Yes'` / `'No'`
- * - `date` / `datetime` → locale string
- * - `select` → resolves option label from `field.options`
- * - `multiselect` → comma-joined option labels
- * - `json` → `<pre>` code block
- * - `url` → `<a>` link
- * - Null/undefined/empty → em-dash placeholder
- *
- * @param field - Field definition
- * @param value - Raw value
- * @returns Formatted `ReactNode`
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/SchemaFields.tsx:formatfieldvalue:function" type="function" identity="formatFieldValue" parent="module_header"]
+// CIL[DOC-MACRO purpose="Format a field value for read-only display based on its data_type"]
+// CIL[DOC-RESPONSIBILITY responsibility="Convert null, boolean, date, select, multiselect, json, url and other values into a display-friendly React node"]
+// CIL[DOC-CONTEXT module="components/shared" layer="presentation" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="field FieldDefinition, value any" outputs="React.ReactNode" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Handle missing values then switch on data_type to format booleans, dates, select options, arrays, json, urls and defaults" notable_decisions="['Booleans render as Yes/No, null or empty values render as an em dash, and select options look up labels from field.options']"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 function formatFieldValue(field: FieldDefinition, value: any): React.ReactNode {
   if (value === null || value === undefined || value === '') {
     return <span className="text-slate-400 italic">—</span>
@@ -224,3 +256,10 @@ function formatFieldValue(field: FieldDefinition, value: any): React.ReactNode {
       return String(value)
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Format a field value for read-only display based on its data_type'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/SchemaFields.tsx:formatfieldvalue:function"]

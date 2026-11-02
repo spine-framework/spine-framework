@@ -1,487 +1,1089 @@
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/admin-data.ts"]
 /**
- * @module admin-data
- * @audience both
- * @layer api-handler
+ * @module   admin-data
+ * @audience internal
+ * @layer    app-specific
  * @stability stable
  *
- * Generic CRUD API for all runtime entities. Provides list, get, create,
- * update, delete, and stats operations over a validated set of entity tables.
+ * This module handles administrative data operations within the system, providing essential functionalities for managing records and permissions. It serves as an API handler for various administrative actions, ensuring that only authorized users can perform updates and access sensitive data. INVARIANT: Only users with system admin privileges can execute these operations.
  *
- * **Routed by:** `GET/POST/PATCH/DELETE /.netlify/functions/admin-data`
+ * @seeAlso middleware.ts (provides request handling logic).
+ * @seeAlso permissions.ts (manages access control and validation).
+ * @seeAlso db.ts (interfaces with the database for data operations).
+ * @seeAlso principal.ts (determines user roles and permissions).
  *
- * **Dispatch table (query params → handler):**
- * | method | ?action | ?id present | Handler |
- * |--------|---------|-------------|---------|
- * | GET    | list    | any         | `list`  |
- * | GET    | get     | any         | `get`   |
- * | GET    | stats   | any         | `stats` |
- * | GET    | —       | yes         | `get`   |
- * | GET    | —       | no          | `list`  |
- * | POST   | —       | —           | `create`|
- * | PATCH  | —       | —           | `update`|
- * | DELETE | —       | —           | `remove`|
- *
- * **Authorization:** All DB reads/writes use `ctx.db` (RLS-scoped client).
- * RLS policies on each table enforce account hierarchy access automatically.
- * `adminDb` is used only for lookups that need bypass (type resolution).
- *
- * **Valid entities:** `accounts`, `people`, `items`, `threads`, `messages`,
- * `links`, `attachments`, `watchers`.
- *
- * INVARIANT: every `create` call requires `type_id` in the body — all runtime
- *   records must reference a type.
- * INVARIANT: trigger dispatch (create/update/delete) is fire-and-forget —
- *   trigger failures are logged but never surface to the caller.
- * INVARIANT: all returned records are passed through `sanitizeRecordData`
- *   before being returned — field-level permission stripping is always applied.
- *
- * @seeAlso middleware.ts (createHandler, CoreContext)
- * @seeAlso permissions.ts (sanitizeRecordData)
- * @seeAlso trigger-engine.ts (fire*Triggers)
- * @seeAlso types.ts (types table, design_schema, validation_schema)
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="This module handles administrative data operations within the system, providing essential functionalities for managing records and permissions."]
+// CIL[DOC-RESPONSIBILITY responsibility="This module handles administrative data operations within the system, providing essential functionalities for managing records and permissions. It serves as an API handler for various administrative actions, ensuring that only authorized users can perform updates and access sensitive data. INVARIANT: Only users with system admin privileges can execute these operations."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files="middleware.ts (provides request handling logic).,permissions.ts (manages access control and validation).,db.ts (interfaces with the database for data operations).,principal.ts (determines user roles and permissions)."]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="This module handles administrative data operations within the system, providing essential functionalities for managing records and permissions. It serves as an API handler for various administrative actions, ensuring that only authorized users can perform updates and access sensitive data. INVARIANT: Only users with system admin privileges can execute these operations." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="internal"]
+
+
+
+
+
+
+
+
 
 import { createHandler } from './_shared/middleware'
-import { sanitizeRecordData } from './_shared/permissions'
+import { sanitizeRecordData, resolveFirstSurfacePermissions, validateUpdatePermissions } from './_shared/permissions'
 import { adminDb } from './_shared/db'
+import { isSystemAdmin } from './_shared/principal'
+import { resolveTypeId, resolveTypeIds, resolveTypeRecord } from './_shared/resolve-ids'
 import { fireCreateTriggers, fireUpdateTriggers, fireDeleteTriggers } from './_shared/trigger-engine'
+import { withAdminLogging } from './_shared/logging'
+import { hasInternalAudience, projectMessageForCustomer } from './_shared/access'
+import { checkTypeSlugRateLimit } from './_shared/security'
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:module_header:module_header"]
+// CIL[DOC-VECTOR type="context" content="purpose='This module handles administrative data operations within the system, providing essential functionalities for managing records and permissions.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
+// CIL[DOC-MACRO purpose="PERMISSIONS_ALL defines a comprehensive set of permissions for record management, including create, read, update, and delete actions."]
+// CIL[DOC-RESPONSIBILITY responsibility="PERMISSIONS_ALL defines a comprehensive set of permissions for record management, including create, read, update, and delete actions. It serves as a centralized reference for managing access control in the application."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="PERMISSIONS_ALL defines a comprehensive set of permissions for record management, including create, read, update, and delete actions. It serves as a centralized reference for managing access control in the application." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+/**
+ * PERMISSIONS_ALL defines a comprehensive set of permissions for record management, including create, read, update, and delete actions. It serves as a centralized reference for managing access control in the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
+// CIL[DOC-MACRO purpose="PERMISSIONS_ALL constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the PERMISSIONS_ALL constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the PERMISSIONS_ALL constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:PERMISSIONS_ALL:constant" type="constant" identity="PERMISSIONS_ALL" parent="~/.framework/functions/admin-data.ts"]
 const PERMISSIONS_ALL = {
   record_permissions: { all: ['create', 'read', 'update', 'delete'] },
   fields: {}
 }
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:PERMISSIONS_ALL:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='PERMISSIONS_ALL defines a comprehensive set of permissions for record management, including create, read, update, and delete actions.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
 
+// CIL[DOC-MACRO purpose="VALID_ENTITIES is a constant array that defines the valid entity types used throughout the admin data functions."]
+// CIL[DOC-RESPONSIBILITY responsibility="VALID_ENTITIES is a constant array that defines the valid entity types used throughout the admin data functions. It ensures that only recognized entity types are processed in the module."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="VALID_ENTITIES is a constant array that defines the valid entity types used throughout the admin data functions. It ensures that only recognized entity types are processed in the module." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Allowlist of entity table names accepted by this handler.
- * Any entity string not in this set causes a 400-equivalent throw.
+ * VALID_ENTITIES is a constant array that defines the valid entity types used throughout the admin data functions. It ensures that only recognized entity types are processed in the module.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
  */
-const VALID_ENTITIES = ['accounts', 'people', 'items', 'threads', 'messages', 'links', 'attachments', 'watchers', 'item_progress']
+// CIL[DOC-MACRO purpose="VALID_ENTITIES constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the VALID_ENTITIES constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the VALID_ENTITIES constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:VALID_ENTITIES:constant" type="constant" identity="VALID_ENTITIES" parent="~/.framework/functions/admin-data.ts"]
+const VALID_ENTITIES = ['accounts', 'people', 'items', 'threads', 'messages', 'links', 'attachments', 'watchers', 'item_progress', 'logs', 'test_runs', 'observability', 'test_cases', 'types', 'link_types', 'ai_agents', 'prompt_configs']
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:VALID_ENTITIES:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:ENTITIES_WITHOUT_IS_ACTIVE:constant" type="constant" identity="ENTITIES_WITHOUT_IS_ACTIVE" parent="none"]
+// CIL[DOC-MACRO purpose="Entities whose table has no is_active column — the default soft-delete filter must skip them"]
+// CIL[DOC-RESPONSIBILITY responsibility="List VALID_ENTITIES tables lacking is_active so the list handler only applies the default is_active filter where the column exists"]
+// CIL[DOC-CONTEXT module="admin-data" layer="functions" related_files=".framework/migrations/001_core_schema.sql"]
+// CIL[DOC-CONTRACT inputs="none" outputs="readonly Set<string> of entity names" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="links, attachments, watchers, logs, and observability have no is_active column; applying the default filter to them yields 42703 column-does-not-exist" notable_decisions="['explicit_is_active_param_still_errors_on_these_tables']"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.9" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+const ENTITIES_WITHOUT_IS_ACTIVE = new Set(['links', 'attachments', 'watchers', 'logs', 'observability'])
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:ENTITIES_WITHOUT_IS_ACTIVE:constant"]
+// CIL[DOC-MACRO purpose="VALID_ENTITIES constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the VALID_ENTITIES constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the VALID_ENTITIES constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-VECTOR type="context" content="purpose='VALID_ENTITIES is a constant array that defines the valid entity types used throughout the admin data functions.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
-
-// ─── CHUNK_START: ADMIN_DATA_LIST ──────────────────────────────────────────────
+// CIL[DOC-MACRO purpose="RAW_ENTITIES is a constant array that defines a set of entity names used in the admin data functions."]
+// CIL[DOC-RESPONSIBILITY responsibility="RAW_ENTITIES is a constant array that defines a set of entity names used in the admin data functions. It exists to provide a centralized reference for these entity types, ensuring consistency across the module."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="RAW_ENTITIES is a constant array that defines a set of entity names used in the admin data functions. It exists to provide a centralized reference for these entity types, ensuring consistency across the module." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * @chunk-id    ADMIN_DATA_LIST_1_0_0
- * @version     1.0.0
- * @hash        780f1f0c81ea3bff78d40970ba4b03e3211d892bb883e6a099c6e0a55ee53b0c
- * @macro       Entity List Handler
- * @micro       Lists records with filtering, search, sorting, and pagination
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Array of sanitized records or {data, schema, view} with view config
- * @depends-on  [createHandler, sanitizeRecordData, adminDb, getSearchField]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, permission sanitization]
- * @tags        admin, crud, list, pagination, search
+ * RAW_ENTITIES is a constant array that defines a set of entity names used in the admin data functions. It exists to provide a centralized reference for these entity types, ensuring consistency across the module.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="RAW_ENTITIES constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the RAW_ENTITIES constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the RAW_ENTITIES constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:RAW_ENTITIES:constant" type="constant" identity="RAW_ENTITIES" parent="~/.framework/functions/admin-data.ts"]
+const RAW_ENTITIES = ['logs', 'test_runs', 'observability', 'test_cases']
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:RAW_ENTITIES:constant"]
+// Entities with no created_by/updated_by columns — audit stamps must be
+// omitted or writes fail with schema-cache errors.
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:UNAUDITED_ENTITIES:constant" type="constant" identity="UNAUDITED_ENTITIES" parent="~/.framework/functions/admin-data.ts"]
+const UNAUDITED_ENTITIES = ['types', 'link_types']
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:UNAUDITED_ENTITIES:constant"]
+// CIL[DOC-MACRO purpose="RAW_ENTITIES constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the RAW_ENTITIES constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the RAW_ENTITIES constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-VECTOR type="context" content="purpose='RAW_ENTITIES is a constant array that defines a set of entity names used in the admin data functions.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+
+// CIL[DOC-MACRO purpose="ENTITY_TO_KIND is a mapping of entity names to their corresponding kind identifiers."]
+// CIL[DOC-RESPONSIBILITY responsibility="ENTITY_TO_KIND is a mapping of entity names to their corresponding kind identifiers. It exists to provide a centralized reference for translating entity types within the application."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="ENTITY_TO_KIND is a mapping of entity names to their corresponding kind identifiers. It exists to provide a centralized reference for translating entity types within the application." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+/**
+ * ENTITY_TO_KIND is a mapping of entity names to their corresponding kind identifiers. It exists to provide a centralized reference for translating entity types within the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
+// CIL[DOC-MACRO purpose="ENTITY_TO_KIND constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the ENTITY_TO_KIND constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the ENTITY_TO_KIND constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:ENTITY_TO_KIND:constant" type="constant" identity="ENTITY_TO_KIND" parent="~/.framework/functions/admin-data.ts"]
+const ENTITY_TO_KIND: Record<string, string> = {
+  accounts: 'account',
+  people: 'person',
+  items: 'item',
+  threads: 'thread',
+  messages: 'message',
+  links: 'link',
+  attachments: 'attachment',
+  watchers: 'watcher',
+  item_progress: 'item_progress'
+}
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:ENTITY_TO_KIND:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='ENTITY_TO_KIND is a mapping of entity names to their corresponding kind identifiers.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The 'list' constant defines an asynchronous handler for listing entities based on various query parameters."]
+// CIL[DOC-RESPONSIBILITY responsibility="The 'list' constant defines an asynchronous handler for listing entities based on various query parameters. It validates input parameters and constructs a database query to retrieve the requested data."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required" side_effects="none dependencies="withAdminLogging, resolveTypeIds, getSearchField"]
+// CIL[DOC-MICRO logic_summary="The 'list' constant defines an asynchronous handler for listing entities based on various query parameters. It validates input parameters and constructs a database query to retrieve the requested data." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+/**
+ * The 'list' constant defines an asynchronous handler for listing entities based on various query parameters. It validates input parameters and constructs a database query to retrieve the requested data.
+ *
+ * @throws      Error — Valid entity parameter is required
+ * @sideEffects none
+ * @stability   stable
+ * @calls       withAdminLogging, resolveTypeIds, getSearchField
+ * @cil-generated
+ */
+// CIL[DOC-MACRO purpose="list constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the list constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the list constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:list:constant" type="constant" identity="list" parent="~/.framework/functions/admin-data.ts"]
 export const list = createHandler(async (ctx, _body) => {
-  // Extract all reserved query params to prevent them from being used as column filters
-  const { entity, action, method, search, sort_field = 'created_at', sort_direction = 'desc', limit = 50, offset = 0, type_slug, view: viewSlug, ...filters } = ctx.query || {}
+  const { entity, action, method, search, sort_field = 'created_at', sort_direction = 'desc', limit = 50, offset = 0, type_slug, type_slugs, view: viewSlug, flag_only, exclude_flag, include_inactive, ...filters } = ctx.query || {}
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    throw new Error('Valid entity parameter is required')
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'list',
+      method: method || 'GET',
+      filters,
+      typeSlug: type_slug
+    },
+    async () => {
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        throw new Error('Valid entity parameter is required')
+      }
 
-  // Use ctx.db - RLS-scoped client based on principal
-  // RLS policies enforce account hierarchy access automatically
-  let query = ctx.db.from(entity).select('*')
+      const db = (ctx.principal?.isInternal || isSystemAdmin(ctx.principal)) ? adminDb : ctx.db
+      let query = db.from(entity).select('*')
 
-  // Apply type_slug filter if provided (for schema-driven entities)
-  if (type_slug && entity === 'items') {
-    // Look up the type ID from the slug
-    const { data: typeRecord } = await adminDb
-      .from('types')
-      .select('id')
-      .eq('slug', type_slug)
-      .eq('is_active', true)
-      .single()
-    
-    if (typeRecord) {
-      query = query.eq('type_id', typeRecord.id)
+      // Customer-scoped principals never receive internal threads.
+      const internalAudience = hasInternalAudience(ctx.principal)
+      if (entity === 'threads' && !internalAudience) {
+        query = query.neq('visibility', 'internal')
+      }
+
+      const targetSlugs: string[] = []
+      if (type_slug) targetSlugs.push(type_slug)
+      if (type_slugs) {
+        const raw = Array.isArray(type_slugs) ? type_slugs : (type_slugs as string).split(',').map(s => s.trim()).filter(Boolean)
+        targetSlugs.push(...raw)
+      }
+      if (targetSlugs.length) {
+        const kind = ENTITY_TO_KIND[entity]
+        if (kind) {
+          try {
+            const resolved = await resolveTypeIds(targetSlugs.map(slug => ({ kind, slug })))
+            const typeIds = Object.values(resolved)
+            if (typeIds.length === 1) {
+              query = query.eq('type_id', typeIds[0])
+            } else if (typeIds.length > 1) {
+              query = query.in('type_id', typeIds)
+            }
+          } catch (err: any) {
+            if (err?.message?.includes('Type not found')) {
+              return []
+            }
+            throw err
+          }
+        }
+      }
+
+      if (search) {
+        const searchField = getSearchField(entity)
+        query = query.ilike(searchField, `%${search}%`)
+      }
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (key === 'is_active' || key === 'is_verified' || key === 'is_primary') {
+            query = query.eq(key, value === 'true')
+          } else {
+            query = query.eq(key, value)
+          }
+        }
+      })
+
+      // Soft-deleted rows are hidden by default — pass is_active=false or
+      // include_inactive=true to see them. Entities without an is_active
+      // column (links, attachments, watchers, logs, observability) skip the
+      // default filter — it would 500 with 42703 column-does-not-exist.
+      if (filters.is_active === undefined && include_inactive !== 'true' && !ENTITIES_WITHOUT_IS_ACTIVE.has(entity)) {
+        query = query.eq('is_active', true)
+      }
+
+      // Generic record-flag filters on the row's data jsonb. flag_only=<field>
+      // returns only rows where data->>field is 'true'; exclude_flag=<field>
+      // hides them (null counts as unset). Flag fields are stamped server-side
+      // — clients can only filter on them, never set them. Only entities whose
+      // rows carry flaggable data payloads are eligible (accounts/people are
+      // excluded). The field name is validated before it is interpolated into
+      // the PostgREST filter string.
+      const FLAGGABLE_ENTITIES = ['items', 'threads', 'messages', 'links', 'attachments', 'watchers']
+      const flagParam = flag_only ?? exclude_flag
+      if (flagParam !== undefined && !/^[a-z][a-z0-9_]{0,62}$/.test(String(flagParam))) {
+        const e: any = new Error('Invalid flag field name'); e.statusCode = 400; throw e
+      }
+      if (FLAGGABLE_ENTITIES.includes(entity)) {
+        if (flag_only) {
+          query = query.eq(`data->>${flag_only}`, 'true')
+        } else if (exclude_flag) {
+          query = query.or(`data->>${exclude_flag}.is.null,data->>${exclude_flag}.eq.false`)
+        }
+      }
+
+      query = query.order(sort_field, { ascending: sort_direction === 'asc' })
+
+      const { count, error: countError } = await db.from(entity)
+        .select('*', { count: 'exact', head: true })
+
+      if (countError) {
+        console.error('List count error:', countError)
+        throw new Error(countError.message || 'Database error getting count')
+      }
+
+      query = query.range(parseInt(offset.toString()), parseInt(offset.toString()) + parseInt(limit.toString()) - 1)
+
+      const { data, error: err } = await query
+
+      if (err) {
+        console.error('List query error:', err)
+        throw new Error(err.message || 'Database error listing records')
+      }
+
+      // Customer-scoped message reads project internal rows into safe
+      // step summaries — only when the parent thread itself is external.
+      let threadIsInternal = true
+      if (entity === 'messages' && !internalAudience && filters.thread_id) {
+        const { data: parentThread } = await adminDb
+          .from('threads')
+          .select('visibility')
+          .eq('id', filters.thread_id)
+          .maybeSingle()
+        threadIsInternal = parentThread?.visibility !== 'external' && parentThread?.visibility !== 'public'
+          ? true
+          : false
+      }
+
+      // Sanitize rows concurrently — the sequential loop turned every list
+      // request into an N+1 of permission lookups.
+      const sanitizedData = (
+        await Promise.all((data || []).map(async (record: any) => {
+          const sanitizedRecord = await sanitizeRecordData(ctx, record, entity)
+          if (entity === 'messages' && !internalAudience) {
+            return projectMessageForCustomer(sanitizedRecord, { threadIsInternal })
+          }
+          return sanitizedRecord
+        }))
+      ).filter(Boolean)
+
+      if (viewSlug && type_slug) {
+        const { data: typeRecord } = await adminDb
+          .from('types')
+          .select('design_schema')
+          .eq('slug', type_slug)
+          .eq('is_active', true)
+          .single()
+
+        if (typeRecord?.design_schema) {
+          const schema = typeRecord.design_schema
+          const resolvedView = schema.views?.[viewSlug] || null
+          return { data: sanitizedData, schema, view: resolvedView }
+        }
+      }
+
+      return sanitizedData
     }
+  )
+})
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:list:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The 'list' constant defines an asynchronous handler for listing entities based on various query parameters.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="Async function that resolves and attaches hierarchical lineage data to a record."]
+// CIL[DOC-RESPONSIBILITY responsibility="The attachLineage function retrieves and attaches parent and child records to a given record based on the lineage configuration declared on the record's type (design_schema.functionality.lineage). It is designed to facilitate the understanding of relationships between different entities in the database."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="- record: any (required) — the record to which lineage will be attached.\\n- ctx: any (required) — the context containing database access and other utilities." outputs="Promise<void>" errors="none" side_effects="Database reads from 'types', 'links' and 'items' tables. dependencies="ctx.db.from, ctx.db.select, ctx.db.eq, ctx.db.limit, ctx.db.single, sanitizeRecordData, resolveTypeIds, adminDb.from"]
+// CIL[DOC-MICRO logic_summary="Reads functionality.lineage off the record's type; walks declared parent_fields/link_type for parents (max 5 hops, cycle-guarded) and resolves declared children via links plus per-type data-field lookups." notable_decisions="Lineage traversal is fully declared on the owning app's type design_schema — no app-specific maps in framework code; each leg is guarded by its own declaration so partial blocks still work; types without a lineage block attach empty parents/children with no link/data queries."]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+/**
+ * The attachLineage function retrieves and attaches parent and child records to a given record based on its lineage in a hierarchical structure. It is designed to facilitate the understanding of relationships between different entities in the database.
+ *
+ * @macro       Async function that resolves and attaches hierarchical lineage data to a record.
+ * @micro       Reads the type-declared functionality.lineage config (parent_fields, link_type, children) and resolves parents via link + data-field walks and children via reverse links + per-type field lookups.
+ * @inputSpec
+ *   - record: any (required) — the record to which lineage will be attached.
+ *   - ctx: any (required) — the context containing database access and other utilities.
+ * @outputSpec  Promise<void>
+ * @sideEffects Database reads from 'types', 'links' and 'items' tables.
+ * @stability   stable
+ * @calls       adminDb.from, ctx.db.from, ctx.db.select, ctx.db.eq, ctx.db.limit, ctx.db.single, sanitizeRecordData, resolveTypeIds
+ * @errorHandling returns null on error during data fetching.
+ * @cil-generated
+ */
+// CIL[DOC-MACRO purpose="attachLineage function"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the attachLineage function from type-declared lineage config."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="record: any — item record with type_id, ctx: any — request context with db" outputs="mutates record (parents, children, type_slug)" errors="none" side_effects="reads types/links/items"]
+// CIL[DOC-MICRO logic_summary="Reads functionality.lineage off the record's type design_schema; parents walk declared link_type then parent_fields (5-hop, visited-set cycle guard); children resolve via reverse link_type edges plus per-child-type data field lookups." notable_decisions="['link_type queries are guarded by the declared link_type, parent scan by declared parent_fields, child field lookups by declared children — a type with no lineage block attaches empty arrays with no link/data queries']"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:attachLineage:function" type="function" identity="attachLineage" parent="~/.framework/functions/admin-data.ts"]
+async function attachLineage(record: any, ctx: any): Promise<void> {
+  // Lineage is declared per item type in design_schema.functionality.lineage:
+  //   { parent_fields: string[], link_type: string, children: { [childTypeSlug]: field } }
+  // Each leg is guarded by its own declaration — link queries run only when
+  // link_type is declared, the parent field-scan only iterates declared
+  // parent_fields, and data-field child lookups only run for declared children
+  // entries. A type with no lineage block gets empty parents/children and no
+  // link/data queries run at all.
+  const { data: typeRow } = await adminDb
+    .from('types')
+    .select('slug, design_schema')
+    .eq('id', record.type_id)
+    .single()
+  const lineage = typeRow?.design_schema?.functionality?.lineage
+  const linkType = typeof lineage?.link_type === 'string' && lineage.link_type ? lineage.link_type : null
+  const parentFields: string[] = Array.isArray(lineage?.parent_fields)
+    ? lineage.parent_fields.filter((f: any) => typeof f === 'string' && f)
+    : []
+  const childrenMap: Record<string, string> =
+    lineage?.children && typeof lineage.children === 'object' ? lineage.children : {}
+
+  async function parentIdFor(current: any, visited: Set<string>): Promise<string | null> {
+    if (linkType) {
+      const { data: links } = await ctx.db.from('links').select('target_id').eq('source_id', current.id).eq('link_type', linkType).eq('source_type', 'items').limit(1)
+      const linkTarget = links?.[0]?.target_id
+      if (linkTarget && !visited.has(linkTarget)) return linkTarget
+    }
+    const d = current.data || {}
+    for (const key of parentFields) {
+      const id = d[key]
+      if (id && !visited.has(id)) return id
+    }
+    return null
   }
 
-  // Apply search if provided
-  if (search) {
-    // Search in display field based on entity
-    const searchField = getSearchField(entity)
-    query = query.ilike(searchField, `%${search}%`)
+  async function getParents(record: any): Promise<any[]> {
+    if (!linkType && parentFields.length === 0) return []
+    const parents: any[] = []
+    const visited = new Set<string>([record.id])
+    let current: any = record
+    for (let i = 0; i < 5; i++) {
+      const parentId = await parentIdFor(current, visited)
+      if (!parentId) break
+      visited.add(parentId)
+      const { data, error } = await ctx.db.from('items').select('*').eq('id', parentId).single()
+      if (error || !data) break
+      current = data
+      const sanitized = await sanitizeRecordData(ctx, data, 'items')
+      parents.push(sanitized)
+    }
+    return parents
   }
 
-  // Apply filters
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      if (key === 'is_active' || key === 'is_verified' || key === 'is_primary') {
-        query = query.eq(key, value === 'true')
-      } else {
-        query = query.eq(key, value)
+  async function getChildren(record: any): Promise<any[]> {
+    const childIds = new Set<string>()
+    if (linkType) {
+      const { data: linkRows } = await ctx.db.from('links').select('source_id').eq('target_id', record.id).eq('link_type', linkType).eq('target_type', 'items').limit(50)
+      for (const row of linkRows || []) {
+        if (row.source_id && row.source_id !== record.id) childIds.add(row.source_id)
       }
     }
-  })
-
-  // Apply sorting
-  query = query.order(sort_field, { ascending: sort_direction === 'asc' })
-
-  // Get total count (RLS filters automatically)
-  const { count, error: countError } = await ctx.db.from(entity)
-    .select('*', { count: 'exact', head: true })
-
-  if (countError) {
-    console.error('List count error:', countError)
-    throw new Error(countError.message || 'Database error getting count')
-  }
-
-  // Apply pagination
-  query = query.range(parseInt(offset.toString()), parseInt(offset.toString()) + parseInt(limit.toString()) - 1)
-
-  const { data, error: err } = await query
-
-  if (err) {
-    console.error('List query error:', err)
-    throw new Error(err.message || 'Database error listing records')
-  }
-
-  // RLS policies already filtered the data - just sanitize
-  const sanitizedData = []
-  for (const record of data || []) {
-    const sanitizedRecord = await sanitizeRecordData(ctx, record, entity)
-    sanitizedData.push(sanitizedRecord)
-  }
-
-  // If ?view=slug was requested, resolve schema + view config from the type record
-  if (viewSlug && type_slug) {
-    const { data: typeRecord } = await adminDb
-      .from('types')
-      .select('design_schema')
-      .eq('slug', type_slug)
-      .eq('is_active', true)
-      .single()
-
-    if (typeRecord?.design_schema) {
-      const schema = typeRecord.design_schema
-      const resolvedView = schema.views?.[viewSlug] || null
-      return { data: sanitizedData, schema, view: resolvedView }
+    const childEntries = Object.entries(childrenMap)
+      .filter(([slug, field]) => slug && typeof field === 'string' && field)
+    if (childEntries.length) {
+      try {
+        const resolved = await resolveTypeIds(childEntries.map(([slug]) => ({ kind: 'item', slug })))
+        for (const [slug, field] of childEntries) {
+          const childTypeId = resolved[`item/${slug}`]
+          if (!childTypeId) continue
+          const { data: dataChildren } = await ctx.db.from('items').select('id').eq('type_id', childTypeId).eq(`data->>${field}`, record.id)
+          for (const child of dataChildren || []) {
+            if (child.id && child.id !== record.id) childIds.add(child.id)
+          }
+        }
+      } catch (e) {
+        // ignore missing child types
+      }
     }
+    if (childIds.size === 0) return []
+    const { data: rawChildren } = await ctx.db.from('items').select('*').in('id', Array.from(childIds))
+    const children: any[] = []
+    for (const child of rawChildren || []) {
+      if (child.id === record.id) continue
+      children.push(await sanitizeRecordData(ctx, child, 'items'))
+    }
+    return children
   }
 
-  return sanitizedData
-})
-// ─── CHUNK_END: ADMIN_DATA_LIST ────────────────────────────────────────────────
+  const [parents, children] = await Promise.all([getParents(record), getChildren(record)])
 
-// ─── CHUNK_START: ADMIN_DATA_GET ──────────────────────────────────────────────
+  const typeIds = new Set<string>()
+  typeIds.add(record.type_id)
+  for (const p of parents) if (p?.type_id) typeIds.add(p.type_id)
+  for (const c of children) if (c?.type_id) typeIds.add(c.type_id)
+  const { data: typeRows } = await adminDb.from('types').select('id, slug').in('id', Array.from(typeIds))
+  const slugById = new Map((typeRows || []).map((t: any) => [t.id, t.slug] as [string, string]))
+  record.type_slug = slugById.get(record.type_id) || ''
+  for (const p of parents) p.type_slug = slugById.get(p.type_id) || ''
+  for (const c of children) c.type_slug = slugById.get(c.type_id) || ''
+
+  record.parents = parents
+  record.children = children
+}
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:attachLineage:function"]
+// CIL[DOC-VECTOR type="context" content="purpose='The attachLineage function retrieves and attaches parent and child records to a given record based on its lineage in a hierarchical structure.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+
+// CIL[DOC-MACRO purpose="The 'get' constant defines an asynchronous handler for retrieving records from a database based on entity type and ID."]
+// CIL[DOC-RESPONSIBILITY responsibility="The 'get' constant defines an asynchronous handler for retrieving records from a database based on entity type and ID. It ensures proper logging and validation of input parameters before fetching and sanitizing the requested data."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required, Error — ID parameter is required, Error — Record not found" side_effects="none dependencies="withAdminLogging, ctx.db.from, sanitizeRecordData, adminDb.from, attachLineage, projectMessageForCustomer"]
+// CIL[DOC-MICRO logic_summary="The 'get' constant defines an asynchronous handler for retrieving records from a database based on entity type and ID. It ensures proper logging and validation of input parameters before fetching and sanitizing the requested data." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * @chunk-id    ADMIN_DATA_GET_1_0_0
- * @version     1.0.0
- * @hash        7ee27702615d7ebd144e065d399635ddf7664845685345d8a8f316449f11a7cf
- * @macro       Entity Get Handler
- * @micro       Returns a single record by ID with optional view configuration
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Sanitized record or {data, schema, view} with view config
- * @depends-on  [createHandler, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        admin, crud, get, single-record
+ * The 'get' constant defines an asynchronous handler for retrieving records from a database based on entity type and ID. It ensures proper logging and validation of input parameters before fetching and sanitizing the requested data.
+ *
+ * @throws      Error — Valid entity parameter is required, Error — ID parameter is required, Error — Record not found
+ * @sideEffects none
+ * @stability   stable
+ * @calls       withAdminLogging, ctx.db.from, sanitizeRecordData, adminDb.from, attachLineage, projectMessageForCustomer
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="get constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the get constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the get constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:get:constant" type="constant" identity="get" parent="~/.framework/functions/admin-data.ts"]
 export const get = createHandler(async (ctx, _body) => {
   const { entity, id, view: viewSlug } = ctx.query || {}
+  const method = ctx.query?.method || 'GET'
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    throw new Error('Valid entity parameter is required')
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'get',
+      method,
+      typeSlug: viewSlug
+    },
+    async () => {
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        throw new Error('Valid entity parameter is required')
+      }
 
-  if (!id) {
-    throw new Error('ID parameter is required')
-  }
+      if (!id) {
+        throw new Error('ID parameter is required')
+      }
 
-  // RLS will filter based on account hierarchy access
-  const { data, error: err } = await ctx.db.from(entity)
-    .select('*')
-    .eq('id', id)
-    .single()
+      const { data, error: err } = await ctx.db.from(entity)
+        .select('*')
+        .eq('id', id)
+        .single()
 
-  if (err) throw err
+      if (err) throw err
 
-  if (!data) {
-    throw new Error('Record not found')
-  }
+      if (!data) {
+        throw new Error('Record not found')
+      }
 
-  const sanitizedRecord = await sanitizeRecordData(ctx, data, entity)
+      let sanitizedRecord = await sanitizeRecordData(ctx, data, entity)
 
-  // If ?view=slug was requested, include schema + resolved view from the record's stamped schema
-  if (viewSlug && sanitizedRecord?.design_schema) {
-    const schema = sanitizedRecord.design_schema
-    const resolvedView = schema.views?.[viewSlug] || null
-    return { data: sanitizedRecord, schema, view: resolvedView }
-  }
+      // Customer-scoped principals cannot fetch internal threads or
+      // unprojectable internal messages by id.
+      if (!hasInternalAudience(ctx.principal) && sanitizedRecord?.visibility === 'internal') {
+        if (entity === 'threads') {
+          throw new Error('Record not found')
+        }
+        if (entity === 'messages') {
+          const { data: parentThread } = await adminDb
+            .from('threads')
+            .select('visibility')
+            .eq('id', sanitizedRecord.thread_id)
+            .maybeSingle()
+          const threadIsInternal = parentThread?.visibility !== 'external' && parentThread?.visibility !== 'public'
+          sanitizedRecord = projectMessageForCustomer(sanitizedRecord, { threadIsInternal })
+          if (!sanitizedRecord) throw new Error('Record not found')
+        }
+      }
 
-  return sanitizedRecord
+      // Lineage traversal costs several sequential reads — polling callers
+      // that never render it pass lineage=0 to skip it.
+      if (entity === 'items' && (ctx as any).query?.lineage !== '0') {
+        await attachLineage(sanitizedRecord, ctx)
+      }
+
+      if (viewSlug && sanitizedRecord?.design_schema) {
+        const schema = sanitizedRecord.design_schema
+        const resolvedView = schema.views?.[viewSlug] || null
+        return { data: sanitizedRecord, schema, view: resolvedView }
+      }
+
+      return sanitizedRecord
+    }
+  )
 })
-// ─── CHUNK_END: ADMIN_DATA_GET ────────────────────────────────────────────────
-
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:get:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The 'get' constant defines an asynchronous handler for retrieving records from a database based on entity type and ID.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The 'create' constant defines an asynchronous handler for creating new entities in the admin data context."]
+// CIL[DOC-RESPONSIBILITY responsibility="The 'create' constant defines an asynchronous handler for creating new entities in the admin data context. It validates input data and logs the creation action while handling various entity types."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required; Error — level and message are required for logs; Error — suite is required for test_runs; Error — metric_name and metric_value are required for observability; Error — slug and name are required for test_cases." side_effects="Database writes for new entity records, logging actions, and triggering additional processes. dependencies="withAdminLogging, ctx.db.from, fireCreateTriggers, sanitizeRecordData"]
+// CIL[DOC-MICRO logic_summary="The 'create' constant defines an asynchronous handler for creating new entities in the admin data context. It validates input data and logs the creation action while handling various entity types." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Creates a new record for an entity. Stamps `design_schema`,
- * `validation_schema`, audit fields, and `account_id` from the resolved type.
- * Fires `*_created` triggers asynchronously after DB insert.
+ * The 'create' constant defines an asynchronous handler for creating new entities in the admin data context. It validates input data and logs the creation action while handling various entity types.
  *
- * Body params:
- *   - `entity` (required) — one of VALID_ENTITIES
- *   - `type_id` (required) — UUID of an active type record
- *   - all other fields are passed through to the insert
- *
- * @returns Sanitized created record
- * @throws Error('Valid entity parameter is required')
- * @throws Error('type_id is required')
- * @throws Error('type_id not found') — if type UUID doesn't exist
- * @throws Error('type_id references an inactive type')
- * @throws PostgREST error on RLS INSERT denial
- * @inputSpec type_id: string — valid UUID of active type record
- * @inputSpec body fields: Record<string, any> — record field values
- * @outputSpec sanitized created record
- * @sideEffects DB write: entity table (INSERT)
- * @sideEffects DB read: types table (type resolution)
- * @sideEffects fire-and-forget: fireCreateTriggers
- * @calledBy handler (POST)
- * @calls sanitizeRecordData, adminDb (type lookup), fireCreateTriggers
- * @testUnit tests/unit/admin-data.test.ts — 'create'
- * @testIntegration tests/integration/admin-data.test.ts — 'create'
+ * @throws      Error — Valid entity parameter is required; Error — level and message are required for logs; Error — suite is required for test_runs; Error — metric_name and metric_value are required for observability; Error — slug and name are required for test_cases.
+ * @sideEffects Database writes for new entity records, logging actions, and triggering additional processes.
+ * @stability   stable
+ * @calls       withAdminLogging, ctx.db.from, fireCreateTriggers, sanitizeRecordData
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="create constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the create constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the create constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/admin-data.ts"]
 export const create = createHandler(async (ctx, body) => {
   const entity = body?.entity || ctx.query?.entity
-  const { entity: _e, design_schema: _ds, validation_schema: _vs, account_id: _ai, ...recordData } = body || {}
+  const type_slug = body?.type_slug
+  const method = ctx.query?.method || 'POST'
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    const e: any = new Error('Valid entity parameter is required'); e.statusCode = 400; throw e
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'create',
+      method,
+      typeSlug: type_slug
+    },
+    async () => {
+      const { entity: _e, type_slug: _ts, design_schema: _ds, validation_schema: _vs, account_id: requestedAccountId, id: _id, ...recordData } = body || {}
 
-  // type_id is required on all runtime record creation
-  if (!recordData.type_id) {
-    const e: any = new Error('type_id is required — every runtime record must reference a type'); e.statusCode = 400; throw e
-  }
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        const e: any = new Error('Valid entity parameter is required'); e.statusCode = 400; throw e
+      }
 
-  // Look up the type to stamp design_schema and validation_schema
-  const { data: typeRecord, error: typeErr } = await adminDb
-    .from('types')
-    .select('id, design_schema, validation_schema, is_active')
-    .eq('id', recordData.type_id)
-    .single()
+      if (RAW_ENTITIES.includes(entity)) {
+        const allowed: Record<string, string[]> = {
+          logs: ['level', 'message', 'context', 'source', 'source_type', 'source_id', 'person_id', 'account_id', 'app_id', 'created_by', 'metadata', 'created_at'],
+          test_runs: ['suite', 'status', 'started_at', 'finished_at', 'duration_ms', 'total', 'passed', 'failed', 'skipped', 'triggered_by', 'account_id'],
+          observability: ['app_id', 'account_id', 'type_id', 'metric_name', 'metric_value', 'metric_unit', 'context', 'metadata', 'created_at'],
+          test_cases: ['app_id', 'account_id', 'type_id', 'slug', 'name', 'description', 'config', 'metadata', 'is_active', 'is_system', 'created_at', 'updated_at']
+        }
+        const fields = allowed[entity] || []
+        const raw: any = {}
+        for (const key of fields) {
+          if (recordData[key] !== undefined) raw[key] = recordData[key]
+        }
+        if (fields.includes('account_id') && raw.account_id === undefined) raw.account_id = ctx.accountId
+        if (entity === 'logs' && !raw.created_at) raw.created_at = new Date().toISOString()
+        if (entity === 'logs' && (!raw.level || !raw.message)) { const e: any = new Error('level and message are required for logs'); e.statusCode = 400; throw e }
+        if (entity === 'test_runs' && !raw.suite) { const e: any = new Error('suite is required for test_runs'); e.statusCode = 400; throw e }
+        if (entity === 'observability' && (!raw.metric_name || raw.metric_value === undefined)) { const e: any = new Error('metric_name and metric_value are required for observability'); e.statusCode = 400; throw e }
+        if (entity === 'test_cases' && (!raw.slug || !raw.name)) { const e: any = new Error('slug and name are required for test_cases'); e.statusCode = 400; throw e }
 
-  if (typeErr || !typeRecord) {
-    throw new Error(`type_id not found: ${recordData.type_id}`)
-  }
+        const rawInsertDb = (ctx.principal?.isInternal || isSystemAdmin(ctx.principal)) ? adminDb : ctx.db
+        const { data, error: err } = await rawInsertDb.from(entity).insert(raw).select().single()
+        if (err) throw err
+        // Await the trigger check: the heavy work already offloads to
+        // pipeline-runner-background, so this only adds eval + queue insert
+        // + dispatch. Detached post-response work is CPU-frozen on Netlify
+        // and silently dropped trigger fires in production.
+        await fireCreateTriggers(entity, data.id, raw, ctx).catch(console.error)
+        return await sanitizeRecordData(ctx, data, entity)
+      }
 
-  if (!typeRecord.is_active) {
-    throw new Error(`type_id references an inactive type: ${recordData.type_id}`)
-  }
+      let typeRecord: { id: string; design_schema: Record<string, any>; validation_schema: Record<string, any> }
 
-  // Ensure the type has at least permissions=ALL (defensive — migration 062 guarantees this)
-  let designSchema = typeRecord.design_schema || {}
-  if (!designSchema.record_permissions) {
-    designSchema = { ...PERMISSIONS_ALL, ...designSchema }
-  }
+      if (body?.type_slug) {
+        const kind = ENTITY_TO_KIND[entity]
+        if (!kind) {
+          const e: any = new Error(`type_slug is not supported for entity: ${entity}`); e.statusCode = 400; throw e
+        }
+        typeRecord = await resolveTypeRecord(kind, body.type_slug)
+      } else if (recordData.type_id) {
+        const { data, error: typeErr } = await adminDb
+          .from('types')
+          .select('id, design_schema, validation_schema, is_active')
+          .eq('id', recordData.type_id)
+          .single()
+        if (typeErr || !data) throw new Error(`type_id not found: ${recordData.type_id}`)
+        if (!data.is_active) throw new Error(`type_id references an inactive type: ${recordData.type_id}`)
+        typeRecord = { id: data.id, design_schema: data.design_schema || {}, validation_schema: data.validation_schema || {} }
+      } else {
+        const e: any = new Error('type_id or type_slug is required — every runtime record must reference a type'); e.statusCode = 400; throw e
+      }
 
-  // Resolve account_id and propagate scope via parent inheritance (Option A)
-  // Priority: parent reference in body > type's own scope declaration
-  let recordAccountId = ctx.accountId
-  const parentRef = recordData.thread_id || recordData.target_id || recordData.parent_id
-  if (parentRef) {
-    const parentTable = recordData.thread_id ? 'threads' : 'items'
-    const { data: parentRecord } = await ctx.db
-      .from(parentTable)
-      .select('account_id, design_schema')
-      .eq('id', parentRef)
-      .maybeSingle()
-    if (!parentRecord) {
-      const e: any = new Error('Parent record not found or not accessible'); e.statusCode = 403; throw e
-    }
-    recordAccountId = parentRecord.account_id
-    const parentScope = parentRecord.design_schema?.scope
-    if (parentScope) {
-      designSchema = { ...designSchema, scope: parentScope }
-    }
-  } else {
-    const scope: string = designSchema.scope ?? 'account'
-    if (scope === 'platform') {
-      const { data: sysAccount } = await adminDb
-        .from('accounts')
-        .select('id')
-        .eq('slug', 'spine-system')
+      recordData.type_id = typeRecord.id
+
+      // Per-type create rate limit. Apps opt in by declaring
+      // config.rate_limits['<type_slug>_create'] in their manifest;
+      // with no policy the cached config read is the only cost.
+      await checkTypeSlugRateLimit(ctx, body?.type_slug)
+
+      let designSchema = typeRecord.design_schema || {}
+      if (!designSchema.record_permissions) {
+        designSchema = { ...PERMISSIONS_ALL, ...designSchema }
+      }
+
+      let recordAccountId = requestedAccountId || ctx.accountId
+      const parentRef = recordData.thread_id || recordData.target_id || recordData.parent_id
+      if (parentRef) {
+        const parentTable = recordData.thread_id
+          ? 'threads'
+          : recordData.target_type === 'account'
+            ? 'accounts'
+            : recordData.target_type === 'person'
+              ? 'people'
+              : 'items'
+        const parentColumns = parentTable === 'accounts' ? 'id' : 'account_id, design_schema'
+        const { data: parentRecord } = await ctx.db
+          .from(parentTable)
+          .select(parentColumns)
+          .eq('id', parentRef)
+          .maybeSingle()
+        if (!parentRecord) {
+          const e: any = new Error('Parent record not found or not accessible'); e.statusCode = 403; throw e
+        }
+        if (parentTable === 'accounts') {
+          recordAccountId = parentRecord.id
+        } else {
+          recordAccountId = parentRecord.account_id
+          const parentScope = parentRecord.design_schema?.scope
+          if (parentScope) {
+            designSchema = { ...designSchema, scope: parentScope }
+          }
+        }
+      }
+
+      const resolvedScope: string = designSchema.scope ?? 'account'
+      if (resolvedScope === 'platform') {
+        const { data: sysAccount } = await adminDb
+          .from('accounts')
+          .select('id')
+          .eq('slug', 'spine-system')
+          .single()
+        if (sysAccount?.id) recordAccountId = sysAccount.id
+      }
+
+      const dataToInsert: Record<string, any> = {
+        ...recordData,
+        design_schema:     designSchema,
+        validation_schema: typeRecord.validation_schema || {},
+        ...(UNAUDITED_ENTITIES.includes(entity) ? {} : { created_by: ctx.principal?.type === 'human' ? ctx.principal.id : null }),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      // accounts is the source-of-truth table; it does not have an account_id column
+      if (entity !== 'accounts') {
+        dataToInsert.account_id = recordAccountId
+      } else if (dataToInsert.parent_id === undefined) {
+        dataToInsert.parent_id = ctx.principal?.accountId || null
+      }
+
+      const permissionAccountId = entity === 'accounts' ? ctx.principal?.accountId : recordAccountId
+      const typeSlugForPermissions = type_slug || ENTITY_TO_KIND[entity]
+      const perms = await resolveFirstSurfacePermissions(
+        ctx.principal?.id,
+        permissionAccountId,
+        typeSlugForPermissions,
+        'create',
+        designSchema
+      )
+      const isMachineGlobal = ctx.principal?.type === 'machine' &&
+        (ctx.principal.scopes || []).includes('*:*')
+      if (!perms.canCreate && !isMachineGlobal) {
+        const e: any = new Error('Insufficient permissions to create this record')
+        e.statusCode = 403
+        throw e
+      }
+
+      // Function-side permission check already ran — write via service role.
+      // ctx.db is PostgREST `authenticated` for humans, which holds SELECT only.
+      const insertDb = adminDb
+
+      const { data, error: err } = await insertDb.from(entity)
+        .insert(dataToInsert)
+        .select()
         .single()
-      if (sysAccount?.id) recordAccountId = sysAccount.id
+
+      if (err) throw err
+
+      const entityData = { ...dataToInsert, id: data.id }
+      await fireCreateTriggers(entity, data.id, entityData, ctx).catch(console.error)
+
+      return await sanitizeRecordData(ctx, data, entity)
     }
-  }
-
-  // Add audit fields + stamped schema
-  const dataToInsert = {
-    ...recordData,
-    design_schema:     designSchema,
-    validation_schema: typeRecord.validation_schema || {},
-    created_by: ctx.principal?.id,
-    account_id: recordAccountId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-
-  // RLS will check if user has INSERT permission on this account
-  const { data, error: err } = await ctx.db.from(entity)
-    .insert(dataToInsert)
-    .select()
-    .single()
-
-  if (err) throw err
-
-  // Fire triggers asynchronously (don't block response)
-  const entityData = { ...dataToInsert, id: data.id }
-  fireCreateTriggers(entity, data.id, entityData, ctx).catch(console.error)
-
-  return await sanitizeRecordData(ctx, data, entity)
+  )
 })
-
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:create:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The 'create' constant defines an asynchronous handler for creating new entities in the admin data context.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The update function handles updating records in the database while ensuring proper validation and permissions."]
+// CIL[DOC-RESPONSIBILITY responsibility="The update function handles updating records in the database while ensuring proper validation and permissions. It logs the update action and sanitizes the data before performing the update."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required; Error — ID is required for update; Error — Record not found or access denied; Error — Insufficient permissions to update this record." side_effects="Database update operation, logging actions, and triggering update events. dependencies="withAdminLogging, validateUpdatePermissions, ctx.db.from, fireUpdateTriggers, sanitizeRecordData"]
+// CIL[DOC-MICRO logic_summary="The update function handles updating records in the database while ensuring proper validation and permissions. It logs the update action and sanitizes the data before performing the update." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Updates an existing record by ID. Stamps `updated_by` and `updated_at`.
- * Fires `*_updated` triggers asynchronously after DB update.
+ * The update function handles updating records in the database while ensuring proper validation and permissions. It logs the update action and sanitizes the data before performing the update.
  *
- * Query params: `entity` (required), `id` (required)
- * Body: partial record fields to update (no schema re-stamping on update)
- *
- * @returns Sanitized updated record
- * @throws Error('Valid entity parameter is required')
- * @throws Error('ID is required for update')
- * @throws PostgREST error on RLS UPDATE denial
- * @inputSpec id: string — valid UUID of existing record
- * @inputSpec body: Partial<Record> — fields to patch
- * @outputSpec sanitized updated record
- * @sideEffects DB write: entity table (UPDATE)
- * @sideEffects fire-and-forget: fireUpdateTriggers
- * @calledBy handler (PATCH)
- * @calls sanitizeRecordData, fireUpdateTriggers
- * @testUnit tests/unit/admin-data.test.ts — 'update'
+ * @throws      Error — Valid entity parameter is required; Error — ID is required for update; Error — Record not found or access denied; Error — Insufficient permissions to update this record.
+ * @sideEffects Database update operation, logging actions, and triggering update events.
+ * @stability   stable
+ * @calls       withAdminLogging, validateUpdatePermissions, ctx.db.from, fireUpdateTriggers, sanitizeRecordData
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="update constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the update constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the update constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:update:constant" type="constant" identity="update" parent="~/.framework/functions/admin-data.ts"]
 export const update = createHandler(async (ctx, body) => {
   const { entity, id } = ctx.query || {}
-  // Strip server-only fields — client must never override these on update
-  const { design_schema: _ds, validation_schema: _vs, account_id: _ai, type_id: _ti, ...recordData } = body || {}
+  const method = ctx.query?.method || 'PATCH'
+  const type_slug = body?.type_slug
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    throw new Error('Valid entity parameter is required')
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'update',
+      method,
+      typeSlug: type_slug
+    },
+    async () => {
+      const { design_schema: _ds, validation_schema: _vs, type_id: _ti, type_slug: _ts, id: _id, account_id: requestedAccountId, entity: _entity, ...recordData } = body || {}
 
-  if (!id) {
-    throw new Error('ID is required for update')
-  }
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        throw new Error('Valid entity parameter is required')
+      }
 
-  // Add audit fields
-  const dataToUpdate = {
-    ...recordData,
-    updated_by: ctx.principal?.id,
-    updated_at: new Date().toISOString()
-  }
+      if (!id) {
+        throw new Error('ID is required for update')
+      }
 
-  // RLS will check UPDATE permission on this record
-  const { data, error: err } = await ctx.db.from(entity)
-    .update(dataToUpdate)
-    .eq('id', id)
-    .select()
-    .single()
+      const { data: existing, error: existingErr } = await ctx.db
+        .from(entity)
+        .select('*')
+        .eq('id', id)
+        .single()
 
-  if (err) throw err
+      if (existingErr || !existing) {
+        throw new Error('Record not found or access denied')
+      }
 
-  // Fire triggers asynchronously (don't block response)
-  const entityData = { ...data, ...dataToUpdate }
-  fireUpdateTriggers(entity, id, entityData, ctx).catch(console.error)
+      if (entity === 'people' && requestedAccountId !== undefined) {
+        recordData.account_id = requestedAccountId
+      }
 
-  return await sanitizeRecordData(ctx, data, entity)
+      const typeSlugForPermissions = type_slug || entity
+      const validation = await validateUpdatePermissions(
+        ctx,
+        recordData,
+        existing,
+        typeSlugForPermissions
+      )
+
+      if (!validation.valid && !isSystemAdmin(ctx.principal)) {
+        const e: any = new Error(validation.error || 'Insufficient permissions to update this record')
+        e.statusCode = 403
+        throw e
+      }
+
+      const sanitizedUpdate = (validation as any).sanitizedData || recordData
+      const dataToUpdate = RAW_ENTITIES.includes(entity)
+        ? { ...sanitizedUpdate }
+        : {
+            ...sanitizedUpdate,
+            ...(UNAUDITED_ENTITIES.includes(entity) ? {} : { updated_by: ctx.principal?.type === 'human' ? ctx.principal.id : null }),
+            updated_at: new Date().toISOString()
+          }
+
+      const { data, error: err } = await adminDb.from(entity)
+        .update(dataToUpdate)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (err) throw err
+
+      const entityData = { ...data, ...dataToUpdate }
+      // Await the trigger check — see note in the create path. Detached
+      // post-response work is CPU-frozen on Netlify and drops trigger fires.
+      await fireUpdateTriggers(entity, id, entityData, ctx, existing).catch(console.error)
+
+      return await sanitizeRecordData(ctx, data, entity)
+    }
+  )
 })
-
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:update:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The update function handles updating records in the database while ensuring proper validation and permissions.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The 'remove' constant defines an asynchronous handler for removing records from a database, supporting both soft and hard deletes based on the provided parameters."]
+// CIL[DOC-RESPONSIBILITY responsibility="The 'remove' constant defines an asynchronous handler for removing records from a database, supporting both soft and hard deletes based on the provided parameters. It ensures that the entity and ID are valid and checks for sufficient permissions before performing the delete operation."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required, Error — ID is required for delete, Error — Record not found or access denied, Error — Insufficient permissions to delete this record." side_effects="Updates or deletes records in the database. dependencies="withAdminLogging, ctx.db.from, resolveFirstSurfacePermissions, entitySupportsSoftDelete, sanitizeRecordData"]
+// CIL[DOC-MICRO logic_summary="The 'remove' constant defines an asynchronous handler for removing records from a database, supporting both soft and hard deletes based on the provided parameters. It ensures that the entity and ID are valid and checks for sufficient permissions before performing the delete operation." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Deletes a record by ID. Defaults to soft delete (`is_active = false`) for
- * entities that support it; falls back to hard delete otherwise.
+ * The 'remove' constant defines an asynchronous handler for removing records from a database, supporting both soft and hard deletes based on the provided parameters. It ensures that the entity and ID are valid and checks for sufficient permissions before performing the delete operation.
  *
- * Query params:
- *   - `entity` (required) — one of VALID_ENTITIES
- *   - `id` (required) — UUID of the record
- *   - `soft` (default: 'true') — set to 'false' to force hard delete
- *
- * Soft-delete-capable entities: `accounts`, `people`, `items`, `threads`,
- * `messages`, `watchers`. All others always receive a hard delete.
- *
- * @returns `{ deleted: true, soft: true, data }` (soft) or `{ deleted: true, soft: false }` (hard)
- * @throws Error('Valid entity parameter is required')
- * @throws Error('ID is required for delete')
- * @throws PostgREST error on RLS DELETE denial
- * @inputSpec id: string — valid UUID
- * @inputSpec soft: 'true' | 'false'
- * @outputSpec { deleted: boolean, soft: boolean, data?: sanitizedRecord }
- * @sideEffects DB write: UPDATE is_active=false (soft) or DELETE (hard)
- * @sideEffects fire-and-forget: fireDeleteTriggers
- * @calledBy handler (DELETE)
- * @calls sanitizeRecordData, entitySupportsSoftDelete, fireDeleteTriggers
- * @testUnit tests/unit/admin-data.test.ts — 'remove'
+ * @throws      Error — Valid entity parameter is required, Error — ID is required for delete, Error — Record not found or access denied, Error — Insufficient permissions to delete this record.
+ * @sideEffects Updates or deletes records in the database.
+ * @stability   stable
+ * @calls       withAdminLogging, ctx.db.from, resolveFirstSurfacePermissions, entitySupportsSoftDelete, sanitizeRecordData
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="remove constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the remove constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the remove constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:remove:constant" type="constant" identity="remove" parent="~/.framework/functions/admin-data.ts"]
 export const remove = createHandler(async (ctx, _body) => {
   const { entity, id, soft = 'true' } = ctx.query || {}
+  const method = ctx.query?.method || 'DELETE'
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    throw new Error('Valid entity parameter is required')
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'remove',
+      method
+    },
+    async () => {
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        throw new Error('Valid entity parameter is required')
+      }
 
-  if (!id) {
-    throw new Error('ID is required for delete')
-  }
+      if (!id) {
+        throw new Error('ID is required for delete')
+      }
 
-  const isSoftDelete = soft === 'true'
+      const { data: existing, error: existingErr } = await ctx.db
+        .from(entity)
+        .select('*')
+        .eq('id', id)
+        .single()
 
-  if (isSoftDelete && entitySupportsSoftDelete(entity)) {
-    // Soft delete - set is_active to false
-    // RLS will check DELETE permission on this record
-    const { data, error: err } = await ctx.db.from(entity)
-      .update({
-        is_active: false,
-        updated_by: ctx.principal?.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single()
+      if (existingErr || !existing) {
+        throw new Error('Record not found or access denied')
+      }
 
-    if (err) throw err
-    return { deleted: true, soft: true, data: await sanitizeRecordData(ctx, data, entity) }
-  } else {
-    // Hard delete
-    // RLS will check DELETE permission on this record
-    const { error: err } = await ctx.db.from(entity)
-      .delete()
-      .eq('id', id)
+      const permissionAccountId = existing.account_id || ctx.principal?.accountId
+      const perms = await resolveFirstSurfacePermissions(
+        ctx.principal?.id,
+        permissionAccountId,
+        entity,
+        'delete',
+        existing.design_schema
+      )
 
-    if (err) throw err
-    return { deleted: true, soft: false }
-  }
+      if (!perms.canDelete && !isSystemAdmin(ctx.principal)) {
+        const e: any = new Error('Insufficient permissions to delete this record')
+        e.statusCode = 403
+        throw e
+      }
+
+      const isSoftDelete = soft === 'true'
+
+      if (isSoftDelete && entitySupportsSoftDelete(entity)) {
+        const { data, error: err } = await adminDb.from(entity)
+          .update({
+            is_active: false,
+            updated_by: ctx.principal?.type === 'human' ? ctx.principal.id : null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .select()
+          .single()
+
+        if (err) throw err
+        return { deleted: true, soft: true, data: await sanitizeRecordData(ctx, data, entity) }
+      } else {
+        const { error: err } = await adminDb.from(entity)
+          .delete()
+          .eq('id', id)
+
+        if (err) throw err
+        return { deleted: true, soft: false }
+      }
+    }
+  )
 })
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:remove:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The 'remove' constant defines an asynchronous handler for removing records from a database, supporting both soft and hard deletes based on the provided parameters.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="Retrieves the appropriate search field name for a given entity type."]
+// CIL[DOC-RESPONSIBILITY responsibility="Retrieves the appropriate search field name for a given entity type. This function helps standardize search queries across different entity types in the application."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="entity: string (required) — the name of the entity for which to retrieve the search field." outputs="string — the search field name associated with the entity or 'id' if not found." errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Retrieves the appropriate search field name for a given entity type. This function helps standardize search queries across different entity types in the application." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Returns the primary text field to use for `ilike` search for a given entity.
- * Falls back to 'id' for unmapped entities.
+ * Retrieves the appropriate search field name for a given entity type. This function helps standardize search queries across different entity types in the application.
  *
- * @calledBy list (search param handling)
+ * @inputSpec
+ *   entity: string (required) — the name of the entity for which to retrieve the search field.
+ * @outputSpec  string — the search field name associated with the entity or 'id' if not found.
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
  */
-// ─── CHUNK_START: ADMIN_DATA_GET_SEARCH_FIELD ──────────────────────────────────────────────
-/**
- * @chunk-id    ADMIN_DATA_GET_SEARCH_FIELD_1_0_0
- * @version     1.0.0
- * @hash        7c2615cf66a522b9b0df96cfbc8dfc50a2650016e967ceffd9172a770c78a26a
- * @macro       Search Field Resolver
- * @micro       Returns the primary display field for search functionality
- * @inputs      entity: string — Entity name from VALID_ENTITIES
- * @outputs     string — Column name to search in
- * @depends-on  [none]
- * @depended-by [list]
- * @side-effects [none]
- * @tags        admin, search, field-mapping
- */
+// CIL[DOC-MACRO purpose="getSearchField function"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the getSearchField function."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the getSearchField function." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:getSearchField:function" type="function" identity="getSearchField" parent="~/.framework/functions/admin-data.ts"]
 function getSearchField(entity: string): string {
   const searchFields: Record<string, string> = {
     accounts: 'display_name',
@@ -492,100 +1094,159 @@ function getSearchField(entity: string): string {
     links: 'link_type',
     attachments: 'filename',
     watchers: 'watch_type',
-    item_progress: 'title'
+    item_progress: 'title',
+    logs: 'message',
+    test_runs: 'suite',
+    observability: 'metric_name',
+    test_cases: 'name'
   }
   return searchFields[entity] || 'id'
 }
-// ─── CHUNK_END: ADMIN_DATA_GET_SEARCH_FIELD ────────────────────────────────────────────────
-
-// ─── CHUNK_START: ADMIN_DATA_ENTITY_SUPPORTS_SOFT_DELETE ──────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:getSearchField:function"]
+// CIL[DOC-VECTOR type="context" content="purpose='Retrieves the appropriate search field name for a given entity type.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="Determines if a given entity supports soft deletion by checking against a predefined list of entities."]
+// CIL[DOC-RESPONSIBILITY responsibility="Determines if a given entity supports soft deletion by checking against a predefined list of entities. This function exists to facilitate operations that depend on the soft delete capability of certain entities."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="entity: string (required) — the name of the entity to check for soft delete support." outputs="boolean — returns true if the entity supports soft deletion, otherwise false." errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Determines if a given entity supports soft deletion by checking against a predefined list of entities. This function exists to facilitate operations that depend on the soft delete capability of certain entities." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * @chunk-id    ADMIN_DATA_ENTITY_SUPPORTS_SOFT_DELETE_1_0_0
- * @version     1.0.0
- * @hash        0438e650a11bfb4c25b90939780127d8912bdc5caeb772fe3049381d6497412d
- * @macro       Soft Delete Support Checker
- * @micro       Returns true if entity supports soft delete via is_active column
- * @inputs      entity: string — Entity name from VALID_ENTITIES
- * @outputs     boolean — True if entity has is_active column
- * @depends-on  [none]
- * @depended-by [remove]
- * @side-effects [none]
- * @tags        admin, soft-delete, entity-check
+ * Determines if a given entity supports soft deletion by checking against a predefined list of entities. This function exists to facilitate operations that depend on the soft delete capability of certain entities.
+ *
+ * @inputSpec
+ *   entity: string (required) — the name of the entity to check for soft delete support.
+ * @outputSpec  boolean — returns true if the entity supports soft deletion, otherwise false.
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="entitySupportsSoftDelete function"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the entitySupportsSoftDelete function."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the entitySupportsSoftDelete function." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:entitySupportsSoftDelete:function" type="function" identity="entitySupportsSoftDelete" parent="~/.framework/functions/admin-data.ts"]
 function entitySupportsSoftDelete(entity: string): boolean {
-  const softDeleteEntities = ['accounts', 'people', 'items', 'threads', 'messages', 'watchers', 'item_progress']
+  const softDeleteEntities = ['accounts', 'people', 'items', 'threads', 'messages', 'watchers', 'item_progress', 'test_cases']
   return softDeleteEntities.includes(entity)
 }
-// ─── CHUNK_END: ADMIN_DATA_ENTITY_SUPPORTS_SOFT_DELETE ────────────────────────────────────────────────
-
-// ─── CHUNK_START: ADMIN_DATA_STATS ──────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:entitySupportsSoftDelete:function"]
+// CIL[DOC-VECTOR type="context" content="purpose='Determines if a given entity supports soft deletion by checking against a predefined list of entities.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The 'stats' constant provides an asynchronous handler for retrieving the count of records for a specified entity in the database."]
+// CIL[DOC-RESPONSIBILITY responsibility="The 'stats' constant provides an asynchronous handler for retrieving the count of records for a specified entity in the database. It ensures that the entity is valid and logs the request for administrative purposes."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Valid entity parameter is required, Error — database query error." side_effects="none dependencies="withAdminLogging, ctx.db.from"]
+// CIL[DOC-MICRO logic_summary="The 'stats' constant provides an asynchronous handler for retrieving the count of records for a specified entity in the database. It ensures that the entity is valid and logs the request for administrative purposes." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * @chunk-id    ADMIN_DATA_STATS_1_0_0
- * @version     1.0.0
- * @hash        0bed523a260ab3959cb4e7150cca044f4e97ce91d7ae3386ab14b5f4182d74d7
- * @macro       Entity Stats Handler
- * @micro       Returns total record count for an entity scoped by account
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     {entity: string, count: number} — Entity name and record count
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing]
- * @side-effects [DB count query with RLS filtering]
- * @tags        admin, stats, count, entity
+ * The 'stats' constant provides an asynchronous handler for retrieving the count of records for a specified entity in the database. It ensures that the entity is valid and logs the request for administrative purposes.
+ *
+ * @throws      Error — Valid entity parameter is required, Error — database query error.
+ * @sideEffects none
+ * @stability   stable
+ * @calls       withAdminLogging, ctx.db.from
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="stats constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the stats constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the stats constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:stats:constant" type="constant" identity="stats" parent="~/.framework/functions/admin-data.ts"]
 export const stats = createHandler(async (ctx, _body) => {
   const { entity } = ctx.query || {}
+  const method = ctx.query?.method || 'GET'
 
-  if (!entity || !VALID_ENTITIES.includes(entity)) {
-    throw new Error('Valid entity parameter is required')
-  }
+  return await withAdminLogging(
+    ctx,
+    {
+      entity: entity || 'unknown',
+      action: 'stats',
+      method
+    },
+    async () => {
+      if (!entity || !VALID_ENTITIES.includes(entity)) {
+        throw new Error('Valid entity parameter is required')
+      }
 
-  // RLS will filter count based on account hierarchy access
-  const { count, error: err } = await ctx.db.from(entity)
-    .select('*', { count: 'exact', head: true })
+      const { count, error: err } = await ctx.db.from(entity)
+        .select('*', { count: 'exact', head: true })
 
-  if (err) throw err
+      if (err) throw err
 
-  return { entity, count }
+      return { entity, count }
+    }
+  )
 })
-// ─── CHUNK_END: ADMIN_DATA_STATS ────────────────────────────────────────────────
-
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
-
-// ─── CHUNK_START: ADMIN_DATA_HANDLER ──────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:stats:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The 'stats' constant provides an asynchronous handler for retrieving the count of records for a specified entity in the database.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="The handler processes incoming requests based on the specified action and HTTP method, routing them to the appropriate function."]
+// CIL[DOC-RESPONSIBILITY responsibility="The handler processes incoming requests based on the specified action and HTTP method, routing them to the appropriate function. It serves as a centralized entry point for managing various administrative data operations."]
+// CIL[DOC-CONTEXT module="admin-data" layer="app-specific" related_files=".framework/functions/_shared/middleware,.framework/functions/_shared/permissions,.framework/functions/_shared/db,.framework/functions/_shared/principal,.framework/functions/_shared/resolve-ids,.framework/functions/_shared/trigger-engine,.framework/functions/_shared/logging,.framework/functions/_shared/access"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="Error — Invalid action or method" side_effects="none dependencies="list, get, stats, create, update, remove"]
+// CIL[DOC-MICRO logic_summary="The handler processes incoming requests based on the specified action and HTTP method, routing them to the appropriate function. It serves as a centralized entry point for managing various administrative data operations." notable_decisions="none"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * @chunk-id    ADMIN_DATA_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        edceffa0d5c8b3c05b1a89188a274a586b6ebe8793ede427e2326876d7090df9
- * @macro       Admin Data Router
- * @micro       Routes HTTP methods and actions to appropriate CRUD handlers
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST/PATCH operations
- * @outputs     Varies — Depends on routed handler (list/get/create/update/remove/stats)
- * @depends-on  [createHandler, list, get, create, update, remove, stats]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        admin, router, crud, netlify-function
+ * The handler processes incoming requests based on the specified action and HTTP method, routing them to the appropriate function. It serves as a centralized entry point for managing various administrative data operations.
+ *
+ * @throws      Error — Invalid action or method
+ * @sideEffects none
+ * @stability   stable
+ * @calls       list, get, stats, create, update, remove
+ * @cil-generated
  */
+// CIL[DOC-MACRO purpose="handler constant"]
+// CIL[DOC-RESPONSIBILITY responsibility="Implements the handler constant."]
+// CIL[DOC-CONTEXT module=".framework/functions/admin-data.ts" layer="app-specific" related_files=""]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the handler constant." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="first" score="0.8" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/functions/admin-data.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/admin-data.ts"]
 export const handler = createHandler(async (ctx, body) => {
   const { action } = ctx.query || {}
   const method = ctx.query?.method || 'GET'
 
   switch (action) {
     case 'list':
-      if (method === 'GET') {
-        return await list(ctx, body)
-      }
+      if (method === 'GET') return await list(ctx, body)
       break
     case 'get':
-      if (method === 'GET') {
-        return await get(ctx, body)
-      }
+      if (method === 'GET') return await get(ctx, body)
       break
     case 'stats':
-      if (method === 'GET') {
-        return await stats(ctx, body)
-      }
+      if (method === 'GET') return await stats(ctx, body)
+      break
+    case 'create':
+      if (method === 'POST') return await create(ctx, body)
+      break
+    case 'update':
+      if (method === 'PATCH') return await update(ctx, body)
+      break
+    case 'remove':
+      if (method === 'DELETE') return await remove(ctx, body)
       break
     default:
       if (method === 'GET' && ctx.query?.id) {
@@ -603,4 +1264,10 @@ export const handler = createHandler(async (ctx, body) => {
 
   throw new Error('Invalid action or method')
 })
-// ─── CHUNK_END: ADMIN_DATA_HANDLER ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/admin-data.ts:handler:constant"]
+// CIL[DOC-VECTOR type="context" content="purpose='The handler processes incoming requests based on the specified action and HTTP method, routing them to the appropriate function.'; No verified external callers" status="ready"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only" status="ready"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified" status="ready"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented" status="ready"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]

@@ -1,6 +1,29 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/AIAgentDetailPage.tsx"]
 /**
- * @module src/pages/admin/AIAgentDetailPage
+ * @module   AIAgentDetailPage
+ * @audience internal
+ * @layer    app-specific
+ * @stability stable
+ *
+ * This module represents the AIAgentDetailPage component, which is responsible for displaying and managing the details of an AI agent within the admin interface. It utilizes various UI components to facilitate user interactions and integrates with the API for data fetching and submission. INVARIANT: The component expects valid agent ID parameters to function correctly.
+ *
+ * @seeAlso useApi (provides API interaction hooks).
+ * @seeAlso apiFetch (handles API requests).
+ * @seeAlso EntitySelect (used for selecting entities related to the agent).
+ * @seeAlso PageInstructions (provides guidance on the page).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
@@ -11,33 +34,126 @@ import { Textarea } from '../../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Checkbox } from '../../components/ui/checkbox'
 import { Label } from '../../components/ui/label'
+import { AppSelect } from '../../components/admin/EntitySelect'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { ArrowLeft, Bot, AlertCircle } from 'lucide-react'
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AIAgent:interface" type="interface" identity="AIAgent" parent="~/.framework/src/pages/admin/AIAgentDetailPage.tsx"]
+/**
+ * The AIAgent interface defines the structure for AI agents used in the application, encapsulating their properties and configurations. It serves to standardize the representation of various types of AI agents within the system.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface AIAgent {
   id: string
   name: string
   description?: string
+  app_id?: string
   agent_type: 'chat' | 'analysis' | 'automation' | 'custom'
   model_config: { model: string; max_tokens?: number; temperature?: number }
   system_prompt: string
   tools: string[]
   capabilities?: Record<string, any>
   constraints?: Record<string, any>
+  metadata?: Record<string, any>
   is_active: boolean
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AIAgent:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AGENT_TYPES:constant" type="constant" identity="AGENT_TYPES" parent="~/.framework/src/pages/admin/AIAgentDetailPage.tsx"]
+/**
+ * AGENT_TYPES is a constant array that defines the different types of agents available in the application. It serves to standardize the agent type options throughout the module.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 const AGENT_TYPES = [
   { value: 'chat', label: 'Chat' },
   { value: 'analysis', label: 'Analysis' },
   { value: 'automation', label: 'Automation' },
   { value: 'custom', label: 'Custom' }
 ]
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AGENT_TYPES:constant"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AIAgentDetailPage:component" type="component" identity="AIAgentDetailPage" parent="~/.framework/src/pages/admin/AIAgentDetailPage.tsx"]
+/**
+ * The AIAgentDetailPage component manages the creation and editing of AI agent details within the admin interface. It fetches existing agent data or initializes a new agent based on the provided ID.
+ *
+ * @outputSpec  JSX.Element
+ * @throws      Error — failed to fetch AI agent
+ * @sideEffects Fetches data from an external API, potentially modifies the database via POST or PATCH requests.
+ * @stability   stable
+ * @calls       useParams, useNavigate, useApi, apiFetch, navigate
+ * @errorHandling Logs errors to the console on save failure.
+ * @cil-generated
+ */
 export function AIAgentDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -48,11 +164,12 @@ export function AIAgentDetailPage() {
   const { data: agent, loading, error } = useApi<AIAgent>(
     async () => {
       if (isCreateMode) return {
-        id: '', name: '', description: '', agent_type: 'chat' as const,
+        id: '', name: '', description: '', app_id: '', agent_type: 'chat' as const,
         model_config: { model: 'gpt-4', max_tokens: 2048, temperature: 0.7 },
-        system_prompt: '', tools: [], capabilities: {}, constraints: {},
+        system_prompt: '', tools: [], capabilities: {}, constraints: {}, metadata: {},
         is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
       }
+
       const response = await apiFetch(`/api/ai-agents?method=GET&id=${id}`)
       if (!response.ok) throw new Error('Failed to fetch AI agent')
       const result = await response.json()
@@ -64,11 +181,12 @@ export function AIAgentDetailPage() {
   useEffect(() => {
     if (agent) {
       setEditData({
-        name: agent.name, description: agent.description || '', agent_type: agent.agent_type,
+        name: agent.name, description: agent.description || '', app_id: agent.app_id || '', agent_type: agent.agent_type,
         model_config: agent.model_config || { model: 'gpt-4', max_tokens: 2048, temperature: 0.7 },
         system_prompt: agent.system_prompt || '', tools: (agent.tools || []).join('\n'),
         capabilities: JSON.stringify(agent.capabilities || {}, null, 2),
         constraints: JSON.stringify(agent.constraints || {}, null, 2),
+        metadata: JSON.stringify(agent.metadata || {}, null, 2),
         is_active: agent.is_active
       })
     }
@@ -78,9 +196,11 @@ export function AIAgentDetailPage() {
     try {
       const payload = {
         ...editData,
+        app_id: editData.app_id || null,
         tools: editData.tools?.split('\n').filter(Boolean) || [],
         capabilities: JSON.parse(editData.capabilities || '{}'),
-        constraints: JSON.parse(editData.constraints || '{}')
+        constraints: JSON.parse(editData.constraints || '{}'),
+        metadata: JSON.parse(editData.metadata || '{}')
       }
       const url = isCreateMode ? '/api/ai-agents' : `/api/ai-agents?id=${id}`
       const response = await apiFetch(url, {
@@ -114,7 +234,6 @@ export function AIAgentDetailPage() {
         <Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-bold">{isCreateMode ? 'Create AI Agent' : agent?.name}</h1>
       </div>
-      
       <div className="flex justify-end gap-2">
         {isEditing ? (
           <><Button variant="outline" onClick={() => isCreateMode ? navigate(-1) : setIsEditing(false)}>Cancel</Button><Button onClick={handleSave}>{isCreateMode ? 'Create' : 'Save'}</Button></>
@@ -125,6 +244,7 @@ export function AIAgentDetailPage() {
         <Card><CardContent className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Name</Label><Input value={editData.name || ''} onChange={e => setEditData({...editData, name: e.target.value})} /></div>
+            <div className="space-y-2"><Label>App</Label><AppSelect value={editData.app_id || ''} onChange={v => setEditData({...editData, app_id: v})} /></div>
             <div className="space-y-2"><Label>Type</Label><Select value={editData.agent_type || 'chat'} onValueChange={v => setEditData({...editData, agent_type: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{AGENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-2"><Label>Model</Label><Input value={editData.model_config?.model || ''} onChange={e => setEditData({...editData, model_config: {...editData.model_config, model: e.target.value}})} /></div>
             <div className="space-y-2"><Label>Max Tokens</Label><Input type="number" value={editData.model_config?.max_tokens || ''} onChange={e => setEditData({...editData, model_config: {...editData.model_config, max_tokens: parseInt(e.target.value)}})} /></div>
@@ -136,6 +256,7 @@ export function AIAgentDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Capabilities (JSON)</Label><Textarea value={editData.capabilities || '{}'} onChange={e => setEditData({...editData, capabilities: e.target.value})} rows={4} className="font-mono text-sm" /></div>
             <div className="space-y-2"><Label>Constraints (JSON)</Label><Textarea value={editData.constraints || '{}'} onChange={e => setEditData({...editData, constraints: e.target.value})} rows={4} className="font-mono text-sm" /></div>
+            <div className="space-y-2"><Label>Metadata (JSON)</Label><Textarea value={editData.metadata || '{}'} onChange={e => setEditData({...editData, metadata: e.target.value})} rows={4} className="font-mono text-sm" /></div>
           </div>
           <div className="flex items-center gap-2"><Checkbox id="active" checked={editData.is_active} onCheckedChange={c => setEditData({...editData, is_active: c === true})} /><Label htmlFor="active">Active</Label></div>
         </CardContent></Card>
@@ -159,3 +280,13 @@ export function AIAgentDetailPage() {
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentDetailPage.tsx:AIAgentDetailPage:component"]
+
+
+
+
+
+
+
+
+

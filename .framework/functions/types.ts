@@ -1,69 +1,67 @@
-/**
- * @module types
- * @audience core-contributor
- * @layer api-handler
- * @stability stable
- *
- * CRUD API for the `types` table. Types are the schema configuration objects
- * that define `design_schema`, `validation_schema`, field definitions, and
- * view configurations for runtime entities (`items`, `people`, `accounts`).
- *
- * **Routed by:** `GET/POST/PATCH/DELETE /.netlify/functions/types`
- *
- * **Authorization model:**
- * - All reads use `ctx.db` (RLS-scoped) and are sanitized via `sanitizeRecordData`.
- * - All writes (`create`, `update`, `remove`) require `isSystemAdmin` AND the
- *   caller's account must be a master tenant (`accounts.parent_id IS NULL`).
- * - Unauthenticated `list` calls receive minimal fields only (id, slug, name, kind).
- *
- * **Design schema auto-sync:** `update` regenerates `validation_schema` automatically
- * via `generateValidationSchema` whenever `design_schema` changes.
- *
- * INVARIANT: type slugs must be unique per (kind, app_id) combination.
- * INVARIANT: `ownership` of system types cannot be changed (to prevent constraint violations).
- * INVARIANT: `app_id = null` for system types; must be provided for app/tenant types.
- *
- * @seeAlso middleware.ts (createHandler, CoreContext)
- * @seeAlso permissions.ts (PermissionEngine, sanitizeRecordData, validateUpdatePermissions)
- * @seeAlso schema-utils.ts (generateValidationSchema — auto-called on design_schema updates)
- * @seeAlso audit.ts (emitLog for type.created / type.updated / type.deleted)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Netlify function module that exposes CRUD and schema query handlers for runtime record type definitions"]
+// CIL[DOC-RESPONSIBILITY responsibility="Import shared utilities and export typed handlers for listing, reading, creating, updating, soft-deleting, and routing types"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts"]
+// CIL[DOC-CONTRACT inputs="HTTP method, query parameters, request body" outputs="JSON response for type records or schema" errors="Validation, permission, and database errors" side_effects="Database reads/writes and audit log emissions"]
+// CIL[DOC-MICRO logic_summary="Aggregates all type operation handlers into a single module export" notable_decisions="Uses createHandler for request context; delegates routing to handler"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="framework_developers"]
 
 import { createHandler } from './_shared/middleware'
 import { adminDb, joins } from './_shared/db'
 import { emitLog } from './_shared/audit'
+import { isSystemAdmin } from './_shared/principal'
 import { PermissionEngine, sanitizeRecordData } from './_shared/permissions'
 import { generateValidationSchema } from './_shared/schema-utils'
+// CIL[DOC-VECTOR type="context" content="purpose='Netlify function module that exposes CRUD and schema query handlers for runtime record type definitions'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:module_header:module_header"]
 
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:permissions:constant" type="constant" identity="permissions" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Provide a typed alias to the permission engine for system admin checks"]
+// CIL[DOC-RESPONSIBILITY responsibility="Cast PermissionEngine to any so handlers can call isSystemAdmin"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="permissions alias" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Casts PermissionEngine to any for convenience" notable_decisions="Avoids strict typing at this boundary"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 const permissions = PermissionEngine as any
-
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_LIST ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_LIST_1_0_0
- * @version     1.0.0
- * @hash        0cfcf45a5a70d17002599b77e1c45bf7d3de456bc474e68a89ff44069d711b91
- * @macro       Types List Handler
- * @micro       Lists types with filtering, authentication-based response, and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Array of type records with app join, sanitized and schema-aware
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, permission sanitization, schema preservation]
- * @tags        types, list, crud, filtering, authentication
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Provide a typed alias to the permission engine for system admin checks'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:permissions:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:list:constant" type="constant" identity="list" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="List active type definitions with optional filters and pagination"]
+// CIL[DOC-RESPONSIBILITY responsibility="Query the public.types table and sanitize records based on the caller principal"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="kind, app_id, ownership, active, limit, offset, include_schema query parameters" outputs="array of sanitized type rows" errors="Database query errors" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Builds a filtered, paginated Supabase query against the types table and returns sanitized results" notable_decisions="Returns minimal fields for unauthenticated callers; includes schema only when requested; active defaults to true, 'all' lists active and inactive, 'false' lists inactive only"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const list = createHandler(async (ctx, body) => {
-  const { kind, app_id, ownership, limit = '50', offset = '0', include_schema } = ctx.query || {}
+  const { kind, app_id, ownership, active, limit = '50', offset = '0', include_schema } = ctx.query || {}
 
-  // RLS automatically filters to accessible accounts
-  let query = ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  let query = db
     .from('types')
-    .select(`*, ${joins.app}`)
-    .eq('is_active', true)
+    .select('*')
     .order('kind')
     .order('name')
+
+  if (active === 'false') {
+    query = query.eq('is_active', false)
+  } else if (active !== 'all') {
+    query = query.eq('is_active', true)
+  }
 
   if (kind) {
     query = query.eq('kind', kind)
@@ -84,32 +82,24 @@ export const list = createHandler(async (ctx, body) => {
 
   if (err) throw err
 
-  // For authenticated users, always include design_schema for schema-driven UI
-  // System admin sees everything, others get sanitized data with design_schema preserved
-  // When include_schema=true, preserve full design_schema for all accessible types
   const sanitized = []
   for (const type of data || []) {
     if (ctx.principal) {
-      // Authenticated user - get sanitized data but preserve design_schema
       const sanitizedType = await sanitizeRecordData(ctx, type, 'type')
-      // Ensure design_schema is preserved for schema-driven UI
       if (type.design_schema && !sanitizedType.design_schema) {
         sanitizedType.design_schema = type.design_schema
       }
-      // When include_schema=true, also preserve validation_schema
       if (include_schema === 'true' && type.validation_schema) {
         sanitizedType.validation_schema = type.validation_schema
       }
       sanitized.push(sanitizedType)
     } else {
-      // Unauthenticated user - return minimal data
       const minimal: any = {
         id: type.id,
         slug: type.slug,
         name: type.name,
         kind: type.kind
       }
-      // When include_schema=true, unauthenticated users also get schema
       if (include_schema === 'true' && type.design_schema) {
         minimal.design_schema = type.design_schema
       }
@@ -119,23 +109,21 @@ export const list = createHandler(async (ctx, body) => {
 
   return sanitized
 })
-// ─── CHUNK_END: TYPES_LIST ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_GET ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_GET_1_0_0
- * @version     1.0.0
- * @hash        435ff5a93d05f74e0299b515d32f50ceb5c526b517a6972ef65c3bdaa75c218f
- * @macro       Type Get Handler
- * @micro       Returns single type record with joins and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Sanitized type record with app join
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        types, get, crud, single-record
- */
+// CIL[DOC-VECTOR type="context" content="purpose='List active type definitions with optional filters and pagination'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:list:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:get:constant" type="constant" identity="get" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Fetch a single active type record by id"]
+// CIL[DOC-RESPONSIBILITY responsibility="Retrieve a single type row by id and sanitize it for the caller"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="id query parameter" outputs="sanitized type record" errors="Missing id, not found, database errors" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Selects a single active type by id and returns a sanitized record" notable_decisions="Uses adminDb for system admins and ctx.db otherwise"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const get = createHandler(async (ctx, body) => {
   const { id } = ctx.query || {}
   
@@ -143,35 +131,33 @@ export const get = createHandler(async (ctx, body) => {
     throw new Error('Type ID is required')
   }
 
-  const { data, error: err } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data, error: err } = await db
     .from('types')
-    .select(`*, ${joins.app}`)
+    .select('*')
     .eq('id', id)
-    .eq('is_active', true)
     .single()
 
   if (err) throw err
 
-  // Sanitize based on role permissions
   return await sanitizeRecordData(ctx, data, 'type')
 })
-// ─── CHUNK_END: TYPES_GET ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_GET_BY_SLUG ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_GET_BY_SLUG_1_0_0
- * @version     1.0.0
- * @hash        6585200f3ecdef92e2912849afd5d72a3968fe13b464cdf43f33a888edda4163
- * @macro       Type Get By Slug Handler
- * @micro       Returns single type record by slug with joins and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Sanitized type record with app join
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        types, get, crud, single-record, slug
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Fetch a single active type record by id'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:get:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:getBySlug:constant" type="constant" identity="getBySlug" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Fetch an active type record by slug"]
+// CIL[DOC-RESPONSIBILITY responsibility="Retrieve a single active type row by slug, including related app, and sanitize it"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="slug query parameter" outputs="sanitized type record with app join" errors="Missing slug, not found, database errors" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Selects a single active type by slug with the app join and returns sanitized data" notable_decisions="Uses ctx.db rather than adminDb"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const getBySlug = createHandler(async (ctx, body) => {
   const { slug } = ctx.query || {}
   
@@ -188,26 +174,23 @@ export const getBySlug = createHandler(async (ctx, body) => {
 
   if (err) throw err
 
-  // Sanitize based on role permissions
   return await sanitizeRecordData(ctx, data, 'type')
 })
-// ─── CHUNK_END: TYPES_GET_BY_SLUG ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_GET_SCHEMA ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_GET_SCHEMA_1_0_0
- * @version     1.0.0
- * @hash        2cff73f363bb53c145d64b5b2fc788de592a94321000425f6b2ab82489c9a1e4
- * @macro       Type Schema Handler
- * @micro       Returns design_schema for a type via RPC
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     {design_schema: object} — Type design schema
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing]
- * @side-effects [DB RPC call, RLS enforcement]
- * @tags        types, schema, rpc, design-schema
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Fetch an active type record by slug'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:getBySlug:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:getSchema:constant" type="constant" identity="getSchema" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Return the design schema for a given kind and slug"]
+// CIL[DOC-RESPONSIBILITY responsibility="Call the get_type_schema database function and return the design schema"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="kind, slug, app_id query parameters" outputs="object containing design_schema" errors="Missing kind or slug, database errors" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Invokes the get_type_schema Postgres RPC with optional app_id" notable_decisions="Passes app_id as null when not provided"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const getSchema = createHandler(async (ctx, body) => {
   const { kind, slug, app_id } = ctx.query || {}
 
@@ -226,379 +209,294 @@ export const getSchema = createHandler(async (ctx, body) => {
 
   return { design_schema: data }
 })
-// ─── CHUNK_END: TYPES_GET_SCHEMA ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_CREATE ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_CREATE_1_0_0
- * @version     1.0.0
- * @hash        c226d40910e332c0c89bfbb0d09f2b6a04b45a0a104c70d485ebd08c2c07cbe0
- * @macro       Type Create Handler
- * @micro       Creates type with system admin validation, schema generation, and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Type data including kind, slug, name, and optional fields
- * @outputs     Inserted type record
- * @depends-on  [createHandler, adminDb, permissions, generateValidationSchema, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB insert, master tenant validation, schema generation, audit logging]
- * @tags        types, create, crud, system-admin, schema-generation, audit
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Return the design schema for a given kind and slug'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:getSchema:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Create a new type definition"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate admin privileges, enforce required fields, check uniqueness, generate validation schema, insert the row, and emit an audit log"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="request body with name, slug, kind, and optional fields" outputs="newly created type row" errors="Non-admin, missing fields, duplicate slug, database errors" side_effects="Inserts row into public.types and emits type.created audit log"]
+// CIL[DOC-MICRO logic_summary="Enforces system admin, validates required fields, prevents duplicate active slug, generates validation schema if absent, inserts the row, and logs" notable_decisions="Uses adminDb for inserts and falls back to generated validation schema"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const create = createHandler(async (ctx, body) => {
-  const { app_id, kind, slug, name, description, icon, color, design_schema: bodySchema = {}, ownership } = body
-
-  if (!kind || !slug || !name) {
-    throw new Error('kind, slug, and name are required')
-  }
-
-  if (!ctx.principal || ctx.principal.id === 'anonymous' || !ctx.accountId) {
-    throw new Error('User context (person and account) required')
-  }
-
-  // Config mutations (types) are only allowed in master tenant by system admins
   if (!permissions.isSystemAdmin(ctx)) {
-    throw new Error('Only system administrators can create type configurations')
+    throw new Error('System admin required')
   }
 
-  // Verify the current account is a master tenant (parent_id IS NULL)
-  // Use adminDb for this check since we're verifying account structure
-  const { data: accountData } = await adminDb
-    .from('accounts')
-    .select('parent_id')
-    .eq('id', ctx.accountId!)
-    .single()
-
-  if (!accountData || accountData.parent_id !== null) {
-    throw new Error('Type configurations can only be created in master tenant accounts')
+  if (!body || typeof body !== 'object') {
+    throw new Error('Request body is required')
   }
 
-  // Check if slug is unique within app/kind
-  let query = adminDb
+  const {
+    name,
+    slug,
+    kind,
+    ownership = 'system',
+    app_id = null,
+    design_schema = {},
+    validation_schema = null,
+    description = null,
+    icon = null,
+    color = null
+  } = body
+
+  if (!name || !slug || !kind) {
+    throw new Error('name, slug, and kind are required')
+  }
+
+  const { data: existing } = await adminDb
     .from('types')
     .select('id')
-    .eq('kind', kind)
     .eq('slug', slug)
-
-  if (app_id) {
-    query = query.eq('app_id', app_id)
-  } else {
-    query = query.is('app_id', null)
-  }
-
-  const { data: existing } = await query.single()
+    .eq('kind', kind)
+    .eq('app_id', app_id)
+    .eq('is_active', true)
+    .single()
 
   if (existing) {
-    throw new Error('Type slug already exists for this kind and app')
+    throw new Error(`Type with slug '${slug}' already exists for kind '${kind}'`)
   }
 
-  // Basic schema validation
-  if (bodySchema && typeof bodySchema === 'object') {
-    if (bodySchema.fields && (typeof bodySchema.fields !== 'object' || bodySchema.fields === null)) {
-      throw new Error('Schema fields must be an object')
-    }
-  }
+  const validation = validation_schema || generateValidationSchema(design_schema)
 
-  // For non-system ownership, we need an app_id to satisfy the constraint
-  let finalAppId = app_id
-  let finalOwnership = ownership
-  
-  if (!app_id && ownership !== 'system') {
-    // Get the first available app for tenant/custom types
-    const { data: apps } = await adminDb
-      .from('apps')
-      .select('id')
-      .limit(1)
-      .single()
-    
-    if (apps?.id) {
-      finalAppId = apps.id
-      finalOwnership = 'app' // Use 'app' ownership when associated with an app
-    } else {
-      throw new Error('Cannot create type without app_id for non-system ownership')
-    }
-  }
-
-  // Generate validation schema from design schema
-  const validationSchema = generateValidationSchema(bodySchema || {})
-
-  const { data, error: err } = await adminDb
+  const { data, error } = await adminDb
     .from('types')
     .insert({
-      app_id: finalAppId,
-      kind,
-      slug,
       name,
+      slug,
+      kind,
+      ownership,
+      app_id,
+      design_schema,
+      validation_schema: validation,
       description,
       icon,
       color,
-      design_schema: bodySchema || {},
-      validation_schema: validationSchema,
-      ownership: finalOwnership || 'system',
       is_active: true
     })
     .select()
     .single()
 
-  if (err) throw err
+  if (error) throw error
 
-  await emitLog(ctx, 'type.created', { type: 'type', id: data.id }, { after: data })
+  await emitLog(ctx, 'type.created', {
+    type_id: data.id,
+    type_slug: data.slug,
+    type_kind: data.kind
+  })
 
   return data
 })
-// ─── CHUNK_END: TYPES_CREATE ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_UPDATE ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_UPDATE_1_0_0
- * @version     1.0.0
- * @hash        7778ce63ecc3dd50fe50680c4f1199a59db4c4dae734cf7a2d58cc2de76b9a6a
- * @macro       Type Update Handler
- * @micro       Updates type with validation, schema regeneration, and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Type updates including id and updatable fields
- * @outputs     Updated type record
- * @depends-on  [createHandler, adminDb, permissions, generateValidationSchema, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB update, field validation, schema regeneration, audit logging]
- * @tags        types, update, crud, system-admin, schema-generation, audit
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Create a new type definition'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:create:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:update:constant" type="constant" identity="update" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Update an existing type definition"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate admin, find the row, protect system ownership, build allowed updates, regenerate validation schema on design change, and log"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="id query parameter and request body fields" outputs="updated type row" errors="Non-admin, missing id, not found, ownership change forbidden, database errors" side_effects="Updates row and emits type.updated audit log"]
+// CIL[DOC-MICRO logic_summary="Selects existing type, blocks ownership changes on system types, applies whitelisted updates, regenerates validation schema when design_schema changes, and logs" notable_decisions="Only updates explicitly provided fields; permission check is performed before lookup"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const update = createHandler(async (ctx, body) => {
-  const id = body?.id || ctx.query?.id
-  const { id: _bodyId, ...updates } = body || {}
-
-  if (!id) {
-    throw new Error('Type ID is required')
-  }
-
-  if (!ctx.principal || ctx.principal.id === 'anonymous' || !ctx.accountId) {
-    throw new Error('User context (person and account) required')
-  }
-
-  // Get current state for audit - RLS will filter to accessible types
-  const { data: current } = await adminDb
-    .from('types')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (!current) {
-    throw new Error('Type not found')
-  }
-
-  // Config mutations (types) are only allowed in master tenant by system admins
   if (!permissions.isSystemAdmin(ctx)) {
-    throw new Error('Only system administrators can update type configurations')
+    throw new Error('System admin required')
   }
 
-  // System types can only be updated by system admins (already checked above)
-  // App types require app ownership verification
-  if (current.ownership === 'app' && current.app_id) {
-    // Verify user has access to this app
-    const { data: appAccess } = await adminDb
-      .from('apps')
-      .select('id')
-      .eq('id', current.app_id)
-      .eq('is_active', true)
-      .single()
-    
-    if (!appAccess) {
-      throw new Error('App not found or inactive')
-    }
-  }
-
-  // Verify the current account is a master tenant (parent_id IS NULL)
-  // Use adminDb for this check since we're verifying account structure
-  const { data: accountData } = await adminDb
-    .from('accounts')
-    .select('parent_id')
-    .eq('id', ctx.accountId!)
-    .single()
-
-  if (!accountData || accountData.parent_id !== null) {
-    throw new Error('Type configurations can only be updated in master tenant accounts')
-  }
-
-  // Validate field-level permissions
-  const fieldValidation = await permissions.validateUpdatePermissions(
-    ctx,
-    updates,
-    current,
-    'type'
-  )
+  const { id } = ctx.query || {}
   
-  if (!fieldValidation.valid) {
-    throw new Error(fieldValidation.error)
-  }
-
-  // Prevent ownership changes for system types to avoid constraint violations
-  if (current.ownership === 'system' && updates.ownership && updates.ownership !== 'system') {
-    // Remove ownership from updates to preserve system ownership
-    delete updates.ownership
-  }
-
-  // Handle app_id null conversion for system types
-  if (updates.app_id === '') {
-    updates.app_id = null
-  }
-
-  // Validate design_schema if being updated
-  if (updates.design_schema) {
-    if (typeof updates.design_schema !== 'object' || updates.design_schema === null) {
-      throw new Error('Design schema must be an object')
-    }
-    if (updates.design_schema.fields && (typeof updates.design_schema.fields !== 'object' || updates.design_schema.fields === null)) {
-      throw new Error('Design schema fields must be an object')
-    }
-    
-    // Auto-generate validation_schema when design_schema changes
-    updates.validation_schema = generateValidationSchema(updates.design_schema)
-  }
-
-  const { data, error: err } = await ctx.db
-    .from('types')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (err) throw err
-
-  await emitLog(ctx, 'type.updated', { type: 'type', id }, { before: current, after: data })
-
-  return data
-})
-// ─── CHUNK_END: TYPES_UPDATE ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_REMOVE ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_REMOVE_1_0_0
- * @version     1.0.0
- * @hash        eef22a9e3f661c71c65ba5d69ce7e60c2c2bfccec986ad2309290217f5332455
- * @macro       Type Remove Handler
- * @micro       Soft-deletes type with system admin validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Type id for deletion
- * @outputs     Updated type record with is_active: false
- * @depends-on  [createHandler, adminDb, permissions, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB soft delete, master tenant validation, audit logging]
- * @tags        types, remove, soft-delete, system-admin, audit
- */
-export const remove = createHandler(async (ctx, body) => {
-  const id = body?.id || ctx.query?.id
-
   if (!id) {
     throw new Error('Type ID is required')
   }
 
-  if (!ctx.principal || ctx.principal.id === 'anonymous' || !ctx.accountId) {
-    throw new Error('User context (person and account) required')
+  if (!body || typeof body !== 'object') {
+    throw new Error('Request body is required')
   }
 
-  // Get current state for audit - RLS will filter to accessible types
-  const { data: current } = await ctx.db
+  const { data: existing } = await adminDb
     .from('types')
     .select('*')
     .eq('id', id)
     .single()
 
-  if (!current) {
+  if (!existing) {
     throw new Error('Type not found')
   }
 
-  // Config mutations (types) are only allowed in master tenant by system admins
-  if (!permissions.isSystemAdmin(ctx)) {
-    throw new Error('Only system administrators can delete type configurations')
+  if (existing.ownership === 'system' && body.ownership && body.ownership !== 'system') {
+    throw new Error('Cannot change ownership of system types')
   }
 
-  // System types can only be deleted by system admins (already checked above)
-  // App types require app ownership verification
-  if (current.ownership === 'app' && current.app_id) {
-    // Verify user has access to this app
-    const { data: appAccess } = await ctx.db
-      .from('apps')
-      .select('id')
-      .eq('id', current.app_id)
-      .eq('is_active', true)
-      .single()
-    
-    if (!appAccess) {
-      throw new Error('App not found or inactive')
-    }
+  const {
+    name,
+    slug,
+    design_schema,
+    description,
+    icon,
+    color,
+    is_active,
+    kind,
+    app_id,
+    ownership
+  } = body
+
+  const updates: any = {}
+
+  if (name !== undefined) updates.name = name
+  if (slug !== undefined) updates.slug = slug
+  if (description !== undefined) updates.description = description
+  if (icon !== undefined) updates.icon = icon
+  if (color !== undefined) updates.color = color
+  if (is_active !== undefined) updates.is_active = is_active
+  if (kind !== undefined) updates.kind = kind
+  if (app_id !== undefined) updates.app_id = app_id
+  if (ownership !== undefined) updates.ownership = ownership
+
+  if (design_schema !== undefined) {
+    updates.design_schema = design_schema
+    updates.validation_schema = generateValidationSchema(design_schema)
   }
 
-  // Verify the current account is a master tenant (parent_id IS NULL)
-  // Use adminDb for this check since we're verifying account structure
-  const { data: accountData } = await adminDb
-    .from('accounts')
-    .select('parent_id')
-    .eq('id', ctx.accountId!)
-    .single()
-
-  if (!accountData || accountData.parent_id !== null) {
-    throw new Error('Type configurations can only be deleted in master tenant accounts')
+  if (Object.keys(updates).length === 0) {
+    return existing
   }
 
-  const { data, error: err } = await ctx.db
+  const { data, error } = await adminDb
     .from('types')
-    .update({
-      is_active: false,
-      updated_at: new Date().toISOString()
-    })
+    .update(updates)
     .eq('id', id)
     .select()
     .single()
 
-  if (err) throw err
+  if (error) throw error
 
-  await emitLog(ctx, 'type.deleted', { type: 'type', id }, { before: current })
+  await emitLog(ctx, 'type.updated', {
+    type_id: data.id,
+    type_slug: data.slug,
+    type_kind: data.kind
+  })
 
   return data
 })
-// ─── CHUNK_END: TYPES_REMOVE ────────────────────────────────────────────────
-
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
-
-// ─── CHUNK_START: TYPES_HANDLER ──────────────────────────────────────────────
-/**
- * @chunk-id    TYPES_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        70e9e120f669468bd7aa45d7a2b8b4cf9a13a2323f897a6fc2bd389d960f8adc
- * @macro       Types Router
- * @micro       Routes HTTP methods and actions to appropriate type handlers
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST/PATCH/DELETE operations
- * @outputs     Varies — Depends on routed handler (list/get/getBySlug/getSchema/create/update/remove)
- * @depends-on  [createHandler, list, get, getBySlug, getSchema, create, update, remove]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        types, router, crud, netlify-function
- */
-export const handler = createHandler(async (ctx, body) => {
-  const method = ctx.query?.method || 'GET'
-  const action = ctx.query?.action
-
-  switch (method) {
-    case 'GET':
-      if (action === 'get' && ctx.query?.slug) {
-        return await getBySlug(ctx, body)
-      } else if (ctx.query?.id) {
-        return await get(ctx, body)
-      } else if (action === 'schema') {
-        return await getSchema(ctx, body)
-      } else {
-        return await list(ctx, body)
-      }
-    case 'POST':
-      return await create(ctx, body)
-    case 'PATCH':
-      return await update(ctx, body)
-    case 'DELETE':
-      return await remove(ctx, body)
-    default:
-      throw new Error(`Unsupported method: ${method}`)
+// CIL[DOC-VECTOR type="context" content="purpose='Update an existing type definition'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:update:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:remove:constant" type="constant" identity="remove" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Soft-delete an existing type definition"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate admin, find the active row, protect system types, set is_active false, and emit an audit log"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="id query parameter" outputs="success flag" errors="Non-admin, missing id, not found, system type deletion" side_effects="Sets is_active false and emits type.deleted audit log"]
+// CIL[DOC-MICRO logic_summary="Marks an active type as inactive and emits an audit log" notable_decisions="Uses soft delete via is_active update; blocks deletion of system-owned types"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+export const remove = createHandler(async (ctx, body) => {
+  if (!permissions.isSystemAdmin(ctx)) {
+    throw new Error('System admin required')
   }
+
+  const { id } = ctx.query || {}
+  
+  if (!id) {
+    throw new Error('Type ID is required')
+  }
+
+  const { data: existing } = await adminDb
+    .from('types')
+    .select('*')
+    .eq('id', id)
+    .eq('is_active', true)
+    .single()
+
+  if (!existing) {
+    throw new Error('Type not found')
+  }
+
+  if (existing.ownership === 'system') {
+    throw new Error('Cannot delete system types')
+  }
+
+  const { error } = await adminDb
+    .from('types')
+    .update({ 
+      is_active: false
+    })
+    .eq('id', id)
+
+  if (error) throw error
+
+  await emitLog(ctx, 'type.deleted', {
+    type_id: existing.id,
+    type_slug: existing.slug,
+    type_kind: existing.kind
+  })
+
+  return { success: true }
 })
-// ─── CHUNK_END: TYPES_HANDLER ────────────────────────────────────────────────
+// CIL[DOC-VECTOR type="context" content="purpose='Soft-delete an existing type definition'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:remove:constant"]
+// CIL[BEGIN stable_id="~/.framework/functions/types.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/types.ts"]
+// CIL[DOC-MACRO purpose="Route incoming requests to the appropriate type operation"]
+// CIL[DOC-RESPONSIBILITY responsibility="Dispatch method and query parameters to list, get, getBySlug, getSchema, create, update, or remove"]
+// CIL[DOC-CONTEXT module="types function" layer="framework/functions" related_files=".framework/functions/_shared/audit.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/schema-utils.ts,.framework/functions/types.ts"]
+// CIL[DOC-CONTRACT inputs="action, id, slug, kind, method query parameters" outputs="result from delegated handler" errors="Invalid action or method" side_effects="None beyond delegated handler"]
+// CIL[DOC-MICRO logic_summary="Reads HTTP method and query flags to select the correct internal handler and returns its result" notable_decisions="Schema action takes precedence; GET defaults to list when no id/slug/kind provided"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+export const handler = createHandler(async (ctx, body) => {
+  const { action, id, slug, kind } = ctx.query || {}
+  const method = ctx.query?.method || 'GET'
+
+  if (action === 'schema') {
+    return await getSchema(ctx, body)
+  }
+
+  if (action === 'list' || (method === 'GET' && !id && !slug && !kind)) {
+    return await list(ctx, body)
+  }
+
+  if (method === 'GET') {
+    if (slug) return await getBySlug(ctx, body)
+    if (id || (kind && action !== 'schema')) return await get(ctx, body)
+    return await list(ctx, body)
+  }
+
+  if (method === 'POST') {
+    return await create(ctx, body)
+  }
+
+  if (method === 'PATCH') {
+    return await update(ctx, body)
+  }
+
+  if (method === 'DELETE') {
+    return await remove(ctx, body)
+  }
+
+  throw new Error('Invalid action or method')
+})
+// CIL[DOC-VECTOR type="context" content="purpose='Route incoming requests to the appropriate type operation'; No verified external callers; imports: .framework/functions/_shared/middleware.ts,.framework/functions/_shared/db.ts,.framework/functions/_shared/audit.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/types.ts:handler:constant"]

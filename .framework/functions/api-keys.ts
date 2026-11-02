@@ -1,74 +1,124 @@
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @module api-keys
- * @audience core-contributor
- * @layer api-handler
+ * @module   api-keys
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Management and validation API for the `api_keys` table. API keys are
- * issued per-integration and optionally scoped to specific permissions.
- * Key material is generated and stored by the `create_api_key` Postgres
- * RPC, which handles hashing internally. Validation also delegates to the
- * `validate_api_key` RPC.
+ * This module manages API key operations, including creation and validation, as part of the system's security framework. It serves as a middleware handler that interacts with the database and performs necessary logging and permission checks. INVARIANT: All API key operations require system admin privileges. Route patterns include /api/keys for key management operations.
  *
- * **Routed by:** `GET/POST /.netlify/functions/api-keys`
+ * @seeAlso middleware.ts (provides request handling functionality).
+ * @seeAlso db.ts (interacts with the database for key storage).
+ * @seeAlso audit.ts (handles logging of operations).
+ * @seeAlso permissions.ts (ensures proper access control).
  *
- * **Actions:**
- * | method | ?action    | handler       |
- * |--------|------------|---------------|
- * | POST   | validate   | validate      |
- * | POST   | revoke     | revoke        |
- * | GET    | usage-logs | listUsageLogs |
- * | GET    | ?id        | get           |
- * | GET    | (default)  | list          |
- * | POST   | —          | create        |
- *
- * **Authorization:** All operations use `ctx.db` (RLS-scoped). Account context
- * required for creates. No PATCH/DELETE — use `revoke` for deactivation.
- *
- * INVARIANT: Raw key material is never stored. Only the hash is persisted.
- *   `create` returns the plaintext key once via RPC response.
- * INVARIANT: `revoke` soft-deactivates by setting `is_active = false`.
- *
- * @seeAlso integrations.ts (integration_id FK on api_keys)
- * @seeAlso audit.ts (emitLog for api_key.* events)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { createHandler } from './_shared/middleware'
+import { adminDb } from './_shared/db'
 import { emitLog } from './_shared/audit'
+import { isSystemAdmin } from './_shared/principal'
 import { sanitizeRecordData } from './_shared/permissions'
+import { hashApiKey, omitSecretFields } from './_shared/hash-api-key'
+import { resolveAppUuid } from './_shared/logging'
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:module_header:module_header"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: API_KEYS_LIST ──────────────────────────────────────────────
+// True only for platform-level principals: a system_admin role or an
+// internal machine principal with no account binding (SYSTEM_PRINCIPAL,
+// produced only by the INTERNAL_INVOKE_SECRET path). Machine principals
+// resolve to the service-role adminDb via getPrincipalDb, so account-bound
+// API keys must be scoped to their own account below.
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:isSystemPrincipal:function" type="function" identity="isSystemPrincipal" parent="~/.framework/functions/api-keys.ts"]
+function isSystemPrincipal(ctx: any): boolean {
+  return isSystemAdmin(ctx.principal) || (ctx.principal?.isInternal === true && !ctx.accountId)
+}
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:isSystemPrincipal:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:list:constant" type="constant" identity="list" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_LIST_1_0_0
- * @version     1.0.0
- * @hash        f825d8f4bbabe21071b61fe41e5e4e1b87482d501bf4078fab70906b7a5f5e78
- * @macro       API Keys List Handler
- * @micro       Lists API keys with filtering, pagination, and joins
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Array of sanitized API key records with integration joins
- * @depends-on  [createHandler, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, permission sanitization]
- * @tags        api-keys, list, crud, pagination
+ * This function retrieves a list of API keys based on various query parameters and returns sanitized records. It ensures that only authorized users can access the data and applies filters based on the provided criteria.
+ *
+ * @throws      Error — Account context required.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('api_keys'), ctx.db.from('api_keys'), sanitizeRecordData
+ * @cil-generated
  */
 export const list = createHandler(async (ctx, _body) => {
   const { integration_id, key_type, is_active, expires_before, expires_after, limit = 100, offset = 0 } = ctx.query || {}
 
-  if (!ctx.accountId) {
+  const isSystem = isSystemPrincipal(ctx)
+
+  if (!isSystem && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
-  let query = ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  let query = db
     .from('api_keys')
-    .select(`
-      *,
-      integration:integrations(id, name, provider, integration_type),
-      created_by_person:people(id, full_name, email)
-    `)
+    .select('*')
     .order('created_at', { ascending: false })
+
+  // Machine principals run on the service-role client — pin them to their
+  // own account so they cannot enumerate other tenants' keys.
+  if (!isSystem) {
+    query = query.eq('account_id', ctx.accountId)
+  }
 
   if (integration_id) {
     query = query.eq('integration_id', integration_id)
@@ -95,27 +145,36 @@ export const list = createHandler(async (ctx, _body) => {
 
   const sanitized = []
   for (const key of data || []) {
-    sanitized.push(await sanitizeRecordData(ctx, key, 'api_key'))
+    sanitized.push(omitSecretFields(await sanitizeRecordData(ctx, key, 'api_key')))
   }
 
   return sanitized
 })
-// ─── CHUNK_END: API_KEYS_LIST ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:list:constant"]
 
-// ─── CHUNK_START: API_KEYS_GET ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:get:constant" type="constant" identity="get" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_GET_1_0_0
- * @version     1.0.0
- * @hash        357f926aeb833ad0ca755e48350534771f491890645134a1b43d2f2a8e4be037
- * @macro       API Key Get Handler
- * @micro       Returns a single API key record with joins (no raw key material)
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Sanitized API key record with integration and createdBy joins
- * @depends-on  [createHandler, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        api-keys, get, crud, single-record
+ * Retrieves an API key from the database based on the provided ID in the query parameters. It ensures that the caller has the necessary permissions and sanitizes the returned data before sending it back.
+ *
+ * @throws      Error — API key ID is required, Error — if there is an error fetching the API key.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('api_keys'), ctx.db.from('api_keys'), sanitizeRecordData
+ * @cil-generated
  */
 export const get = createHandler(async (ctx, _body) => {
   const { id } = ctx.query || {}
@@ -124,39 +183,66 @@ export const get = createHandler(async (ctx, _body) => {
     throw new Error('API key ID is required')
   }
 
-  const { data, error: err } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  let query = db
     .from('api_keys')
-    .select(`
-      *,
-      integration:integrations(id, name, provider, integration_type),
-      created_by_person:people(id, full_name, email)
-    `)
+    .select('*')
     .eq('id', id)
-    .single()
+
+  if (!isSystemPrincipal(ctx)) {
+    if (!ctx.accountId) {
+      throw new Error('Account context required')
+    }
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query.single()
 
   if (err) throw err
 
-  return await sanitizeRecordData(ctx, data, 'api_key')
+  return omitSecretFields(await sanitizeRecordData(ctx, data, 'api_key'))
 })
-// ─── CHUNK_END: API_KEYS_GET ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:get:constant"]
 
-// ─── CHUNK_START: API_KEYS_CREATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_CREATE_1_0_0
- * @version     1.0.0
- * @hash        8d00c97111cddebc2b3821a1fee3e6cf4c6b7c55fc20cd19d70865d728c3387c
- * @macro       API Key Create Handler
- * @micro       Creates new API key via RPC with validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — API key configuration data
- * @outputs     RPC result containing api_key_id and plaintext key_value
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [RPC call, audit logging]
- * @tags        api-keys, create, crud, rpc, audit
+ * Creates a new API key for a specified integration and application, ensuring required fields are validated and generating a unique key. This function is essential for managing access to the API securely.
+ *
+ * @throws      Error — name is required, Error — Account context required, Error — database error
+ * @sideEffects Writes a new record to the 'api_keys' table in the database and emits a log event.
+ * @stability   internal
+ * @calls       ctx.db.from('api_keys'), emitLog, resolveAppUuid
+ * @cil-generated
  */
 export const create = createHandler(async (ctx, body) => {
-  const { integration_id, name, key_type, key_prefix, permissions, rate_limit, expires_at, metadata } = body
+  const {
+    integration_id,
+    app_id,
+    name,
+    key_type,
+    permissions,
+    scopes,
+    rate_limit,
+    expires_at,
+    metadata,
+    machine_type,
+    is_internal
+  } = body
 
   if (!name) {
     throw new Error('name is required')
@@ -166,45 +252,104 @@ export const create = createHandler(async (ctx, body) => {
     throw new Error('Account context required')
   }
 
+  // S-011: scopes and is_internal are privilege-bearing fields. A machine
+  // caller runs on the service-role client, so accepting them verbatim let
+  // any scoped key mint a *:* or is_internal key and escalate itself past
+  // the isInternal gates elsewhere. Only system principals may request a
+  // wildcard scope or an internal key — for everyone else those are hard
+  // denials, other requested scopes are clipped to the scopes the caller
+  // itself holds, and an omitted scopes list inherits the caller's own.
+  const isSystem = isSystemPrincipal(ctx)
+  let effectiveScopes: string[] = scopes || []
+  let effectiveIsInternal = is_internal || false
+
+  if (!isSystem) {
+    if (is_internal) {
+      const e: any = new Error('Insufficient permissions to create an internal API key')
+      e.statusCode = 403
+      throw e
+    }
+    if (Array.isArray(scopes) && scopes.includes('*:*')) {
+      const e: any = new Error('Insufficient permissions to create a wildcard-scoped API key')
+      e.statusCode = 403
+      throw e
+    }
+    const callerScopes = Array.isArray(ctx.principal?.scopes) ? ctx.principal.scopes : []
+    effectiveScopes = Array.isArray(scopes)
+      ? scopes.filter((s: string) => callerScopes.includes(s))
+      : callerScopes
+    effectiveIsInternal = false
+  }
+
+  const slug = body.slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+
+  const rawKey = `sk_${crypto.randomUUID().replace(/-/g, '')}`
+  const { key_prefix, key_hash } = hashApiKey(rawKey)
+
+  const insertData = {
+    integration_id: integration_id || null,
+    app_id: (await resolveAppUuid(app_id || ctx.appId)) || null,
+    account_id: ctx.accountId,
+    slug,
+    name,
+    key_prefix,
+    key_hash,
+    key_type: key_type || 'inbound',
+    permissions: permissions || [],
+    scopes: effectiveScopes,
+    rate_limit: rate_limit || 100,
+    expires_at: expires_at || null,
+    metadata: metadata || {},
+    machine_type: machine_type || 'integration',
+    is_internal: effectiveIsInternal,
+    is_active: true,
+    created_by: ctx.principal?.type === 'human' ? ctx.principal.id : null
+  }
+
   const { data, error: err } = await ctx.db
-    .rpc('create_api_key', {
-      integration_id,
-      name,
-      key_type: key_type || 'private',
-      key_prefix: key_prefix || 'sk_',
-      permissions: permissions || {},
-      rate_limit: rate_limit || 1000,
-      expires_at,
-      metadata: metadata || {},
-      created_by: ctx.principal?.id,
-      account_id: ctx.accountId
-    })
+    .from('api_keys')
+    .insert(insertData)
+    .select('id, name, key_type, rate_limit, expires_at, is_active, created_at')
+    .single()
 
   if (err) throw err
 
-  await emitLog(ctx, 'api_key.created', 
-    { type: 'api_key', id: data[0]?.api_key_id }, 
-    { after: { name, key_type, rate_limit } }
+  await emitLog(ctx, 'api_key.created',
+    { type: 'api_key', id: data.id },
+    { after: { name, key_type, rate_limit, integration_id } }
   )
 
-  return data
+  return {
+    ...data,
+    raw_key: rawKey,
+    warning: 'Store this key now. It will not be shown again.'
+  }
 })
-// ─── CHUNK_END: API_KEYS_CREATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:create:constant"]
 
-// ─── CHUNK_START: API_KEYS_VALIDATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:validate:constant" type="constant" identity="validate" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_VALIDATE_1_0_0
- * @version     1.0.0
- * @hash        05791f9b2c23bfebed01dffaa1430e896b89d311c5a51409704d731200eb621a
- * @macro       API Key Validation Handler
- * @micro       Validates API key and checks permissions via RPC
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — key_value and optional required_permissions
- * @outputs     RPC validation result with is_valid, account_id, permissions
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing, middleware]
- * @side-effects [RPC validation call]
- * @tags        api-keys, validate, rpc, authentication
+ * Validates an API key by checking its existence and permissions in the database. This function ensures that only active keys with the required permissions can be used.
+ *
+ * @throws      Error — key_value is required, Error — database error
+ * @sideEffects Database read operations.
+ * @stability   internal
+ * @calls       ctx.db.from('api_keys'), import('./_shared/hash-api-key')
+ * @cil-generated
  */
 export const validate = createHandler(async (ctx, body) => {
   const { key_value, required_permissions } = body
@@ -213,32 +358,88 @@ export const validate = createHandler(async (ctx, body) => {
     throw new Error('key_value is required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('validate_api_key', {
-      key_value,
-      required_permissions: required_permissions || {}
-    })
+  const isSystem = isSystemPrincipal(ctx)
+  if (!isSystem && !ctx.accountId) {
+    throw new Error('Account context required')
+  }
+
+  const keyPrefix = key_value.slice(0, 8)
+
+  let query = ctx.db
+    .from('api_keys')
+    .select('*')
+    .eq('key_prefix', keyPrefix)
+    .eq('is_active', true)
+    .or('expires_at.is.null,expires_at.gte.now()')
+
+  // Scoped callers may only validate keys belonging to their own account —
+  // ctx.db is service-role for machine principals, so without this filter a
+  // caller could probe another account's key material.
+  if (!isSystem) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data: rows, error: err } = await query
 
   if (err) throw err
+  if (!rows || rows.length === 0) {
+    return { is_valid: false, error: 'Invalid or inactive API key' }
+  }
 
-  return data
+  const { verifyApiKey } = await import('./_shared/hash-api-key')
+
+  for (const key of rows) {
+    if (verifyApiKey(key_value, key.key_hash)) {
+      const hasPermissions = !required_permissions || required_permissions.length === 0 ||
+        (key.permissions || []).some((p: string) => required_permissions.includes(p))
+
+      if (!hasPermissions) {
+        return {
+          is_valid: false,
+          error: 'Insufficient permissions',
+          api_key_id: key.id
+        }
+      }
+
+      return {
+        is_valid: true,
+        api_key_id: key.id,
+        integration_id: key.integration_id,
+        app_id: key.app_id,
+        account_id: key.account_id,
+        scopes: key.scopes,
+        permissions: key.permissions
+      }
+    }
+  }
+
+  return { is_valid: false, error: 'Invalid or inactive API key' }
 })
-// ─── CHUNK_END: API_KEYS_VALIDATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:validate:constant"]
 
-// ─── CHUNK_START: API_KEYS_REVOKE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:revoke:constant" type="constant" identity="revoke" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_REVOKE_1_0_0
- * @version     1.0.0
- * @hash        3302286a12c1315616470fcfbd3cbdc8dcf63dd00211a71159f3325bab95607a
- * @macro       API Key Revoke Handler
- * @micro       Soft-deactivates API key with validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — API key ID to revoke
- * @outputs     Updated API key record with is_active: false
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB update, audit logging]
- * @tags        api-keys, revoke, crud, audit
+ * The 'revoke' constant defines a handler for deactivating an API key by its ID. It ensures that the API key ID is provided and logs the revocation action.
+ *
+ * @throws      Error — if the API key ID is missing or if a database error occurs.
+ * @sideEffects Updates the 'api_keys' table in the database and emits a log event.
+ * @stability   internal
+ * @calls       ctx.db.from('api_keys'), emitLog
+ * @cil-generated
  */
 export const revoke = createHandler(async (ctx, body) => {
   const { id } = body
@@ -247,12 +448,19 @@ export const revoke = createHandler(async (ctx, body) => {
     throw new Error('API key ID is required')
   }
 
-  const { data, error: err } = await ctx.db
+  let query = ctx.db
     .from('api_keys')
     .update({ is_active: false, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .select()
-    .single()
+
+  if (!isSystemPrincipal(ctx)) {
+    if (!ctx.accountId) {
+      throw new Error('Account context required')
+    }
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query.select().single()
 
   if (err) throw err
 
@@ -261,29 +469,41 @@ export const revoke = createHandler(async (ctx, body) => {
     { after: { revoked_by: ctx.principal?.id } }
   )
 
-  return data
+  return omitSecretFields(data)
 })
-// ─── CHUNK_END: API_KEYS_REVOKE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:revoke:constant"]
 
-// ─── CHUNK_START: API_KEYS_LIST_USAGE_LOGS ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:listUsageLogs:constant" type="constant" identity="listUsageLogs" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_LIST_USAGE_LOGS_1_0_0
- * @version     1.0.0
- * @hash        f21e004490dd983c8f20dc1d1f4db33e158334d19e38a4ace5e99389a8a96ded
- * @macro       API Key Usage Logs Handler
- * @micro       Lists paginated API key usage logs with filtering and joins
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Array of usage log records with api_key joins
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries with filtering]
- * @tags        api-keys, usage-logs, pagination, monitoring
+ * The listUsageLogs constant defines an asynchronous handler for retrieving API key usage logs based on various query parameters. It ensures that the account context is valid and constructs a query to fetch logs from the database.
+ *
+ * @throws      Error — Account context required.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       ctx.db.from('api_key_usage_logs'), ctx.db.select, ctx.db.eq, ctx.db.gte, ctx.db.lte, ctx.db.range
+ * @errorHandling none
+ * @cil-generated
  */
 export const listUsageLogs = createHandler(async (ctx, _body) => {
   const { api_key_id, response_status, success, date_from, date_to, limit = 100, offset = 0 } = ctx.query || {}
 
-  if (!ctx.accountId) {
+  const isSystem = isSystemPrincipal(ctx)
+
+  if (!isSystem && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -294,6 +514,10 @@ export const listUsageLogs = createHandler(async (ctx, _body) => {
       api_key:api_keys(id, name, key_type)
     `)
     .order('created_at', { ascending: false })
+
+  if (!isSystem) {
+    query = query.eq('account_id', ctx.accountId)
+  }
 
   if (api_key_id) {
     query = query.eq('api_key_id', api_key_id)
@@ -320,24 +544,31 @@ export const listUsageLogs = createHandler(async (ctx, _body) => {
 
   return data
 })
-// ─── CHUNK_END: API_KEYS_LIST_USAGE_LOGS ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:listUsageLogs:constant"]
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: API_KEYS_HANDLER ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/api-keys.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/api-keys.ts"]
 /**
- * @chunk-id    API_KEYS_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        6c2da419bea6f12b0fe654e2aad6c5ebac3d5993c2547a47d239f44197d90a68
- * @macro       API Keys Router
- * @micro       Routes HTTP methods and actions to appropriate handlers
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST operations
- * @outputs     Varies — Depends on routed handler (list/get/create/validate/revoke/usage-logs)
- * @depends-on  [createHandler, list, get, create, validate, revoke, listUsageLogs]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        api-keys, router, crud, netlify-function
+ * The handler processes API requests based on the action and method specified in the query parameters. It routes the request to the appropriate function for validation, revocation, usage logs, or general data handling.
+ *
+ * @throws      Error — Invalid action or method
+ * @sideEffects none
+ * @stability   internal
+ * @calls       validate, revoke, listUsageLogs, get, list, create
+ * @cil-generated
  */
 export const handler = createHandler(async (ctx, body) => {
   const { action } = ctx.query || {}
@@ -373,4 +604,10 @@ export const handler = createHandler(async (ctx, body) => {
 
   throw new Error('Invalid action or method')
 })
-// ─── CHUNK_END: API_KEYS_HANDLER ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/api-keys.ts:handler:constant"]
+
+
+
+
+
+

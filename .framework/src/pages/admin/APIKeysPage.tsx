@@ -1,32 +1,73 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/APIKeysPage.tsx"]
 /**
- * @module src/pages/admin/APIKeysPage
- * @audience installer
- * @layer frontend-page
+ * @module   APIKeysPage
+ * @audience internal
+ * @layer    app-specific
  * @stability stable
  *
- * Admin list page for API keys. Fetches all keys via
- * `/api/api-keys?action=list`, applies client-side search, type filter
- * (`public` | `private`), and sort. Key values are never shown in the
- * list — only the prefix. Renders inside `AdminListPage`. Row clicks
- * navigate to `/spine-framework/admin/configs/api-keys/:id`.
+ * This module represents the API Keys management page in the admin section of the application, allowing administrators to view, create, and manage API keys. INVARIANT: The user must have admin privileges to access this page.
+ * 
+ * It integrates with various UI components to provide a seamless user experience for key management.
  *
- * @seeAlso src/pages/admin/APIKeyDetailPage.tsx
+ * @seeAlso LoadingSpinner (provides loading feedback).
+ * @seeAlso Button (used for actions).
+ * @seeAlso AdminListPage (displays a list of API keys).
+ * @seeAlso useApi (custom hook for API interactions).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Key, CheckCircle, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Button } from '../../components/ui/button'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
+
 import { formatDateTime } from '../../lib/utils'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
+// CIL[END stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:APIKey:interface" type="interface" identity="APIKey" parent="~/.framework/src/pages/admin/APIKeysPage.tsx"]
+/**
+ * The APIKey interface defines the structure of an API key object used for managing access to services. It includes properties for identification, status, usage metrics, and associated integration details.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface APIKey {
   id: string
   name: string
-  key_type: 'public' | 'private'
+  key_type: 'inbound' | 'outbound'
   is_active: boolean
   last_used_at?: string
   expires_at?: string
@@ -44,8 +85,39 @@ interface APIKey {
   }
   created_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:APIKey:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:APIKeysPage:component" type="component" identity="APIKeysPage" parent="~/.framework/src/pages/admin/APIKeysPage.tsx"]
+/**
+ * The APIKeysPage component manages the display and interaction with API keys, allowing users to filter, sort, and navigate to detailed views of individual keys. It fetches API keys from a server and provides statistics on their status and types.
+ *
+ * @macro       Component for managing and displaying API keys with filtering and sorting capabilities.
+ * @micro       Utilizes state management and hooks to handle API calls and dynamic updates based on user input.
+ * @outputSpec  JSX.Element
+ * @throws      Error — if the API fetch fails
+ * @sideEffects fetches data from external API endpoint '/api/api-keys?action=list'
+ * @stability   stable
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if the API fetch fails
+ * @cil-generated
+ */
 export function APIKeysPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
@@ -82,7 +154,7 @@ export function APIKeysPage() {
   }
 
   const handleRowClick = (key: APIKey) => {
-    window.location.href = `/spine-framework/admin/configs/api-keys/${key.id}`
+    navigate(`/spine-framework/admin/configs/api-keys/${key.id}`)
   }
 
   const sortedKeys = [...(filteredKeys || [])].sort((a, b) => {
@@ -121,8 +193,8 @@ export function APIKeysPage() {
       iconColor: 'text-green-500'
     },
     {
-      title: 'Private Keys',
-      value: (apiKeys || []).filter(k => k.key_type === 'private').length,
+      title: 'Inbound Keys',
+      value: (apiKeys || []).filter(k => k.key_type === 'inbound').length,
       icon: ShieldCheck,
       iconColor: 'text-purple-500'
     },
@@ -146,8 +218,8 @@ export function APIKeysPage() {
 
   const typeOptions = [
     { value: 'all', label: 'All Types' },
-    { value: 'public', label: 'Public' },
-    { value: 'private', label: 'Private' }
+    { value: 'inbound', label: 'Inbound' },
+    { value: 'outbound', label: 'Outbound' }
   ]
 
   const filters = [
@@ -259,7 +331,7 @@ export function APIKeysPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-md ${
-                    key.key_type === 'private'
+                    key.key_type === 'inbound'
                       ? 'bg-purple-100 text-purple-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}>
@@ -301,3 +373,10 @@ export function APIKeysPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/APIKeysPage.tsx:APIKeysPage:component"]
+
+
+
+
+
+

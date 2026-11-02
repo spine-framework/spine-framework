@@ -1,85 +1,160 @@
-/**
- * @module webhook-registry
- * @audience core-contributor
- * @layer shared-service
- * @stability stable
- *
- * Dynamic webhook handler registry for runtime handler resolution.
- * Replaces static imports with database-driven handler lookups.
- *
- * **Pattern:**
- * 1. Custom handlers self-register via `integrations` table or `webhook_handlers` table
- * 2. Core looks up handler by name at runtime
- * 3. Dynamic import loads the handler function
- *
- * **Benefits:**
- * - Core has zero hardcoded dependencies on custom handlers
- * - Handlers can be added/removed without core code changes
- * - Multi-tenancy: different tenants can have different handlers
- *
- * @seeAlso integration-routes.ts (uses this registry)
- * @seeAlso webhook-registration.ts (self-registration helper for custom handlers)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Defines the shared webhook handler registry and its data access for serverless functions"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provide imports, types, and core utilities for resolving and loading webhook handler functions"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Contains the file header and shared adminDb import used by the registry functions" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="spine-functions maintainers"]
 
 import { adminDb } from './db'
+// CIL[DOC-VECTOR type="context" content="purpose='Defines the shared webhook handler registry and its data access for serverless functions'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:module_header:module_header"]
 
-// In-memory cache for handler metadata (not the handlers themselves)
-const handlerCache = new Map<string, { functionName: string; loaded: boolean }>()
 
-/**
- * Looks up a webhook handler in the database registry.
- * Returns the function name to dynamically import.
- *
- * @param handlerName - The handler identifier (e.g., "cortex-handler")
- * @returns Handler metadata or null if not found
- */
-export async function lookupHandler(handlerName: string): Promise<{ functionName: string } | null> {
-  // Check cache first
-  const cached = handlerCache.get(handlerName)
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:HandlerCacheEntry:interface" type="interface" identity="HandlerCacheEntry" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Type definition for a cached webhook handler entry"]
+// CIL[DOC-RESPONSIBILITY responsibility="Describe the shape of an in-memory cached handler record"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Declares functionName and loaded boolean fields" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+interface HandlerCacheEntry {
+  functionName: string
+  loaded: boolean
+}
+// CIL[DOC-VECTOR type="context" content="purpose='Type definition for a cached webhook handler entry'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:HandlerCacheEntry:interface"]
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:handlerCache:constant" type="constant" identity="handlerCache" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="In-memory cache of resolved webhook handler metadata"]
+// CIL[DOC-RESPONSIBILITY responsibility="Store loaded handler lookups to avoid repeated DB queries"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="Mutates when lookups or cache clears occur"]
+// CIL[DOC-MICRO logic_summary="Map keyed by appId, accountId, and handlerName" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+const handlerCache = new Map<string, HandlerCacheEntry>()
+// CIL[DOC-VECTOR type="context" content="purpose='In-memory cache of resolved webhook handler metadata'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:handlerCache:constant"]
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:lookupHandler:function" type="function" identity="lookupHandler" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Look up a webhook handler by name and optional scope, with fallback to global handlers"]
+// CIL[DOC-RESPONSIBILITY responsibility="Resolve the serverless function name for a given webhook handler"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="handlerName: string, appId: string | null | undefined, accountId: string | null | undefined" outputs="{ functionName: string } | null" errors="Returns null when not found; logs console warnings" side_effects="Writes matching entries to handlerCache"]
+// CIL[DOC-MICRO logic_summary="Builds a cache key, checks the cache, queries webhook_handlers with optional app and account filters, falls back to a null-scoped handler, and caches the result" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+export async function lookupHandler(
+  handlerName: string,
+  appId?: string | null,
+  accountId?: string | null
+): Promise<{ functionName: string } | null> {
+  const cacheKey = `${appId || 'null'}:${accountId || 'null'}:${handlerName}`
+  const cached = handlerCache.get(cacheKey)
   if (cached) {
     return { functionName: cached.functionName }
   }
 
-  // Query database for handler registration
-  const { data, error } = await adminDb
+
+  let query = adminDb
     .from('webhook_handlers')
-    .select('name, function_name, is_active')
+    .select('name, function_name, is_active, is_deleted')
     .eq('name', handlerName)
     .eq('is_active', true)
-    .single()
+    .eq('is_deleted', false)
 
-  if (error || !data) {
-    console.log(`[webhook-registry] Handler not found: ${handlerName}`)
-    return null
+  if (appId !== undefined) {
+    query = query.eq('app_id', appId)
+  }
+  if (accountId !== undefined) {
+    query = query.eq('account_id', accountId)
   }
 
-  // Cache the result
-  handlerCache.set(handlerName, {
+  const { data, error } = await query.single()
+
+  // Fallback to a global / system handler if no app- or account-scoped one exists.
+  if (error || !data) {
+    const { data: fallbackData, error: fallbackError } = await adminDb
+      .from('webhook_handlers')
+      .select('name, function_name, is_active, is_deleted')
+      .eq('name', handlerName)
+      .eq('is_active', true)
+      .eq('is_deleted', false)
+      .is('app_id', null)
+      .is('account_id', null)
+      .single()
+
+    if (fallbackError || !fallbackData) {
+      console.log(`[webhook-registry] Handler not found: ${handlerName} (appId=${appId}, accountId=${accountId})`)
+      return null
+    }
+
+    handlerCache.set(cacheKey, {
+      functionName: fallbackData.function_name,
+      loaded: false
+    })
+
+    return { functionName: fallbackData.function_name }
+  }
+
+  handlerCache.set(cacheKey, {
     functionName: data.function_name,
     loaded: false
   })
 
   return { functionName: data.function_name }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Look up a webhook handler by name and optional scope, with fallback to global handlers'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:lookupHandler:function"]
 
-/**
- * Loads a webhook handler function dynamically.
- * Uses dynamic import to avoid static dependencies.
- *
- * @param functionName - The Netlify function name (e.g., "custom_cortex-handler")
- * @returns The handler function or null if not found
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:loadHandler:function" type="function" identity="loadHandler" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Dynamically import and extract a handler function by module name"]
+// CIL[DOC-RESPONSIBILITY responsibility="Load the configured serverless function at runtime"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="functionName: string" outputs="Function | null" errors="Returns null if export missing or dynamic import fails; logs console errors" side_effects="None beyond module import"]
+// CIL[DOC-MICRO logic_summary="Chooses a relative import prefix based on custom/ prefix, awaits the module, and returns the first available adapt, handler, or default export" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export async function loadHandler(functionName: string): Promise<Function | null> {
   try {
-    // Dynamic import of the handler function
-    // Functions are in the same directory after assembly
-    const module = await import(`../${functionName}`)
+    const prefix = functionName.startsWith('custom/') ? '../../../' : '../'
+    const module = await import(`${prefix}${functionName}`)
     
-    // Handler should be exported as 'handler' or default
-    const handler = module.handler || module.default
+    const handler = module.adapt || module.handler || module.default
     
     if (typeof handler !== 'function') {
-      console.error(`[webhook-registry] Export 'handler' not found in ${functionName}`)
+      console.error(`[webhook-registry] No 'adapt' or 'handler' export found in ${functionName}`)
       return null
     }
 
@@ -89,31 +164,70 @@ export async function loadHandler(functionName: string): Promise<Function | null
     return null
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Dynamically import and extract a handler function by module name'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:loadHandler:function"]
 
-/**
- * Resolves a webhook handler by name.
- * Combines lookup + load for convenience.
- *
- * @param handlerName - The handler identifier
- * @returns The handler function or null
- */
-export async function resolveHandler(handlerName: string): Promise<Function | null> {
-  const metadata = await lookupHandler(handlerName)
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:resolveHandler:function" type="function" identity="resolveHandler" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Resolve and load a handler in one call"]
+// CIL[DOC-RESPONSIBILITY responsibility="Combine lookup and load for a given webhook handler name"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="handlerName: string, appId?: string | null, accountId?: string | null" outputs="Function | null" errors="Returns null when lookup or load fails" side_effects="May populate handlerCache via lookupHandler"]
+// CIL[DOC-MICRO logic_summary="Calls lookupHandler then loadHandler and returns the loaded function" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+export async function resolveHandler(
+  handlerName: string,
+  appId?: string | null,
+  accountId?: string | null
+): Promise<Function | null> {
+  const metadata = await lookupHandler(handlerName, appId, accountId)
   if (!metadata) return null
 
   return loadHandler(metadata.functionName)
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve and load a handler in one call'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:resolveHandler:function"]
 
-/**
- * Clears the handler cache. Useful for testing or after deployments.
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:clearHandlerCache:function" type="function" identity="clearHandlerCache" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="Clear the in-memory handler cache"]
+// CIL[DOC-RESPONSIBILITY responsibility="Allow callers to invalidate cached webhook handler metadata"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="void" errors="none" side_effects="Empties the handlerCache map"]
+// CIL[DOC-MICRO logic_summary="Calls Map.clear on the handler cache" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export function clearHandlerCache(): void {
   handlerCache.clear()
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Clear the in-memory handler cache'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:clearHandlerCache:function"]
 
-/**
- * Lists all registered handlers (for debugging/admin).
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/webhook-registry.ts:listRegisteredHandlers:function" type="function" identity="listRegisteredHandlers" parent="~/.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-MACRO purpose="List active webhook handler names from the database"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provide a roster of available, active handlers"]
+// CIL[DOC-CONTEXT module="webhook-registry" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/webhook-registry.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="string[]" errors="Returns empty array and logs error on DB failure" side_effects="None"]
+// CIL[DOC-MICRO logic_summary="Queries webhook_handlers for active names and returns an array of name values" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export async function listRegisteredHandlers(): Promise<string[]> {
   const { data, error } = await adminDb
     .from('webhook_handlers')
@@ -127,3 +241,10 @@ export async function listRegisteredHandlers(): Promise<string[]> {
 
   return data?.map(h => h.name) || []
 }
+// CIL[DOC-VECTOR type="context" content="purpose='List active webhook handler names from the database'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/webhook-registry.ts:listRegisteredHandlers:function"]

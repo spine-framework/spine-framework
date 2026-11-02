@@ -1,11 +1,28 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/RoleDetailPage.tsx"]
 /**
- * @module src/pages/admin/RoleDetailPage
- * @audience installer
- * @layer frontend-page
+ * @module   RoleDetailPage
+ * @audience internal
+ * @layer    app-specific
  * @stability stable
  *
- * Create / view / edit page for a single role.
+ * RoleDetailPage is a React component that manages the display and editing of role details within the admin interface. It interacts with the API to fetch and update role information based on the role ID obtained from the URL parameters. INVARIANT: The role ID must always be present in the URL for the component to function correctly.
+ *
+ * @seeAlso useApi (provides API interaction hooks).
+ * @seeAlso apiFetch (handles API requests).
+ * @seeAlso formatDateTime (formats date and time for display).
+ * @seeAlso PageInstructions (provides instructional content for the admin page).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -21,7 +38,31 @@ import { ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
 import { formatDateTime } from '../../lib/utils'
+// CIL[END stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:Role:interface" type="interface" identity="Role" parent="~/.framework/src/pages/admin/RoleDetailPage.tsx"]
+/**
+ * The Role interface defines the structure of a role object used in the admin panel, encapsulating essential attributes and permissions associated with a role. It exists to standardize role management within the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface Role {
   id: string
   name: string
@@ -34,7 +75,37 @@ interface Role {
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:Role:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:RoleDetailPage:component" type="component" identity="RoleDetailPage" parent="~/.framework/src/pages/admin/RoleDetailPage.tsx"]
+/**
+ * The RoleDetailPage component manages the creation and editing of role details in an admin interface. It fetches role data if editing an existing role and handles form submission for creating or updating roles.
+ *
+ * @macro       Component responsible for role management in an admin interface.
+ * @micro       Utilizes React hooks for state management and API calls to handle role data.
+ * @outputSpec  JSX.Element
+ * @throws      Error — Invalid JSON in permissions field, Error — Failed to fetch role, Error — Failed to save role
+ * @sideEffects API calls to fetch and save role data.
+ * @stability   stable
+ * @calls       useParams, useNavigate, useApi, apiFetch
+ * @errorHandling Catches and sets error messages for invalid JSON and API response failures.
+ * @cil-generated
+ */
 export function RoleDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -154,7 +225,6 @@ export function RoleDetailPage() {
           {isCreateMode ? 'Create Role' : role?.name || 'Role Detail'}
         </h1>
       </div>
-
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -244,6 +314,8 @@ export function RoleDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-3">
+
+
               Define permissions as a JSON object. Each key is a type slug, value is an array of allowed actions.
             </p>
             <Textarea
@@ -253,8 +325,16 @@ export function RoleDetailPage() {
               placeholder={`{\n  "item": ["read", "write"],\n  "account": ["read"]\n}`}
               rows={10}
             />
+            {(() => {
+              try {
+                JSON.parse(permissionsJson)
+                return null
+              } catch (err) {
+                return <p className="text-xs text-red-600 mt-2">Invalid JSON: {(err as Error).message}</p>
+              }
+            })()}
             <p className="text-xs text-muted-foreground mt-2">
-              Example: <code className="bg-muted px-1 py-0.5 rounded">{`{"support_ticket": ["read", "write", "admin"]}`}</code>
+              Example: <code className="bg-muted px-1 py-0.5 rounded">{`{"ticket": ["read", "write", "admin"]}`}</code>
             </p>
           </CardContent>
         </Card>
@@ -271,3 +351,11 @@ export function RoleDetailPage() {
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/RoleDetailPage.tsx:RoleDetailPage:component"]
+
+
+
+
+
+
+

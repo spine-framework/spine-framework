@@ -1,4 +1,29 @@
+// CIL[BEGIN stable_id="~/.framework/src/components/admin/AdminListPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/components/admin/AdminListPage.tsx"]
+/**
+ * @module   AdminListPage
+ * @audience internal
+ * @layer    app-specific
+ * @stability stable
+ *
+ * The AdminListPage module is responsible for rendering the admin interface that displays a list of administrative items and provides functionalities for searching and filtering. It serves as a key component in the admin dashboard, allowing users to navigate through various admin-related tasks. INVARIANT: The user must have admin privileges to access this page.
+ *
+ * @seeAlso AdminStatsCard (provides statistics relevant to the admin interface).
+ * @seeAlso PageInstructions (offers guidance on using the admin features).
+ *
+ * @cil-generated
+ */
+
+
+
+
+
+
+
+
+
+
 import React, { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Input } from '../ui/input'
@@ -7,8 +32,34 @@ import { Skeleton } from '../ui/skeleton'
 import { Search } from 'lucide-react'
 import { LucideIcon } from 'lucide-react'
 import { AdminStatsCard } from './AdminStatsCard'
-import { cn } from '../../lib/utils'
 
+import { cn } from '../../lib/utils'
+// CIL[END stable_id="~/.framework/src/components/admin/AdminListPage.tsx:module_header:module_header"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/admin/AdminListPage.tsx:AdminListPageProps:interface" type="interface" identity="AdminListPageProps" parent="~/.framework/src/components/admin/AdminListPage.tsx"]
+/**
+ * AdminListPageProps defines the properties required for rendering the Admin List Page component, facilitating the configuration of various UI elements and behaviors within the admin interface.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface AdminListPageProps {
   title: string
   description: string
@@ -37,7 +88,28 @@ interface AdminListPageProps {
   emptyMessage?: string
   emptyIcon?: LucideIcon
 }
+// CIL[END stable_id="~/.framework/src/components/admin/AdminListPage.tsx:AdminListPageProps:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/admin/AdminListPage.tsx:AdminListPage:component" type="component" identity="AdminListPage" parent="~/.framework/src/components/admin/AdminListPage.tsx"]
 export function AdminListPage({
   title,
   description,
@@ -54,9 +126,9 @@ export function AdminListPage({
   error = null,
   onRetry,
 }: AdminListPageProps) {
+  const navigate = useNavigate()
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-xl font-semibold">{title}</h1>
@@ -64,13 +136,13 @@ export function AdminListPage({
         </div>
         
         {newButtonText && (
-          <Button onClick={() => onNewClick ? onNewClick() : (window.location.href = newButtonHref!)}>
+          <Button onClick={() => onNewClick ? onNewClick() : navigate(newButtonHref)}>
             {newButtonText}
           </Button>
         )}
       </div>
 
-      {/* Stats Cards */}
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat, index) => (
           <AdminStatsCard
@@ -83,11 +155,9 @@ export function AdminListPage({
         ))}
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
             {onSearchChange && (
               <div className="flex-1">
                 <div className="relative">
@@ -96,13 +166,13 @@ export function AdminListPage({
                     placeholder={searchPlaceholder}
                     value={searchValue}
                     onChange={(e) => onSearchChange(e.target.value)}
+
                     className="pl-9"
                   />
                 </div>
               </div>
             )}
 
-            {/* Filters */}
             {filters.map((filter, index) => (
               <div key={index} className="sm:w-48">
                 <Select value={filter.value} onValueChange={filter.onChange}>
@@ -123,7 +193,6 @@ export function AdminListPage({
         </CardContent>
       </Card>
 
-      {/* Content */}
       <Card>
         {loading ? (
           <div className="p-8 space-y-4">
@@ -149,3 +218,11 @@ export function AdminListPage({
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/components/admin/AdminListPage.tsx:AdminListPage:component"]
+
+
+
+
+
+
+

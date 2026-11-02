@@ -1,20 +1,35 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx"]
 /**
- * @module src/pages/admin/PipelineExecutionsPage
- * @audience installer
- * @layer frontend-page
+ * @module   PipelineExecutionsPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Read-only log of pipeline execution history. Fetches execution records
- * via `/api/pipelines?action=executions`, applies client-side search,
- * status filter (`running` | `success` | `failed` | `cancelled`), and
- * sort. Renders inside `AdminListPage` with a sortable table showing
- * pipeline name, status, duration, and timestamps.
+ * This module represents the Pipeline Executions Page in the admin section of the application, allowing users to view and manage pipeline execution statuses. It integrates with various UI components to present data in a sortable table format and leverages API hooks for data fetching.
+ * INVARIANT: The user must have admin privileges to access this page.
  *
- * @seeAlso src/pages/admin/PipelinesPage.tsx
- * @seeAlso src/pages/admin/ObservabilityDashboard.tsx
+ * @seeAlso LoadingSpinner (provides loading feedback).
+ * @seeAlso Button (used for user actions).
+ * @seeAlso AdminListPage (base component for admin-related lists).
+ * @seeAlso SortableTableHeader (enables sorting functionality in tables).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Play, CheckCircle, XCircle, Clock, RefreshCw, Zap } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Button } from '../../components/ui/button'
@@ -23,7 +38,31 @@ import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { formatDateTime } from '../../lib/utils'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:PipelineExecution:interface" type="interface" identity="PipelineExecution" parent="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx"]
+/**
+ * The PipelineExecution interface defines the structure of a pipeline execution record, capturing its status, metadata, and associated entities. It facilitates the management and tracking of pipeline executions within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface PipelineExecution {
   id: string
   pipeline_id: string
@@ -47,8 +86,39 @@ interface PipelineExecution {
   }
   created_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:PipelineExecution:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:PipelineExecutionsPage:component" type="component" identity="PipelineExecutionsPage" parent="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx"]
+/**
+ * The PipelineExecutionsPage component manages the display and interaction with pipeline execution data, allowing users to filter, sort, and navigate to detailed execution views. It fetches execution data and statistics from an API and provides a user-friendly interface for managing this information.
+ *
+ * @macro       User interface component for managing and displaying pipeline execution data.
+ * @micro       Utilizes multiple API calls to fetch pipeline executions, statistics, and pipeline names, and implements local state management for filtering and sorting.
+ * @outputSpec  JSX.Element — renders the pipeline executions page with interactive elements.
+ * @throws      Error — if fetching pipeline executions fails
+ * @sideEffects API calls to '/api/pipeline-executions?action=list', '/api/pipeline-executions?action=stats', and '/api/pipelines?action=list'
+ * @stability   internal
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if fetching pipeline executions fails
+ * @cil-generated
+ */
 export function PipelineExecutionsPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [sortKey, setSortKey] = useState('started_at')
@@ -74,9 +144,28 @@ export function PipelineExecutionsPage() {
     { immediate: true }
   )
 
+  const { data: pipelines } = useApi<{ id: string; name: string }[]>(
+    async () => {
+      const response = await apiFetch('/api/pipelines?action=list')
+      if (!response.ok) return []
+      const result = await response.json()
+      return result.data || result
+    },
+    { immediate: true }
+  )
+
+  const pipelineNameById = new Map((pipelines || []).map(p => [p.id, p.name]))
+  const pipelineName = (exec: PipelineExecution) =>
+    exec.pipeline?.name || pipelineNameById.get(exec.pipeline_id) || null
+
   const filteredExecutions = (executions || []).filter(exec => {
-    const matchesSearch = exec.pipeline?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         exec.error_message?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+    const term = searchTerm.toLowerCase()
+    const matchesSearch = !term ||
+                         pipelineName(exec)?.toLowerCase().includes(term) ||
+                         exec.pipeline_id?.toLowerCase().includes(term) ||
+                         exec.status?.toLowerCase().includes(term) ||
+                         exec.error_message?.toLowerCase().includes(term) ||
+                         false
     const matchesStatus = selectedStatus === 'all' || exec.status === selectedStatus
     return matchesSearch && matchesStatus
   })
@@ -91,7 +180,7 @@ export function PipelineExecutionsPage() {
   }
 
   const handleRowClick = (exec: PipelineExecution) => {
-    window.location.href = `/spine-framework/admin/observability/executions/${exec.id}`
+    navigate(`/spine-framework/admin/observability/executions/${exec.id}`)
   }
 
   const sortedExecutions = [...(filteredExecutions || [])].sort((a, b) => {
@@ -250,7 +339,7 @@ export function PipelineExecutionsPage() {
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="font-medium text-slate-900">
-                    {exec.pipeline?.name || 'Unknown Pipeline'}
+                    {pipelineName(exec) || 'Unknown Pipeline'}
                   </div>
                   <div className="text-xs text-slate-500 font-mono">{exec.id.slice(0, 8)}</div>
                 </td>
@@ -277,3 +366,11 @@ export function PipelineExecutionsPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineExecutionsPage.tsx:PipelineExecutionsPage:component"]
+
+
+
+
+
+
+

@@ -1,17 +1,37 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/AIAgentsPage.tsx"]
 /**
- * @module src/pages/admin/AIAgentsPage
- * @audience installer
- * @layer frontend-page
+ * @module   AIAgentsPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for AI agents. Fetches all agents via
- * `/api/ai-agents?action=list`, applies client-side search, agent-type
- * filter (`chat` | `analysis` | `automation` | `custom`), and sort.
- * Renders inside `AdminListPage` with stat cards and a sortable table.
- * Row clicks navigate to `/spine-framework/admin/configs/ai-agents/:id`.
+ * This module represents the AIAgentsPage component, which is responsible for displaying and managing AI agents within the admin interface. It utilizes various hooks and components to facilitate data fetching and rendering of a sortable table. INVARIANT: The component must be used within a routing context to function correctly.
  *
- * @seeAlso src/pages/admin/AIAgentDetailPage.tsx
+ * @seeAlso useApi (provides API interaction capabilities).
+ * @seeAlso AdminListPage (renders the list of admin items).
+ * @seeAlso SortableTableHeader (enables sorting functionality for the table).
+ * @seeAlso apiFetch (handles API requests).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -22,7 +42,31 @@ import { apiFetch } from '../../lib/api'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { Badge } from '../../components/ui/badge'
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:AIAgent:interface" type="interface" identity="AIAgent" parent="~/.framework/src/pages/admin/AIAgentsPage.tsx"]
+/**
+ * The AIAgent interface defines the structure for AI agents used in the application, encapsulating their properties and configurations. It standardizes how AI agents are represented and managed within the system.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface AIAgent {
   id: string
   name: string
@@ -45,7 +89,37 @@ interface AIAgent {
   app_id?: string
   metadata?: Record<string, any>
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:AIAgent:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:AIAgentsPage:component" type="component" identity="AIAgentsPage" parent="~/.framework/src/pages/admin/AIAgentsPage.tsx"]
+/**
+ * The AIAgentsPage component provides a user interface for managing AI agents, allowing users to filter, sort, and view agent details. It fetches agent data from an external API and applies various filters based on user input.
+ *
+ * @macro       User interface component for managing AI agents.
+ * @micro       Utilizes state management and API calls to dynamically filter and sort agent data based on user interactions.
+ * @outputSpec  JSX.Element
+ * @throws      Error — if the API response is not ok
+ * @sideEffects API call to '/api/ai-agents?action=list'
+ * @stability   internal
+ * @calls       useApi, apiFetch
+ * @errorHandling throws an error if the API response is not ok
+ * @cil-generated
+ */
 export function AIAgentsPage() {
   const navigate = useNavigate()
   
@@ -56,7 +130,6 @@ export function AIAgentsPage() {
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch AI agents from API
   const { data: agents, loading } = useApi<AIAgent[]>(
     async (params) => {
       const response = await apiFetch('/api/ai-agents?action=list', { signal: params?.signal })
@@ -100,10 +173,6 @@ export function AIAgentsPage() {
     return matchesSearch && matchesType && matchesModel && matchesStatus
   })
 
-  console.log('AIAgentsPage - agents:', agents)
-  console.log('AIAgentsPage - filteredAgents:', filteredAgents)
-
-  // Helper functions
   const getAgentBadgeColor = (agentType: string) => {
     switch (agentType) {
       case 'chat':
@@ -136,7 +205,6 @@ export function AIAgentsPage() {
     navigate(`/spine-framework/admin/configs/ai-agents/${agent.id}`)
   }
 
-  // Sort agents
   const sortedAgents = [...(filteredAgents || [])].sort((a, b) => {
     let aValue: any = a[sortKey as keyof AIAgent]
     let bValue: any = b[sortKey as keyof AIAgent]
@@ -316,3 +384,5 @@ export function AIAgentsPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AIAgentsPage.tsx:AIAgentsPage:component"]
+

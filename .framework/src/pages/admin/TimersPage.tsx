@@ -1,17 +1,30 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TimersPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/TimersPage.tsx"]
 /**
- * @module src/pages/admin/TimersPage
- * @audience installer
- * @layer frontend-page
+ * @module   TimersPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for scheduled timers. Fetches all timers via
- * `/api/timers?action=list`, applies client-side search, type filter
- * (`schedule` | `delay` | `recurring` | `cron`), and sort. Renders
- * inside `AdminListPage` with stat cards and a sortable table. Row
- * clicks navigate to `/spine-framework/admin/configs/timers/:id`.
+ * The TimersPage module provides a user interface for managing timers within the admin section of the application. It leverages React hooks for state management and API interactions, allowing users to view, create, and manipulate timer entries.
+ * INVARIANT: The module expects a valid API context to function correctly.
  *
- * @seeAlso src/pages/admin/TimerDetailPage.tsx
+ * @seeAlso useApi (provides API interaction capabilities).
+ * @seeAlso LoadingSpinner (displays loading state).
+ * @seeAlso AdminListPage (displays a list of admin items).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
+
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -24,7 +37,32 @@ import { Badge } from '../../components/ui/badge'
 import { formatDateTime } from '../../lib/utils'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
+// CIL[END stable_id="~/.framework/src/pages/admin/TimersPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TimersPage.tsx:Timer:interface" type="interface" identity="Timer" parent="~/.framework/src/pages/admin/TimersPage.tsx"]
+/**
+ * The Timer interface defines the structure for timer objects used in the application, encapsulating their properties and configuration. It standardizes how timers are represented and managed within the system.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface Timer {
   id: string
   name: string
@@ -50,7 +88,39 @@ interface Timer {
   success_count: number
   failure_count: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TimersPage.tsx:Timer:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TimersPage.tsx:TimersPage:component" type="component" identity="TimersPage" parent="~/.framework/src/pages/admin/TimersPage.tsx"]
+/**
+ * The TimersPage component manages the display and filtering of timer data in the admin interface. It allows users to search, filter by type and status, and sort timers.
+ *
+ * @macro       Component responsible for rendering and managing timer data in an admin UI.
+ * @micro       Utilizes a custom API hook to fetch timer data and applies client-side filtering based on user input.
+ * @outputSpec  JSX.Element - renders the TimersPage component with timer data and UI elements.
+ * @throws      Error — if the timer fetch fails
+ * @sideEffects Fetches timer data from an external API.
+ * @stability   internal
+ * @calls       useApi, apiFetch
+ * @errorHandling throws an error if the timer fetch fails
+ * @cil-generated
+ */
 export function TimersPage() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
@@ -59,31 +129,12 @@ export function TimersPage() {
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch timers from API
   const { data: timers, loading, error, refetch } = useApi<Timer[]>(
     async ({ signal }: { signal?: AbortSignal }) => {
-      try {
-        console.log('Fetching timers...')
-        const response = await apiFetch('/api/timers?action=list', { signal })
-        console.log('Response status:', response.status)
-        
-        if (!response.ok) {
-          console.error('Response not ok:', response.statusText)
-          throw new Error(`Failed to fetch timers: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        console.log('Raw API result:', result)
-        
-        // Handle both nested and direct responses
-        const timers = result.data || result
-        console.log('Timers after processing:', timers)
-        
-        return timers
-      } catch (error) {
-        console.error('Error in TimersPage:', error)
-        throw error
-      }
+      const response = await apiFetch('/api/timers?action=list', { signal })
+      if (!response.ok) throw new Error('Failed to fetch timers')
+      const result = await response.json()
+      return result.data || result
     },
     { immediate: true }
   )
@@ -151,7 +202,6 @@ export function TimersPage() {
     return Math.round((timer.success_count / timer.execution_count) * 100)
   }
 
-  // Sorting logic
   const sortedTimers = [...filteredTimers].sort((a, b) => {
     const aValue = a[sortKey as keyof Timer]
     const bValue = b[sortKey as keyof Timer]
@@ -191,7 +241,6 @@ export function TimersPage() {
     navigate(`/spine-framework/admin/configs/timers/${timer.id}`)
   }
 
-  // Stats cards
   const statsCards = [
     {
       title: 'Total Timers',
@@ -368,9 +417,18 @@ export function TimersPage() {
                 </td>
               </tr>
             ))}
+
           </tbody>
         </table>
       )}
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TimersPage.tsx:TimersPage:component"]
+
+
+
+
+
+
+

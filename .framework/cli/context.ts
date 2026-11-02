@@ -1,59 +1,112 @@
-/// <reference types="node" />
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/cli/context.ts"]
 /**
- * @module cli/context
- * @audience installer
- * @layer cli
+ * @module   context
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * CLI context builder and output utilities. This is the CLI equivalent of
- * `createHandler()` in `middleware.ts` — it resolves the principal, picks the
- * correct Supabase client, and returns a `CoreContext` that every CLI command
- * passes directly to core functions.
+ * This module provides context management for the CLI, facilitating interactions with the core system and user databases. It serves as a foundational component for handling user authentication and data access. INVARIANT: The CoreContext must be initialized before any database operations are performed.
  *
- * **Environment variables read from `.xenv` or `process.env`:**
- * | Variable                  | Required | Purpose                            |
- * |---------------------------|----------|------------------------------------|
- * | `SUPABASE_URL`            | yes      | Project API URL                    |
- * | `SUPABASE_SERVICE_ROLE_KEY` | yes    | Service-role client (admin ops)    |
- * | `SUPABASE_ANON_KEY`       | yes      | User-scoped client (JWT mode)      |
- * | `SPINE_CLI_ACCOUNT_ID`    | no       | Default account scope              |
- * | `SPINE_CLI_JWT`           | no       | Human principal (Supabase JWT)     |
- * | `SPINE_CLI_API_KEY`       | no       | Machine principal (hashed key)     |
- * | `SPINE_CLI_DEBUG`         | no       | Print stack traces on error        |
+ * @seeAlso functions/_shared/index.ts (contains shared core functionalities).
+ * @seeAlso functions/_shared/hash-api-key.ts (provides API key verification logic).
  *
- * **Principal resolution priority** (first match wins):
- * 1. `SPINE_CLI_JWT` → human principal (RLS-scoped `getUserDb`)
- * 2. `SPINE_CLI_API_KEY` → machine principal (`adminDb`)
- * 3. Fallback → `SYSTEM_PRINCIPAL` (`adminDb` — admin ops only)
- *
- * @seeAlso functions/_shared/middleware.ts (createHandler — server-side equivalent)
- * @seeAlso functions/_shared/principal.ts (Principal type and SYSTEM_PRINCIPAL)
- * @seeAlso cli/index.ts (entry point that imports all commands)
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
 
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { CoreContext, adminDb, SYSTEM_PRINCIPAL, Principal, getUserDb } from '../functions/_shared/index.ts'
+import { verifyApiKey } from '../functions/_shared/hash-api-key.ts'
+// CIL[END stable_id="~/.framework/cli/context.ts:module_header:module_header"]
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
-// ─── ENV LOADING ────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: CLI_CONTEXT_LOAD_ENV ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:__filename:constant" type="constant" identity="__filename" parent="~/.framework/cli/context.ts"]
 /**
- * @chunk-id    CLI_CONTEXT_LOAD_ENV_1_0_0
- * @version     1.0.0
- * @hash        0adefa52a0c93821ee538ffe32a4069061bd75e7cada7175b11be3e11027e369
- * @macro       Environment Variable Loader
- * @micro       Reads .xenv file and populates process.env with missing vars
- * @inputs      none — reads from .xenv file path
- * @outputs     void — mutates process.env
- * @depends-on  [fs, path]
- * @depended-by [buildCliContext]
- * @side-effects [mutates process.env, file system reads]
- * @tags        environment, configuration, cli, dotenv
+ * __filename is a constant that holds the absolute path of the current module file, providing a reference to the file location for logging or resolving relative paths.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @calls       fileURLToPath
+ * @cil-generated
+ */
+const __filename = fileURLToPath(import.meta.url)
+// CIL[END stable_id="~/.framework/cli/context.ts:__filename:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:__dirname:constant" type="constant" identity="__dirname" parent="~/.framework/cli/context.ts"]
+/**
+ * __dirname is a constant that holds the directory name of the current module, allowing for relative file path resolution. It exists to facilitate file operations within the module's directory context.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @calls       dirname
+ * @cil-generated
+ */
+const __dirname = dirname(__filename)
+// CIL[END stable_id="~/.framework/cli/context.ts:__dirname:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:loadEnv:function" type="function" identity="loadEnv" parent="~/.framework/cli/context.ts"]
+/**
+ * Loads environment variables from a specified file into the process environment, ensuring that any variables defined in the file are available to the application at runtime.
+ *
+ * @outputSpec  void
+ * @sideEffects Reads from the file system to load environment variables.
+ * @stability   internal
+ * @calls       resolve, existsSync, readFileSync
+ * @cil-generated
  */
 function loadEnv() {
   const envPath = resolve(__dirname, '../.xenv')
@@ -72,36 +125,65 @@ function loadEnv() {
     }
   }
 }
-// ─── CHUNK_END: CLI_CONTEXT_LOAD_ENV ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/cli/context.ts:loadEnv:function"]
 
-// ─── TYPES ──────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:CliOptions:interface" type="interface" identity="CliOptions" parent="~/.framework/cli/context.ts"]
 /**
- * Options passed from CLI command `.action()` callbacks to `buildCliContext`.
+ * The CliOptions interface defines the structure for command-line interface options, allowing for optional configuration of an account string. It exists to standardize the way CLI options are handled within the module.
  *
- * @inputSpec account: string | undefined — UUID of the target account; overrides
- *   `SPINE_CLI_ACCOUNT_ID` if both are present.
- * @calledBy All `registerXxxCommands` functions before calling core functions
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
  */
 export interface CliOptions {
   account?: string
 }
+// CIL[END stable_id="~/.framework/cli/context.ts:CliOptions:interface"]
 
-// ─── CONTEXT BUILDER ─────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: CLI_CONTEXT_BUILD ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:buildCliContext:function" type="function" identity="buildCliContext" parent="~/.framework/cli/context.ts"]
 /**
- * @chunk-id    CLI_CONTEXT_BUILD_1_0_0
- * @version     1.0.0
- * @hash        501162983b1b24e9a15267ca7b8398b3733f540b2a65a96d8277ec3d780f2003
- * @macro       CLI Context Builder
- * @micro       Constructs CoreContext with principal resolution and Supabase client
- * @inputs      opts: CliOptions — Optional overrides including account ID
- * @outputs     CoreContext — Fully resolved context with principal, DB client, and request ID
- * @depends-on  [loadEnv, adminDb, getUserDb, SYSTEM_PRINCIPAL]
- * @depended-by [All CLI command handlers]
- * @side-effects [DB queries, environment reads, crypto.randomUUID]
- * @tags        cli, authentication, principal-resolution, context
+ * Builds a CLI context by validating environment variables and retrieving user or API key information. It ensures that the necessary credentials are available for subsequent operations.
+ *
+ * @macro       Async function that constructs a CoreContext for CLI operations.
+ * @micro       Validates environment variables and checks for either an API key or JWT to determine the principal and associated account.
+ * @inputSpec
+ *   opts: CliOptions (optional) — options for building the CLI context.
+ * @outputSpec  Promise<CoreContext> — returns a context object containing principal, accountId, database connection, and requestId.
+ * @throws      Error — Missing required env vars: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY; Error — Invalid or inactive SPINE_CLI_API_KEY; Error — Invalid or expired SPINE_CLI_JWT
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('api_keys'), adminDb.from('people'), userDb.auth.getUser
+ * @cil-generated
  */
 export async function buildCliContext(opts: CliOptions = {}): Promise<CoreContext> {
   loadEnv()
@@ -116,22 +198,32 @@ export async function buildCliContext(opts: CliOptions = {}): Promise<CoreContex
   const accountId = opts.account || process.env.SPINE_CLI_ACCOUNT_ID || null
   const requestId = crypto.randomUUID()
 
-  // Machine API key auth
   const apiKey = process.env.SPINE_CLI_API_KEY
   if (apiKey) {
-    const { data: keyRecord } = await adminDb
+    const keyPrefix = apiKey.slice(0, 8)
+
+    const { data: rows, error } = await adminDb
       .from('api_keys')
-      .select('id, account_id, scopes, principal_id')
-      .eq('key_hash', apiKey)
+      .select('id, account_id, scopes, key_hash, expires_at')
+      .eq('key_prefix', keyPrefix)
       .eq('is_active', true)
-      .single()
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    const now = Date.now()
+    const keyRecord = !error && rows
+      ? rows.find((k: any) =>
+          (!k.expires_at || new Date(k.expires_at).getTime() >= now) &&
+          verifyApiKey(apiKey, k.key_hash)
+        )
+      : undefined
 
     if (!keyRecord) {
       throw new Error('Invalid or inactive SPINE_CLI_API_KEY')
     }
 
     const principal: Principal = {
-      id: keyRecord.principal_id || keyRecord.id,
+      id: keyRecord.id,
       type: 'machine',
       accountId: keyRecord.account_id,
       scopes: keyRecord.scopes || [],
@@ -151,7 +243,6 @@ export async function buildCliContext(opts: CliOptions = {}): Promise<CoreContex
     }
   }
 
-  // JWT auth (human principal)
   const jwt = process.env.SPINE_CLI_JWT
   if (jwt) {
     const userDb = getUserDb(jwt)
@@ -192,7 +283,6 @@ export async function buildCliContext(opts: CliOptions = {}): Promise<CoreContex
     }
   }
 
-  // Fallback: system principal (admin ops)
   return {
     principal: SYSTEM_PRINCIPAL,
     accountId,
@@ -200,24 +290,37 @@ export async function buildCliContext(opts: CliOptions = {}): Promise<CoreContex
     requestId
   }
 }
-// ─── CHUNK_END: CLI_CONTEXT_BUILD ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/cli/context.ts:buildCliContext:function"]
 
-// ─── OUTPUT UTILITIES ─────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: CLI_CONTEXT_PRINT_RESULT ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:printResult:function" type="function" identity="printResult" parent="~/.framework/cli/context.ts"]
 /**
- * @chunk-id    CLI_CONTEXT_PRINT_RESULT_1_0_0
- * @version     1.0.0
- * @hash        06e492defa9012290a5c8b2d4fca27f01df11bdc194ffbdf4f4b4518aa683c2b
- * @macro       CLI Output Formatter
- * @micro       Pretty-prints query results as JSON or ASCII tables
- * @inputs      data: any — Result data to display (array or single value)
- * @inputs      opts: { json?: boolean } — Output format options
- * @outputs     void — Console output only
- * @depends-on  [console, JSON]
- * @depended-by [All CLI command list/get handlers]
- * @side-effects [console.log output]
- * @tags        cli, output, formatting, tables, json
+ * Prints the result of the given data to the console in a readable format for CLI users. It provides flexibility to display data either as a formatted table or as JSON based on the provided options.
+ *
+ * @macro       Utility function for displaying data in various formats.
+ * @micro       Uses conditional checks to determine the format of the output based on the type of data and options provided.
+ * @inputSpec
+ *   data: any — the data to be printed.
+ *   opts: { json?: boolean } (optional) — options to control the output format.
+ * @outputSpec  void
+ * @sideEffects prints to console
+ * @stability   internal
+ * @calls       console.log, console.table, JSON.stringify
+ * @cil-generated
  */
 export function printResult(data: any, opts: { json?: boolean } = {}) {
   if (opts.json) {
@@ -227,42 +330,66 @@ export function printResult(data: any, opts: { json?: boolean } = {}) {
 
   if (Array.isArray(data)) {
     if (data.length === 0) {
-      console.log('(no results)')
+      console.log('No results found.')
       return
     }
-    const keys = Object.keys(data[0])
-    const rows = data.map(row => keys.map(k => String(row[k] ?? '')))
-    const widths = keys.map((k, i) => Math.max(k.length, ...rows.map(r => r[i].length)))
-    const hr = widths.map(w => '-'.repeat(w)).join('  ')
-    console.log(keys.map((k, i) => k.padEnd(widths[i])).join('  '))
-    console.log(hr)
-    rows.forEach(row => console.log(row.map((v, i) => v.padEnd(widths[i])).join('  ')))
-    console.log(`\n(${data.length} row${data.length !== 1 ? 's' : ''})`)
-  } else {
+
+    console.table(data)
+  } else if (data && typeof data === 'object') {
     console.log(JSON.stringify(data, null, 2))
+  } else {
+    console.log(data)
   }
 }
-// ─── CHUNK_END: CLI_CONTEXT_PRINT_RESULT ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/cli/context.ts:printResult:function"]
 
-// ─── CHUNK_START: CLI_CONTEXT_HANDLE_ERROR ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/context.ts:handleError:function" type="function" identity="handleError" parent="~/.framework/cli/context.ts"]
 /**
- * @chunk-id    CLI_CONTEXT_HANDLE_ERROR_1_0_0
- * @version     1.0.0
- * @hash        61aca7e4bce61b5b790e8f27ef3f505a6a6fe9a8cd6643e577f610d9dd15b1cd
- * @macro       CLI Error Handler
- * @micro       Prints formatted error and exits with proper debug information
- * @inputs      err: any — Error object or string message
- * @outputs     void — Process termination (exit code 1)
- * @depends-on  [console, process]
- * @depended-by [All CLI command action handlers]
- * @side-effects [console.error output, process.exit]
- * @tags        cli, error-handling, debug, process-exit
+ * The handleError function logs error messages to the console based on the error type and exits the process. It provides specific messages for known error codes and a general message for other errors.
+ *
+ * @inputSpec
+ *   error: any (required) — the error object to handle.
+ *   context: string (optional) — an optional context string for additional logging.
+ * @outputSpec  none
+ * @sideEffects Logs error messages to the console and exits the process with status code 1.
+ * @stability   internal
+ * @calls       console.error, process.exit
+ * @cil-generated
  */
-export function handleError(err: any) {
-  console.error(`\nError: ${err.message || err}`)
-  if (process.env.SPINE_CLI_DEBUG) {
-    console.error(err.stack)
+export function handleError(error: any, context?: string) {
+  const message = error?.message || String(error)
+  const contextStr = context ? `[${context}] ` : ''
+  
+  if (error?.code === 'PGRST116') {
+    console.error(`${contextStr}Not found: The requested resource does not exist.`)
+  } else if (error?.code === 'PGRST301') {
+    console.error(`${contextStr}Permission denied: You don't have access to this resource.`)
+  } else {
+    console.error(`${contextStr}${message}`)
   }
+  
   process.exit(1)
 }
-// ─── CHUNK_END: CLI_CONTEXT_HANDLE_ERROR ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/cli/context.ts:handleError:function"]
+
+
+
+
+
+
+

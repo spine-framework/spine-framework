@@ -1,58 +1,94 @@
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/timers.ts"]
 /**
- * @module timers
- * @audience core-contributor
- * @layer api-handler
+ * @module   timers
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * CRUD API for the `timers` table. Timers are scheduled pipeline triggers
- * (cron-style). They are evaluated and fired by `system-cron.ts` on each
- * scheduled invocation.
+ * This module provides timer-related functionalities within the application, leveraging shared middleware and database utilities. It is designed to handle various timer operations, ensuring proper logging and permission checks. INVARIANT: All timer operations must be executed by authenticated users with appropriate permissions.
  *
- * **Routed by:** `GET/POST/PATCH/DELETE /.netlify/functions/timers`
+ * @seeAlso middleware.ts (provides request handling capabilities).
+ * @seeAlso db.ts (contains database access utilities).
+ * @seeAlso auditing.ts (handles logging of operations).
+ * @seeAlso permissions.ts (ensures proper access control).
  *
- * **Actions:**
- * | method | ?action  | handler  |
- * |--------|----------|----------|
- * | POST   | toggle   | toggle   |
- * | GET    | ?id      | get      |
- * | GET    | (default)| list     |
- * | POST   | —        | create   |
- * | PATCH  | —        | update   |
- * | DELETE | —        | remove (hard) |
- *
- * **Authorization:** All operations use `ctx.db` (RLS-scoped). Authenticated
- * principal required for writes.
- *
- * INVARIANT: `remove` is a hard delete.
- * INVARIANT: `update` only patches allowed fields: name, description, config,
- *   pipeline_id, metadata, is_active.
- *
- * @seeAlso system-cron.ts (fires timers on schedule)
- * @seeAlso pipelines.ts (pipeline_id FK on timers)
- * @seeAlso audit.ts (emitLog for timer.* events)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { createHandler } from './_shared/middleware'
-import { joins } from './_shared/db'
+import { joins, adminDb } from './_shared/db'
 import { emitLog } from './_shared/audit'
 import { sanitizeRecordData } from './_shared/permissions'
+import { isSystemAdmin } from './_shared/principal'
+// CIL[END stable_id="~/.framework/functions/timers.ts:module_header:module_header"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
+// Interval resolution mirrors public.update_timer_after_run (migration
+// 071_timer_interval_keys.sql): config.interval_minutes (minutes) wins,
+// then config.interval_seconds (seconds → minutes). A parseable
+// config.run_at / config.schedule datetime is the fallback so 'once'
+// timers can be armed too.
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:intervalMinutesFromConfig:function" type="function" identity="intervalMinutesFromConfig" parent="~/.framework/functions/timers.ts"]
+function intervalMinutesFromConfig(config: any): number | null {
+  const minutes = Number(config?.interval_minutes)
+  if (Number.isFinite(minutes) && minutes > 0) return minutes
+  const seconds = Number(config?.interval_seconds)
+  if (Number.isFinite(seconds) && seconds > 0) return seconds / 60
+  return null
+}
+// CIL[END stable_id="~/.framework/functions/timers.ts:intervalMinutesFromConfig:function"]
 
-// ─── CHUNK_START: TIMERS_LIST ──────────────────────────────────────────────
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:computeNextExecution:function" type="function" identity="computeNextExecution" parent="~/.framework/functions/timers.ts"]
+function computeNextExecution(config: any): string | null {
+  const minutes = intervalMinutesFromConfig(config)
+  if (minutes !== null) {
+    return new Date(Date.now() + minutes * 60_000).toISOString()
+  }
+  // Date.parse is too lenient (it parses cron text like '*/5 * * * *'
+  // into a date), so only ISO-shaped values are accepted as a one-shot
+  // fire time.
+  const raw = config?.run_at ?? config?.schedule
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(raw)) return null
+  const runAt = Date.parse(raw)
+  return Number.isFinite(runAt) ? new Date(runAt).toISOString() : null
+}
+// CIL[END stable_id="~/.framework/functions/timers.ts:computeNextExecution:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:list:constant" type="constant" identity="list" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_LIST_1_0_0
- * @version     1.0.0
- * @hash        151a2403c9d974004a34303443368921966ea3adeada07e5f63b9a20ad3f08a1
- * @macro       Timers List Handler
- * @micro       Lists timers with filtering and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Array of sanitized timer records with app/createdBy joins
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, permission sanitization]
- * @tags        timers, list, crud, filtering
+ * The 'list' constant retrieves a list of timers based on query parameters and the user's account context. It ensures that only authorized users can access the timer data.
+ *
+ * @throws      Error — Account context required
+ * @sideEffects none
+ * @stability   internal
+ * @calls       isSystemAdmin, adminDb.from, sanitizeRecordData
+ * @cil-generated
  */
 export const list = createHandler(async (ctx, _body) => {
   const { app_id, timer_type, is_active } = ctx.query || {}
@@ -61,9 +97,11 @@ export const list = createHandler(async (ctx, _body) => {
     throw new Error('Account context required')
   }
 
-  let query = ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  let query = db
     .from('timers')
-    .select(`*, ${joins.app}, ${joins.createdBy}`)
+    .select('*')
     .order('name')
 
   if (app_id) {
@@ -87,22 +125,31 @@ export const list = createHandler(async (ctx, _body) => {
 
   return sanitized
 })
-// ─── CHUNK_END: TIMERS_LIST ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:list:constant"]
 
-// ─── CHUNK_START: TIMERS_GET ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:get:constant" type="constant" identity="get" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_GET_1_0_0
- * @version     1.0.0
- * @hash        8bbf46bb1410299eb881680ba4b508093157000a7fe525f7380e96ff0a241f32
- * @macro       Timer Get Handler
- * @micro       Returns single timer record with joins and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Sanitized timer record with app/createdBy joins
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        timers, get, crud, single-record
+ * Retrieves a timer record from the database based on a provided ID while ensuring that only authorized users can access the timer data.
+ *
+ * @throws      Error — Timer ID is required, Error — database query error.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('timers'), ctx.db.from('timers'), sanitizeRecordData
+ * @cil-generated
  */
 export const get = createHandler(async (ctx, _body) => {
   const { id } = ctx.query || {}
@@ -111,9 +158,11 @@ export const get = createHandler(async (ctx, _body) => {
     throw new Error('Timer ID is required')
   }
 
-  const { data, error: err } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data, error: err } = await db
     .from('timers')
-    .select(`*, ${joins.app}, ${joins.createdBy}`)
+    .select('*')
     .eq('id', id)
     .single()
 
@@ -121,25 +170,34 @@ export const get = createHandler(async (ctx, _body) => {
 
   return await sanitizeRecordData(ctx, data, 'timer')
 })
-// ─── CHUNK_END: TIMERS_GET ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:get:constant"]
 
-// ─── CHUNK_START: TIMERS_CREATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_CREATE_1_0_0
- * @version     1.0.0
- * @hash        b655ea396b23dac3548323612decef91b712c0a2b42bc5c7bc0f79aee4d11af4
- * @macro       Timer Create Handler
- * @micro       Creates timer with validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Timer data including name, timer_type, and optional fields
- * @outputs     Inserted timer record
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB insert, audit logging]
- * @tags        timers, create, crud, audit
+ * Creates a new timer entry in the database based on the provided parameters, ensuring required fields are present and user context is valid. This function is essential for managing timer data within the application.
+ *
+ * @throws      Error — name and timer_type are required, Error — User context (person and account) required, Error — database insert error
+ * @sideEffects DB write to 'timers' table, emits a log event for timer creation
+ * @stability   internal
+ * @calls       ctx.db.from('timers'), emitLog
+ * @cil-generated
  */
 export const create = createHandler(async (ctx, body) => {
-  const { app_id, name, description, timer_type, config, pipeline_id, metadata } = body
+  const { app_id, name, description, timer_type, config, pipeline_id, metadata, is_active, next_execution } = body
 
   if (!name || !timer_type) {
     throw new Error('name and timer_type are required')
@@ -149,7 +207,13 @@ export const create = createHandler(async (ctx, body) => {
     throw new Error('User context (person and account) required')
   }
 
-  const { data, error: err } = await ctx.db
+  const effectiveConfig = config || {}
+  // Omitted is_active falls through to the column DEFAULT (true); the
+  // arming computation mirrors that assumption.
+  const willBeActive = is_active !== false
+
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+  const { data, error: err } = await db
     .from('timers')
     .insert({
       app_id: app_id || null,
@@ -157,10 +221,15 @@ export const create = createHandler(async (ctx, body) => {
       name,
       description: description || null,
       timer_type,
-      config: config || {},
+      config: effectiveConfig,
       pipeline_id: pipeline_id || null,
       metadata: metadata || {},
-      created_by: ctx.principal.id
+      is_active,
+      // Arm the timer server-side: get_due_timers requires next_execution
+      // IS NOT NULL and nothing else writes it, so a timer created without
+      // it could never fire. An explicit caller-supplied value wins.
+      next_execution: next_execution ?? (willBeActive ? computeNextExecution(effectiveConfig) : null),
+      created_by: ctx.principal.type === 'human' ? ctx.principal.id : null
     })
     .select()
     .single()
@@ -174,22 +243,31 @@ export const create = createHandler(async (ctx, body) => {
 
   return data
 })
-// ─── CHUNK_END: TIMERS_CREATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:create:constant"]
 
-// ─── CHUNK_START: TIMERS_UPDATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:update:constant" type="constant" identity="update" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_UPDATE_1_0_0
- * @version     1.0.0
- * @hash        3c53499205d63b8643e28671b397b97b344976e88ea561860e2e394ca246942d
- * @macro       Timer Update Handler
- * @micro       Updates timer with field allowlist and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Timer updates including id and updatable fields
- * @outputs     Updated timer record
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB update, audit logging]
- * @tags        timers, update, crud, audit
+ * The 'update' constant defines a handler for updating timer records in the database. It ensures that a valid timer ID is provided and updates the specified fields accordingly.
+ *
+ * @throws      Error — Timer ID is required, Error — database update error
+ * @sideEffects Database update to 'timers' table, logging of the update event.
+ * @stability   internal
+ * @calls       ctx.db.from('timers'), emitLog
+ * @cil-generated
  */
 export const update = createHandler(async (ctx, body) => {
   const id = body?.id || ctx.query?.id
@@ -199,13 +277,34 @@ export const update = createHandler(async (ctx, body) => {
     throw new Error('Timer ID is required')
   }
 
-  const allowed = ['name', 'description', 'config', 'pipeline_id', 'metadata', 'is_active']
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const allowed = ['name', 'description', 'config', 'pipeline_id', 'metadata', 'is_active', 'timer_type', 'app_id', 'next_execution']
   const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
   for (const key of allowed) {
     if (updates[key] !== undefined) updateData[key] = updates[key]
   }
 
-  const { data, error: err } = await ctx.db
+  // Re-arm when schedule-relevant inputs change and the caller did not set
+  // next_execution explicitly — mirrors update_timer_after_run's interval
+  // resolution so API/UI-edited timers actually fire. Only ever writes a
+  // computed value; it never clears a next_execution it cannot recompute
+  // (e.g. one manually armed out-of-band for a cron timer).
+  if (updateData.next_execution === undefined && (updates.config !== undefined || updates.is_active !== undefined)) {
+    const { data: existing } = await db
+      .from('timers')
+      .select('config, is_active')
+      .eq('id', id)
+      .single()
+    const effectiveActive = updates.is_active ?? existing?.is_active ?? false
+    const effectiveConfig = updates.config ?? existing?.config ?? {}
+    if (effectiveActive) {
+      const computed = computeNextExecution(effectiveConfig)
+      if (computed) updateData.next_execution = computed
+    }
+  }
+
+  const { data, error: err } = await db
     .from('timers')
     .update(updateData)
     .eq('id', id)
@@ -221,79 +320,51 @@ export const update = createHandler(async (ctx, body) => {
 
   return data
 })
-// ─── CHUNK_END: TIMERS_UPDATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:update:constant"]
 
-// ─── CHUNK_START: TIMERS_TOGGLE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:remove:constant" type="constant" identity="remove" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_TOGGLE_1_0_0
- * @version     1.0.0
- * @hash        5db82e7a94fbdb9a0e3452c63a044789a993ed8881033d9372b86778c50a2d8c
- * @macro       Timer Toggle Handler
- * @micro       Activates or deactivates timer with audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Timer id and is_active boolean
- * @outputs     Updated timer record
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB update, audit logging]
- * @tags        timers, toggle, state-transition, audit
+ * The 'remove' constant defines a handler for deleting a timer from the database. It ensures that a valid timer ID is provided and logs the deletion event.
+ *
+ * @throws      Error — Timer ID is required, Error — Timer not found
+ * @sideEffects Database write to delete the timer, logging the deletion event.
+ * @stability   internal
+ * @calls       ctx.db.from('timers'), emitLog
+ * @cil-generated
  */
-export const toggle = createHandler(async (ctx, body) => {
-  const { id, is_active } = body
-
-  if (!id || is_active === undefined) {
-    throw new Error('Timer ID and is_active are required')
-  }
-
-  const { data, error: err } = await ctx.db
-    .from('timers')
-    .update({ is_active, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (err) throw err
-
-  await emitLog(ctx, 'timer.toggled', 
-    { type: 'timer', id }, 
-    { after: { is_active } }
-  )
-
-  return data
-})
-// ─── CHUNK_END: TIMERS_TOGGLE ────────────────────────────────────────────────
-
-// ─── CHUNK_START: TIMERS_REMOVE ──────────────────────────────────────────────
-/**
- * @chunk-id    TIMERS_REMOVE_1_0_0
- * @version     1.0.0
- * @hash        2d999f6948d616925eaa36be8b39b2fd23de364bf242d4fb0ff3304e1ff9f275
- * @macro       Timer Remove Handler
- * @micro       Hard-deletes timer with audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for DELETE)
- * @outputs     {success: true} — Confirmation of successful deletion
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB delete, audit logging]
- * @tags        timers, remove, delete, audit
- */
-export const remove = createHandler(async (ctx, _body) => {
-  const id = ctx.query?.id
+export const remove = createHandler(async (ctx, body) => {
+  const id = body?.id || ctx.query?.id
 
   if (!id) {
     throw new Error('Timer ID is required')
   }
 
-  const { data: current } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+  const { data: existing } = await db
     .from('timers')
-    .select('id, name')
+    .select('name, timer_type')
     .eq('id', id)
     .single()
 
-  if (!current) throw new Error('Timer not found')
+  if (!existing) {
+    throw new Error('Timer not found')
+  }
 
-  const { error: err } = await ctx.db
+  const { error: err } = await db
     .from('timers')
     .delete()
     .eq('id', id)
@@ -302,56 +373,139 @@ export const remove = createHandler(async (ctx, _body) => {
 
   await emitLog(ctx, 'timer.deleted', 
     { type: 'timer', id }, 
-    { before: current }
+    { before: { name: existing.name, timer_type: existing.timer_type } }
   )
 
   return { success: true }
 })
-// ─── CHUNK_END: TIMERS_REMOVE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:remove:constant"]
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: TIMERS_HANDLER ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:toggle:constant" type="constant" identity="toggle" parent="~/.framework/functions/timers.ts"]
 /**
- * @chunk-id    TIMERS_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        e890b54a4f767885a6e9d54b4ab19b968e09f6fc2f8db840d5b60df1e3cd2ba3
- * @macro       Timers Router
- * @micro       Routes HTTP methods and actions to appropriate timer handlers
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST/PATCH/DELETE operations
- * @outputs     Varies — Depends on routed handler (list/get/create/update/remove/toggle)
- * @depends-on  [createHandler, list, get, create, update, remove, toggle]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        timers, router, crud, netlify-function
+ * The toggle function updates the active status of a timer based on its ID, ensuring the timer exists before making changes and logging the event. This function is essential for managing timer states in the application.
+ *
+ * @throws      Error — Timer ID is required, Error — Timer not found
+ * @sideEffects Database update to the timers table, logging of the toggle event.
+ * @stability   internal
+ * @calls       ctx.db.from('timers'), emitLog
+ * @cil-generated
+ */
+export const toggle = createHandler(async (ctx, body) => {
+  const id = body?.id || ctx.query?.id
+
+  if (!id) {
+    throw new Error('Timer ID is required')
+  }
+
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+  const { data: existing } = await db
+    .from('timers')
+    .select('is_active, name, config, next_execution')
+    .eq('id', id)
+    .single()
+
+  if (!existing) {
+    throw new Error('Timer not found')
+  }
+
+  const newStatus = !existing.is_active
+
+  const updateFields: Record<string, any> = {
+    is_active: newStatus,
+    updated_at: new Date().toISOString()
+  }
+  // Re-arm on activation when the timer was never scheduled (e.g. created
+  // before next_execution became writable).
+  if (newStatus && !existing.next_execution) {
+    const armed = computeNextExecution(existing.config)
+    if (armed) updateFields.next_execution = armed
+  }
+
+  const { data, error: err } = await db
+    .from('timers')
+    .update(updateFields)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (err) throw err
+
+  await emitLog(ctx, 'timer.toggled', 
+    { type: 'timer', id }, 
+    { 
+      before: { is_active: existing.is_active },
+      after: { is_active: newStatus }
+    }
+  )
+
+  return data
+})
+// CIL[END stable_id="~/.framework/functions/timers.ts:toggle:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/timers.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/timers.ts"]
+/**
+ * The handler processes various actions based on the query parameters from the context, providing a centralized entry point for handling different operations related to the resource. It delegates to specific functions for each action.
+ *
+ * @throws      Error — Unsupported action: {action}
+ * @sideEffects none
+ * @stability   internal
+ * @calls       list, get, create, update, remove, toggle
+ * @cil-generated
  */
 export const handler = createHandler(async (ctx, body) => {
   const { action } = ctx.query || {}
-  const method = ctx.query?.method || 'GET'
 
   switch (action) {
+    case 'list':
+      return await list(ctx, body)
+    case 'get':
+      return await get(ctx, body)
+    case 'create':
+      return await create(ctx, body)
+    case 'update':
+      return await update(ctx, body)
+    case 'remove':
+      return await remove(ctx, body)
     case 'toggle':
-      if (method === 'POST') {
-        return await toggle(ctx, body)
-      }
-      break
+      return await toggle(ctx, body)
     default:
-      if (method === 'GET') {
-        if (ctx.query?.id) {
-          return await get(ctx, body)
-        } else {
-          return await list(ctx, body)
-        }
-      } else if (method === 'POST') {
-        return await create(ctx, body)
-      } else if (method === 'PATCH') {
-        return await update(ctx, body)
-      } else if (method === 'DELETE') {
-        return await remove(ctx, body)
-      }
+      throw new Error(`Unsupported action: ${action}`)
   }
-
-  throw new Error('Invalid action or method')
 })
-// ─── CHUNK_END: TIMERS_HANDLER ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/timers.ts:handler:constant"]
+
+
+
+
+
+
+

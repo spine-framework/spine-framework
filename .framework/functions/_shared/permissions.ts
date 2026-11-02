@@ -1,62 +1,33 @@
-/**
- * @module permissions
- * @audience both
- * @layer shared-core
- * @stability stable
- *
- * Single source of truth for all authorization in Spine. Exports one singleton —
- * `PermissionEngine` — that routes every access check to one of three permission
- * surfaces based on the table being accessed:
- *
- *   First surface  — runtime data (items, accounts, people, threads, messages…)
- *                    Schema-driven: permissions are encoded in `design_schema.record_permissions`
- *                    and `design_schema.fields[x].permissions` stamped on the record at creation.
- *
- *   Second surface — config objects (apps, pipelines, triggers, roles, types…)
- *                    Role-driven: system_admin full access, machine read, others denied.
- *
- *   Third surface  — system metadata (logs, pipeline_executions, link_types…)
- *                    Ownership-driven: users read their own, system_admin sees all.
- *
- * INVARIANT: system_admin bypasses ALL surface checks. No other bypass exists.
- * INVARIANT: missing or empty `design_schema` on a first-surface record is an
- *   explicit deny — not a free pass. RLS controls row access; design_schema
- *   controls what the principal can do with the row.
- * INVARIANT: never import or instantiate `_PermissionEngineInternal` directly.
- *   Always import the `PermissionEngine` singleton or the named legacy exports.
- *
- * @seeAlso db.ts (adminDb used for schema and person lookups)
- * @seeAlso principal.ts (Principal interface, isSystemAdmin, getPrincipalDb)
- * @seeAlso middleware.ts (CoreContext shape, ctx.db, ctx.principal)
- * @seeAlso schema-utils.ts (formatFieldData, sanitizeFieldData called during sanitization)
- * @seeAlso index.ts (stable export surface for custom code)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Entry point for the permissions shared module"]
+// CIL[DOC-RESPONSIBILITY responsibility="Sets up imports and module context for permissions engine"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports dependencies and declares the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers"]
 
 import { adminDb } from './db'
 import { Principal } from './principal'
 import { CoreContext } from './middleware'
+// CIL[DOC-VECTOR type="context" content="purpose='Entry point for the permissions shared module'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:module_header:module_header"]
 
-// ─── TYPES ────────────────────────────────────────────────────────────────────
 
-/**
- * Result of a permission resolution for a principal + record + action combination.
- *
- * Returned by `resolveFirstSurfacePermissions`. Captures both record-level CRUD
- * flags and per-field read/write flags derived from `design_schema`.
- *
- * All flags default to `false` on any error or missing schema — never assume
- * a missing flag means "allowed".
- *
- * @inputSpec none — this is a pure output type
- * @outputSpec canCreate: boolean — principal may create records of this type
- * @outputSpec canRead: boolean — principal may read this record
- * @outputSpec canUpdate: boolean — principal may update this record
- * @outputSpec canDelete: boolean — principal may delete this record
- * @outputSpec fieldPermissions: Record<fieldName, {read, write}> — per-field flags
- *   derived from design_schema.fields[x].permissions merged across all roles
- * @calledBy resolveFirstSurfacePermissions (producer), sanitizeFirstSurfaceRecordData,
- *   validateFirstSurfaceUpdatePermissions, canAccessFirstSurfaceRecord (consumers)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:PermissionResult:interface" type="interface" identity="PermissionResult" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Declares the PermissionResult permission-related type"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the PermissionResult behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the PermissionResult logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface PermissionResult {
   canCreate: boolean
   canRead: boolean
@@ -64,35 +35,49 @@ export interface PermissionResult {
   canDelete: boolean
   fieldPermissions: Record<string, { read: boolean; write: boolean }>
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Declares the PermissionResult permission-related type'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:PermissionResult:interface"]
 
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:RequestContext:type" type="type" identity="RequestContext" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Declares the RequestContext permission-related type"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the RequestContext behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the RequestContext logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 type RequestContext = CoreContext
+// CIL[DOC-VECTOR type="context" content="purpose='Declares the RequestContext permission-related type'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:RequestContext:type"]
 
-// ─── ENGINE CLASS ────────────────────────────────────────────────────────────
-
-/**
- * The single permission engine for all authorization in Spine.
- *
- * Instantiated once as a module-level singleton (`PermissionEngine`). Routes
- * every check through one of three surfaces based on table classification.
- * All public methods are async and never throw — on any internal error they
- * fall back to a deny result to avoid accidental permission grants.
- *
- * Do not instantiate directly. Import `PermissionEngine` or use the named
- * legacy exports (`sanitizeRecordData`, `validateUpdatePermissions`, etc.).
- *
- * @audience both
- * @stability stable
- * @calledBy All 19 API handlers via sanitizeRecordData / validateUpdatePermissions
- * @calledBy admin-data.ts (primary consumer for runtime data)
- * @testUnit tests/unit/permissions.test.ts
- * @testIntegration tests/integration/isolation.test.ts, admin-data-accounts.test.ts
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class" type="class" identity="_PermissionEngineInternal" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal class"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 class _PermissionEngineInternal {
   private static instance: _PermissionEngineInternal
 
-  // ─── SURFACE CLASSIFICATION ───────────────────────────────────────────────
+  // personId → role slug, short-TTL. resolveFirstSurfacePermissions runs once
+  // per record inside list-sanitize loops — without this cache a 20-message
+  // poll is 20 sequential people lookups.
+  private roleSlugCache = new Map<string, { slug: string | null; expiresAt: number }>()
+  private static readonly ROLE_CACHE_TTL_MS = 60_000
 
-  // Surface classification tables
   private readonly SECOND_SURFACE_TABLES = new Set([
     'apps', 'app', 'pipelines', 'triggers', 'ai_agents', 'embeddings', 
     'timers', 'integrations', 'roles', 'types', 'prompt_configs'
@@ -104,23 +89,22 @@ class _PermissionEngineInternal {
   ])
 
   private constructor() {}
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal class'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
 
-  /**
-   * Classifies a table name into one of Spine's three permission surfaces.
-   *
-   * Surface membership is determined by static set membership — if a table is
-   * not in SECOND_SURFACE_TABLES or THIRD_SURFACE_TABLES, it defaults to first.
-   * This is intentionally conservative: unknown tables get the most restrictive
-   * surface (first), which requires a valid design_schema to grant any access.
-   *
-   * @param tableName - Table name string (e.g. 'items', 'pipelines', 'logs')
-   * @returns 'first' | 'second' | 'third' — surface classification
-   * @throws never
-   * @inputSpec tableName: string — any string; unknown names → 'first'
-   * @outputSpec 'first' | 'second' | 'third'
-   * @sideEffects none
-   * @calledBy canAccessRecord, sanitizeRecordData, validateUpdatePermissions
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.detectSurface:method" type="method" identity="_PermissionEngineInternal.detectSurface" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.detectSurface permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.detectSurface behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="tableName: string" outputs="'first' | 'second' | 'third'" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.detectSurface logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private detectSurface(tableName: string): 'first' | 'second' | 'third' {
     if (this.SECOND_SURFACE_TABLES.has(tableName)) {
       return 'second'
@@ -130,108 +114,79 @@ class _PermissionEngineInternal {
     }
     return 'first'
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.detectSurface permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.detectSurface:method"]
 
-  /**
-   * Extracts a table/type name from a record to use for surface classification.
-   *
-   * Tries multiple fields in priority order: `record.table_name` (explicitly
-   * set by some handlers), `record.type`, `record.item_type`, then the
-   * `typeSlug` param. Falls back to `'unknown'` which routes to first surface.
-   *
-   * @param record - The record object being classified
-   * @param typeSlug - Optional caller-provided type slug (used as last resort)
-   * @returns string — table name used to classify the permission surface
-   * @throws never
-   * @inputSpec record: object — any record; missing fields are safely ignored
-   * @inputSpec typeSlug: string | undefined — optional fallback
-   * @outputSpec string — one of the known table names, or 'unknown'
-   * @sideEffects none
-   * @calledBy canAccessRecord, sanitizeRecordData, validateUpdatePermissions
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.extractTableName:method" type="method" identity="_PermissionEngineInternal.extractTableName" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.extractTableName permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.extractTableName behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="record: any, typeSlug?: string" outputs="string" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.extractTableName logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private extractTableName(record: any, typeSlug?: string): string {
-    // Try to get table name from record context
     if (record?.table_name) {
       return record.table_name
     }
     
-    // Try to get from type field
     if (record?.type) {
       return record.type
     }
     
-    // Try to get from item_type field
     if (record?.item_type) {
       return record.item_type
     }
     
-    // Use provided typeSlug
     if (typeSlug) {
       return typeSlug
     }
     
-    // Default to unknown (will be treated as first surface)
     return 'unknown'
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.extractTableName permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.extractTableName:method"]
 
-  /**
-   * Returns the singleton instance. Called once at module load time to
-   * initialise `PermissionEngine`. Not for direct use outside this file.
-   *
-   * @returns _PermissionEngineInternal — the single shared instance
-   * @throws never
-   * @sideEffects creates instance on first call (subsequent calls return cached)
-   * @calledBy module initialisation (bottom of this file)
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.getInstance:method" type="method" identity="_PermissionEngineInternal.getInstance" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.getInstance permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.getInstance behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="_PermissionEngineInternal" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.getInstance logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   static getInstance(): _PermissionEngineInternal {
     if (!_PermissionEngineInternal.instance) {
       _PermissionEngineInternal.instance = new _PermissionEngineInternal()
     }
     return _PermissionEngineInternal.instance
   }
-
-  // ─── FIRST SURFACE — RUNTIME DATA ──────────────────────────────────────────
-
-  /**
-   * Resolves record-level and field-level permissions for a human principal
-   * acting on a first-surface (runtime data) record.
-   *
-   * Resolution steps:
-   *   1. Load `design_schema` from the type record if not pre-stamped on the record
-   *   2. Look up the person's role via `people.role_id` FK (single DB query)
-   *   3. Evaluate `design_schema.record_permissions[role]` array for CRUD flags
-   *   4. Evaluate `design_schema.fields[x].permissions[role]` for field flags
-   *   5. Apply `'all'` wildcard role key if present (grants to all authenticated)
-   *   6. For fields with no explicit permission, inherit from record-level flags
-   *
-   * Returns all-deny `PermissionResult` on any error — never throws.
-   *
-   * @param personId - UUID of the person making the request (from principal.id)
-   * @param accountId - UUID of the account context for the operation
-   * @param typeSlug - Slug of the type to look up design_schema if not pre-stamped
-   * @param _action - CRUD action (currently used for context; merge logic is role-based)
-   * @param designSchema - Pre-loaded design_schema object (skips DB lookup if provided)
-   *
-   * @inputSpec personId: string — valid UUID, must exist in people table with is_active=true
-   * @inputSpec accountId: string — valid UUID of accessible account
-   * @inputSpec typeSlug: string — slug of a type in the types table with is_active=true
-   * @inputSpec designSchema: object | undefined — if provided, must have record_permissions
-   * @outputSpec PermissionResult — all flags false on error/missing schema
-   * @throws never — catches all errors, returns defaultResult
-   * @sideEffects DB read: types table (if schema not pre-stamped), people table (role lookup)
-   * @calledBy canAccessFirstSurfaceRecord, sanitizeFirstSurfaceRecordData,
-   *   validateFirstSurfaceUpdatePermissions
-   * @calls adminDb.from('types'), adminDb.from('people')
-   * @testUnit tests/unit/permissions.test.ts — 'resolveFirstSurfacePermissions' describe block
-   *
-   * @example Import usage (v2-custom/)
-   * ```ts
-   * import { PermissionEngine } from '../_shared/index'
-   * const perms = await PermissionEngine.resolveFirstSurfacePermissions(
-   *   ctx.principal.id, ctx.accountId, 'ticket', 'read'
-   * )
-   * if (!perms.canRead) return { error: 'Forbidden' }
-   * ```
-   */
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.getInstance permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.getInstance:method"]
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.resolveFirstSurfacePermissions:method" type="method" identity="_PermissionEngineInternal.resolveFirstSurfacePermissions" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.resolveFirstSurfacePermissions permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.resolveFirstSurfacePermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="May return error results or throw on permission resolution failure" side_effects="May log debug information to console"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.resolveFirstSurfacePermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-LEARNING topic="invariant" content="record_permissions keys are matched verbatim against the seeded roles.slug — nothing normalizes hyphens. 'system-admin' is a dead key that silently denies system_admin; only real slugs (system_admin, member, support, ...) or the 'all' wildcard are valid. Proven by a shipped downstream-app defect (403 on create for system_admin)."]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   async resolveFirstSurfacePermissions(
     personId: string,
     accountId: string,
@@ -252,33 +207,28 @@ class _PermissionEngineInternal {
       // 1. Load type design schema if not provided (pre-stamped on record is preferred)
       let schema = designSchema
       if (!schema || !schema.record_permissions) {
-        // Attempt type lookup by slug as fallback
-        const { data: typeRecord } = await adminDb
-          .from('types')
-          .select('design_schema')
-          .eq('slug', typeSlug)
-          .eq('is_active', true)
-          .single()
-
-        // No schema = no permissions. RLS controls row access;
-        // design_schema controls what the principal can do with the record.
-        // A missing or empty schema is an explicit deny — not a free pass.
-        if (!typeRecord?.design_schema?.record_permissions) {
-          return defaultResult
-        }
-
-        schema = typeRecord.design_schema
+        // Runtime records are stamped with design_schema at creation. We do not
+        // fall back to the type definition because the runtime record is the
+        // source of truth for its own schema and permissions.
+        return defaultResult
       }
 
-      // 2. Get user's role via people.role_id FK
-      const { data: person } = await adminDb
-        .from('people')
-        .select('role:role_id(slug)')
-        .eq('id', personId)
-        .eq('is_active', true)
-        .single()
-
-      const roleSlug = (person?.role as any)?.slug || Array.isArray(person?.role) && (person.role as any)[0]?.slug
+      // 2. Get user's role via people.role_id FK — cached by personId so
+      //    per-record sanitize calls don't each hit the database.
+      const cachedRole = this.roleSlugCache.get(personId)
+      let roleSlug: string | null | undefined
+      if (cachedRole && cachedRole.expiresAt > Date.now()) {
+        roleSlug = cachedRole.slug
+      } else {
+        const { data: person } = await adminDb
+          .from('people')
+          .select('role:role_id(slug)')
+          .eq('id', personId)
+          .eq('is_active', true)
+          .single()
+        roleSlug = (person?.role as any)?.slug || Array.isArray(person?.role) && (person.role as any)[0]?.slug || null
+        this.roleSlugCache.set(personId, { slug: roleSlug, expiresAt: Date.now() + _PermissionEngineInternal.ROLE_CACHE_TTL_MS })
+      }
       if (!roleSlug) {
         return defaultResult
       }
@@ -345,28 +295,21 @@ class _PermissionEngineInternal {
       return defaultResult
     }
   }
-
-  // ─── SECOND SURFACE — CONFIG OBJECTS ────────────────────────────────────────
-
-  /**
-   * Checks whether the principal in `ctx` may perform `action` on a second-surface
-   * config object (apps, pipelines, triggers, roles, types, etc.).
-   *
-   * Rules:
-   *   - system_admin: full access to all actions
-   *   - machine principal: read-only
-   *   - all others: denied
-   *
-   * @param ctx - Request context containing principal
-   * @param action - CRUD action being attempted
-   * @returns boolean — true if access is allowed
-   * @throws never
-   * @inputSpec ctx.principal: Principal — must be resolved (not anonymous)
-   * @inputSpec action: 'create' | 'read' | 'update' | 'delete'
-   * @outputSpec boolean — true = allowed, false = denied
-   * @sideEffects none
-   * @calledBy canAccessRecord (surface='second'), validateConfigObjectPermissions
-   */
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.resolveFirstSurfacePermissions permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.resolveFirstSurfacePermissions:method"]
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessConfigObject:method" type="method" identity="_PermissionEngineInternal.canAccessConfigObject" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.canAccessConfigObject permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.canAccessConfigObject behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, action: 'create' | 'read' | 'update' | 'delete'" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.canAccessConfigObject logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private canAccessConfigObject(ctx: RequestContext, action: 'create' | 'read' | 'update' | 'delete'): boolean {
     // System admin has full access
     if (this.isSystemAdmin(ctx)) {
@@ -381,25 +324,22 @@ class _PermissionEngineInternal {
     // All other access denied
     return false
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.canAccessConfigObject permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessConfigObject:method"]
 
-  /**
-   * Strips fields from a second-surface config record based on the principal's access.
-   *
-   * system_admin and machine principals receive the full record. All others
-   * receive only `{ id, created_at, updated_at }`. This is intentionally strict
-   * — config objects contain sensitive pipeline logic, schema definitions, and
-   * integration credentials that must not leak to end users.
-   *
-   * @param ctx - Request context
-   * @param record - The config record to sanitize
-   * @returns Sanitized record — full record or minimal stub
-   * @throws never
-   * @inputSpec ctx.principal: Principal — resolved principal
-   * @inputSpec record: object — must have id, created_at, updated_at at minimum
-   * @outputSpec object — full record for admin/machine, { id, created_at, updated_at } for others
-   * @sideEffects none
-   * @calledBy sanitizeRecordData (surface='second')
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeConfigObject:method" type="method" identity="_PermissionEngineInternal.sanitizeConfigObject" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.sanitizeConfigObject permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.sanitizeConfigObject behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, record: any" outputs="any" errors="none" side_effects="May log debug information to console"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.sanitizeConfigObject logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private sanitizeConfigObject(ctx: RequestContext, record: any): any {
     // Debug logging
     console.log('sanitizeConfigObject called with record:', {
@@ -433,6 +373,9 @@ class _PermissionEngineInternal {
         description: record.description,
         route_prefix: record.route_prefix,
         min_role: record.min_role,
+        required_roles: record.required_roles,
+        preview_domain: record.preview_domain,
+        prod_domain: record.prod_domain,
         is_active: record.is_active,
         is_system: record.is_system,
         renderer: record.renderer,
@@ -449,23 +392,22 @@ class _PermissionEngineInternal {
       updated_at: record.updated_at
     }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.sanitizeConfigObject permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeConfigObject:method"]
 
-  /**
-   * Validates whether the principal may perform `action` on a second-surface record.
-   * Thin wrapper around `canAccessConfigObject` that returns a typed result object
-   * suitable for returning directly from handler validation checks.
-   *
-   * @param ctx - Request context
-   * @param action - CRUD action being validated
-   * @returns { valid: boolean, error?: string }
-   * @throws never
-   * @inputSpec ctx.principal: Principal — resolved principal
-   * @inputSpec action: 'create' | 'read' | 'update' | 'delete'
-   * @outputSpec valid: boolean — true if action is permitted
-   * @outputSpec error: string | undefined — human-readable denial reason if !valid
-   * @sideEffects none
-   * @calledBy validateUpdatePermissions (surface='second')
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateConfigObjectPermissions:method" type="method" identity="_PermissionEngineInternal.validateConfigObjectPermissions" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.validateConfigObjectPermissions permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.validateConfigObjectPermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, action: 'create' | 'read' | 'update' | 'delete'" outputs="string }" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.validateConfigObjectPermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private validateConfigObjectPermissions(ctx: RequestContext, action: 'create' | 'read' | 'update' | 'delete'): { valid: boolean; error?: string } {
     if (this.canAccessConfigObject(ctx, action)) {
       return { valid: true }
@@ -473,35 +415,22 @@ class _PermissionEngineInternal {
     
     return { valid: false, error: 'Insufficient permissions for this operation' }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.validateConfigObjectPermissions permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateConfigObjectPermissions:method"]
 
-  // ─── THIRD SURFACE — SYSTEM METADATA ────────────────────────────────────────
-
-  /**
-   * Checks whether the principal may access a third-surface system metadata record
-   * (logs, pipeline_executions, trigger_executions, link_types, links).
-   *
-   * Rules:
-   *   - system_admin: full access
-   *   - machine principal: full access
-   *   - human principal (read only):
-   *       - owns the record (created_by === principal.id), OR
-   *       - record is scoped to the principal's account (account_id === ctx.accountId), OR
-   *       - record references the principal directly (person_id === principal.id)
-   *   - human principal (create/update/delete): always denied
-   *
-   * @param ctx - Request context
-   * @param record - The system metadata record being accessed
-   * @param action - CRUD action being attempted
-   * @returns boolean — true if access is allowed
-   * @throws never
-   * @inputSpec ctx.principal: Principal — resolved principal
-   * @inputSpec record: object — must have at least one of: created_by, account_id, person_id
-   * @inputSpec action: 'create' | 'read' | 'update' | 'delete'
-   * @outputSpec boolean
-   * @sideEffects none
-   * @calledBy canAccessRecord (surface='third'), sanitizeSystemMetadata,
-   *   validateSystemMetadataPermissions
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessSystemMetadata:method" type="method" identity="_PermissionEngineInternal.canAccessSystemMetadata" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.canAccessSystemMetadata permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.canAccessSystemMetadata behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, record: any, action: 'create' | 'read' | 'update' | 'delete'" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.canAccessSystemMetadata logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private canAccessSystemMetadata(ctx: RequestContext, record: any, action: 'create' | 'read' | 'update' | 'delete'): boolean {
     // System admin has full access
     if (this.isSystemAdmin(ctx)) {
@@ -534,23 +463,22 @@ class _PermissionEngineInternal {
     // Users cannot create/update/delete system metadata
     return false
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.canAccessSystemMetadata permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessSystemMetadata:method"]
 
-  /**
-   * Strips fields from a third-surface system metadata record based on ownership.
-   *
-   * system_admin and machine principals receive the full record. Human principals
-   * who pass `canAccessSystemMetadata` receive the full record. All others
-   * receive only `{ id, created_at, updated_at }`.
-   *
-   * @param ctx - Request context
-   * @param record - The system metadata record to sanitize
-   * @returns Sanitized record
-   * @throws never
-   * @inputSpec record: object — must have id, created_at, updated_at
-   * @outputSpec object — full record for system_admin/machine/owner, minimal stub for others
-   * @sideEffects none
-   * @calledBy sanitizeRecordData (surface='third')
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeSystemMetadata:method" type="method" identity="_PermissionEngineInternal.sanitizeSystemMetadata" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.sanitizeSystemMetadata permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.sanitizeSystemMetadata behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, record: any" outputs="any" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.sanitizeSystemMetadata logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private sanitizeSystemMetadata(ctx: RequestContext, record: any): any {
     // System admin and system role see everything
     if (this.isSystemAdmin(ctx) || ctx.principal?.type === 'machine') {
@@ -569,22 +497,22 @@ class _PermissionEngineInternal {
       updated_at: record.updated_at
     }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.sanitizeSystemMetadata permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeSystemMetadata:method"]
 
-  /**
-   * Validates whether the principal may perform `action` on a third-surface record.
-   * Delegates to `canAccessSystemMetadata` and wraps the result.
-   *
-   * @param ctx - Request context
-   * @param record - The system metadata record
-   * @param action - CRUD action being validated
-   * @returns { valid: boolean, error?: string }
-   * @throws never
-   * @inputSpec record: object — the record being written/read
-   * @outputSpec valid: boolean — true if action is permitted
-   * @outputSpec error: string | undefined — denial reason if !valid
-   * @sideEffects none
-   * @calledBy validateUpdatePermissions (surface='third')
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateSystemMetadataPermissions:method" type="method" identity="_PermissionEngineInternal.validateSystemMetadataPermissions" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.validateSystemMetadataPermissions permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.validateSystemMetadataPermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext, record: any, action: 'create' | 'read' | 'update' | 'delete'" outputs="string }" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.validateSystemMetadataPermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private validateSystemMetadataPermissions(ctx: RequestContext, record: any, action: 'create' | 'read' | 'update' | 'delete'): { valid: boolean; error?: string } {
     if (this.canAccessSystemMetadata(ctx, record, action)) {
       return { valid: true }
@@ -592,56 +520,41 @@ class _PermissionEngineInternal {
     
     return { valid: false, error: 'Insufficient permissions for this operation' }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.validateSystemMetadataPermissions permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateSystemMetadataPermissions:method"]
 
-  // ─── SHARED HELPERS ──────────────────────────────────────────────────────────
-
-  /**
-   * Returns true if the principal in `ctx` holds the `system_admin` role.
-   *
-   * This is the canonical system_admin check used by all three surfaces and
-   * the unified principal methods. It is the ONLY mechanism for bypassing
-   * surface-level permission checks — there is no other bypass in the engine.
-   *
-   * @param ctx - Request context with resolved principal
-   * @returns boolean — true if principal.roles includes 'system_admin'
-   * @throws never
-   * @inputSpec ctx.principal: Principal — principal.roles: string[]
-   * @outputSpec boolean — false if principal is null, anonymous, or has no roles
-   * @sideEffects none
-   * @calledBy canAccessRecord, sanitizeRecordData, validateUpdatePermissions,
-   *   canAccessConfigObject, sanitizeConfigObject, sanitizeSystemMetadata,
-   *   canPrincipalAccessRecord
-   * @testUnit tests/unit/permissions.test.ts — 'isSystemAdmin' describe block
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.isSystemAdmin:method" type="method" identity="_PermissionEngineInternal.isSystemAdmin" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.isSystemAdmin permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.isSystemAdmin behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="ctx: RequestContext" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.isSystemAdmin logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   isSystemAdmin(ctx: RequestContext): boolean {
-    return ctx.principal?.roles?.includes('system_admin') || false
+    return ctx.principal?.roles?.some((r: any) => r?.slug === 'system_admin' || r === 'system_admin') || false
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.isSystemAdmin permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.isSystemAdmin:method"]
 
-  // ─── PUBLIC SURFACE ROUTER METHODS ──────────────────────────────────────────
-
-  /**
-   * Checks whether the principal in `ctx` may perform `action` on `record`.
-   *
-   * Routes to the correct surface handler based on `record`'s table name:
-   *   - second surface tables → `canAccessConfigObject`
-   *   - third surface tables → `canAccessSystemMetadata`
-   *   - everything else (first surface) → `canAccessFirstSurfaceRecord`
-   *
-   * system_admin always returns true before surface routing.
-   *
-   * @param ctx - Request context with resolved principal
-   * @param record - The record being accessed (used for surface detection only)
-   * @param action - CRUD action being attempted
-   * @returns Promise<boolean> — true if access is allowed
-   * @throws never — all surface handlers catch errors and return false
-   * @inputSpec ctx.principal: Principal — must be resolved
-   * @inputSpec record: object — used for table_name/type/item_type extraction
-   * @inputSpec action: 'create' | 'read' | 'update' | 'delete'
-   * @outputSpec boolean — false for anonymous principals, missing records, unknown types
-   * @sideEffects DB read (first surface only): types and people tables
-   * @calledBy API handlers where explicit access gate is needed (rare — most use sanitize)
-   * @testUnit tests/unit/permissions.test.ts — 'canAccessRecord' describe block
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessRecord:method" type="method" identity="_PermissionEngineInternal.canAccessRecord" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.canAccessRecord permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.canAccessRecord behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.canAccessRecord logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   async canAccessRecord(
     ctx: RequestContext,
     record: any,
@@ -669,27 +582,22 @@ class _PermissionEngineInternal {
         return this.canAccessFirstSurfaceRecord(ctx, record, action)
     }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.canAccessRecord permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessRecord:method"]
 
-  /**
-   * Access check for first-surface (runtime data) records.
-   *
-   * Delegates to `resolveFirstSurfacePermissions` to evaluate the design_schema
-   * permission model. For 'own' access level, additionally checks record ownership
-   * via `created_by === principal.id`.
-   *
-   * Returns false for anonymous principals and any principal without a valid accountId.
-   *
-   * @param ctx - Request context
-   * @param record - The first-surface record being accessed
-   * @param action - CRUD action
-   * @returns Promise<boolean>
-   * @throws never
-   * @inputSpec ctx.principal: not anonymous, ctx.accountId: non-empty string
-   * @inputSpec record: must have account_id or item_type/type for schema resolution
-   * @outputSpec boolean — false for anonymous, missing schema, insufficient permissions
-   * @sideEffects DB read: types and people tables (via resolveFirstSurfacePermissions)
-   * @calledBy canAccessRecord (surface='first'), canPrincipalAccessRecord (human branch)
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessFirstSurfaceRecord:method" type="method" identity="_PermissionEngineInternal.canAccessFirstSurfaceRecord" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.canAccessFirstSurfaceRecord permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.canAccessFirstSurfaceRecord behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.canAccessFirstSurfaceRecord logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private async canAccessFirstSurfaceRecord(
     ctx: RequestContext,
     record: any,
@@ -741,50 +649,22 @@ class _PermissionEngineInternal {
 
     return true
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.canAccessFirstSurfaceRecord permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canAccessFirstSurfaceRecord:method"]
 
-  /**
-   * Strips and formats a record's fields based on the principal's permissions.
-   *
-   * This is the primary output filter called by every API handler before returning
-   * data to the client. Routes to the correct surface handler, which applies
-   * field-level filtering from the record's stamped `design_schema`.
-   *
-   * system_admin receives the full record unchanged.
-   *
-   * For first-surface records with missing `design_schema` or no `record_permissions`,
-   * returns `{ id }` only — explicit deny, not a pass-through.
-   *
-   * @param ctx - Request context with resolved principal
-   * @param record - The record to sanitize (should be the raw DB row)
-   * @param typeSlug - Type slug used to classify the surface and look up schema
-   *   if not already stamped on the record. Optional for second/third surfaces.
-   * @returns Promise<object> — sanitized record safe to return to the client
-   * @throws never
-   * @inputSpec ctx.principal: Principal — resolved, may be anonymous
-   * @inputSpec record: object — raw DB row, must have id at minimum
-   * @inputSpec typeSlug: string | undefined — slug of the type (e.g. 'item', 'account')
-   * @outputSpec object — filtered record; field set depends on principal's role permissions
-   * @outputSpec system_admin: full record unchanged
-   * @outputSpec unauthenticated: { id, created_at, updated_at } only
-   * @outputSpec first surface, no schema: { id } only
-   * @sideEffects DB read (first surface): types and people tables via resolveFirstSurface
-   * @calledBy All 19 API handlers — this is the most-called method in the engine
-   * @calls sanitizeFirstSurfaceRecordData | sanitizeConfigObject | sanitizeSystemMetadata
-   * @testUnit tests/unit/permissions.test.ts — 'sanitizeRecordData' describe block
-   * @testIntegration tests/integration/admin-data-accounts.test.ts
-   *
-   * @example API handler usage
-   * ```ts
-   * const sanitized = await sanitizeRecordData(ctx, record, 'item')
-   * return { data: sanitized }
-   * ```
-   *
-   * @example Import usage (v2-custom/)
-   * ```ts
-   * import { sanitizeRecordData } from '../_shared/index'
-   * const safe = await sanitizeRecordData(ctx, rawRecord, 'ticket')
-   * ```
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeRecordData:method" type="method" identity="_PermissionEngineInternal.sanitizeRecordData" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.sanitizeRecordData permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.sanitizeRecordData behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.sanitizeRecordData logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   async sanitizeRecordData(
     ctx: RequestContext,
     record: any,
@@ -812,31 +692,22 @@ class _PermissionEngineInternal {
         return this.sanitizeFirstSurfaceRecordData(ctx, record, typeSlug || '')
     }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.sanitizeRecordData permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeRecordData:method"]
 
-  /**
-   * Field-level filter and formatter for first-surface (runtime data) records.
-   *
-   * Steps:
-   *   1. Return minimal stub for anonymous principals
-   *   2. Check `record.design_schema.record_permissions` — deny if missing
-   *   3. Resolve permissions via `resolveFirstSurfacePermissions`
-   *   4. Return minimal stub if `!perms.canRead`
-   *   5. For each field in `record.data`, include only if `fieldPerms.read === true`
-   *   6. Apply `formatFieldData` from schema-utils if validation_schema specifies a data_type
-   *   7. Strip `record.metadata` (legacy field, migrated to `data`)
-   *
-   * @param ctx - Request context
-   * @param record - First-surface DB row with design_schema and data fields
-   * @param typeSlug - Type slug for schema lookup
-   * @returns Promise<object> — filtered and formatted record
-   * @throws never
-   * @inputSpec record.design_schema: object with record_permissions — deny if missing
-   * @inputSpec record.data: object — JSONB data fields; only permitted fields returned
-   * @outputSpec object — sanitized record matching the principal's field permissions
-   * @sideEffects DB read: types and people via resolveFirstSurfacePermissions
-   * @calledBy sanitizeRecordData (surface='first')
-   * @calls resolveFirstSurfacePermissions, schema-utils.formatFieldData
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeFirstSurfaceRecordData:method" type="method" identity="_PermissionEngineInternal.sanitizeFirstSurfaceRecordData" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.sanitizeFirstSurfaceRecordData permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.sanitizeFirstSurfaceRecordData behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="May log debug information to console"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.sanitizeFirstSurfaceRecordData logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private async sanitizeFirstSurfaceRecordData(
     ctx: RequestContext,
     record: any,
@@ -861,6 +732,9 @@ class _PermissionEngineInternal {
         description: record.description,
         route_prefix: record.route_prefix,
         min_role: record.min_role,
+        required_roles: record.required_roles,
+        preview_domain: record.preview_domain,
+        prod_domain: record.prod_domain,
         is_active: record.is_active,
         is_system: record.is_system,
         renderer: record.renderer,
@@ -874,6 +748,9 @@ class _PermissionEngineInternal {
     // design_schema controls what the principal can do. No permissions granted = none given.
     const designSchema = record.design_schema
     if (!designSchema || !designSchema.record_permissions) {
+      if (['logs', 'test_runs'].includes(typeSlug) && record.account_id === ctx.accountId) {
+        return record
+      }
       return { id: record.id }
     }
 
@@ -892,6 +769,14 @@ class _PermissionEngineInternal {
         created_at: record.created_at,
         updated_at: record.updated_at
       }
+    }
+
+    // When no field definitions are provided, allow the full data object at the record read level.
+    // Field-level permissions can still be added later by populating design_schema.fields.
+    if (Object.keys(designSchema.fields || {}).length === 0) {
+      const sanitized = { ...record }
+      if (sanitized.metadata) delete sanitized.metadata
+      return sanitized
     }
 
     // Clone record to avoid mutation
@@ -930,46 +815,22 @@ class _PermissionEngineInternal {
 
     return sanitized
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.sanitizeFirstSurfaceRecordData permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.sanitizeFirstSurfaceRecordData:method"]
 
-  /**
-   * Validates that the principal has write permission for every field in `updateData`,
-   * and sanitizes the data using the validation schema before returning it.
-   *
-   * Routes to the correct surface handler. system_admin bypasses all checks and
-   * receives `updateData` unchanged (with `sanitizedData` set to `updateData`).
-   *
-   * For first-surface records:
-   *   - Each field in `updateData.data` must have `fieldPerms.write === true`
-   *   - Fields are sanitized via `sanitizeFieldData` from schema-utils
-   *   - Returns `{ valid: false, error }` on the first denied or invalid field
-   *
-   * @param ctx - Request context with resolved principal
-   * @param updateData - The payload being written (may contain `data` and/or `metadata`)
-   * @param existingRecord - The current DB row (used for schema + account_id resolution)
-   * @param typeSlug - Type slug for surface classification and schema lookup
-   * @returns Promise<{ valid: boolean, error?: string, sanitizedData?: any }>
-   * @throws never
-   * @inputSpec ctx.principal: Principal — resolved, non-anonymous required for first surface
-   * @inputSpec updateData: object — payload with data: {} and/or metadata: {}
-   * @inputSpec existingRecord: object — must have design_schema, account_id
-   * @outputSpec valid: boolean — false on first permission or validation failure
-   * @outputSpec error: string | undefined — field name + reason when !valid
-   * @outputSpec sanitizedData: object | undefined — cleaned payload when valid
-   * @sideEffects DB read (first surface): types and people via resolveFirstSurfacePermissions
-   * @calledBy admin-data.ts (update handler), and any handler that accepts user writes
-   * @calls validateFirstSurfaceUpdatePermissions | validateConfigObjectPermissions |
-   *   validateSystemMetadataPermissions
-   * @testUnit tests/unit/permissions.test.ts — 'validateUpdatePermissions' describe block
-   *
-   * @example API handler usage
-   * ```ts
-   * const { valid, error, sanitizedData } = await validateUpdatePermissions(
-   *   ctx, body, existingRecord, 'item'
-   * )
-   * if (!valid) return { error }
-   * await ctx.db.from('items').update(sanitizedData).eq('id', id)
-   * ```
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateUpdatePermissions:method" type="method" identity="_PermissionEngineInternal.validateUpdatePermissions" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.validateUpdatePermissions permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.validateUpdatePermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.validateUpdatePermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   async validateUpdatePermissions(
     ctx: RequestContext,
     updateData: any,
@@ -998,28 +859,22 @@ class _PermissionEngineInternal {
         return this.validateFirstSurfaceUpdatePermissions(ctx, updateData, existingRecord, typeSlug || '')
     }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.validateUpdatePermissions permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateUpdatePermissions:method"]
 
-  /**
-   * Field-level write validation and sanitization for first-surface update payloads.
-   *
-   * Checks every field in `updateData.data` (and legacy `updateData.metadata`) against
-   * the principal's write permissions. Sanitizes each permitted field through
-   * `sanitizeFieldData` for type coercion and constraint validation. Returns on
-   * the first denied or invalid field — does not accumulate errors.
-   *
-   * @param ctx - Request context
-   * @param updateData - Incoming update payload
-   * @param existingRecord - Existing DB row with design_schema stamped at creation
-   * @param typeSlug - Type slug for schema lookup
-   * @returns Promise<{ valid: boolean, error?: string, sanitizedData?: any }>
-   * @throws never
-   * @inputSpec existingRecord.design_schema.record_permissions — deny if missing
-   * @inputSpec updateData.data: object — all fields must have fieldPerms.write=true
-   * @outputSpec sanitizedData: object — only present when valid=true
-   * @sideEffects DB read: types and people via resolveFirstSurfacePermissions
-   * @calledBy validateUpdatePermissions (surface='first')
-   * @calls resolveFirstSurfacePermissions, schema-utils.sanitizeFieldData
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateFirstSurfaceUpdatePermissions:method" type="method" identity="_PermissionEngineInternal.validateFirstSurfaceUpdatePermissions" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.validateFirstSurfaceUpdatePermissions permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.validateFirstSurfaceUpdatePermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="May return error results or throw on permission resolution failure" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.validateFirstSurfaceUpdatePermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private async validateFirstSurfaceUpdatePermissions(
     ctx: RequestContext,
     updateData: any,
@@ -1048,6 +903,11 @@ class _PermissionEngineInternal {
 
     if (!perms.canUpdate) {
       return { valid: false, error: 'Insufficient permissions to update this record' }
+    }
+
+    // When no field definitions are provided, allow the whole update through at the record update level.
+    if (Object.keys(designSchema.fields || {}).length === 0) {
+      return { valid: true, sanitizedData: updateData }
     }
 
     // Check field-level permissions and sanitize data
@@ -1109,50 +969,22 @@ class _PermissionEngineInternal {
 
     return { valid: true, sanitizedData }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.validateFirstSurfaceUpdatePermissions permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.validateFirstSurfaceUpdatePermissions:method"]
 
-  // ─── UNIFIED PRINCIPAL METHODS ───────────────────────────────────────────────
-
-  /**
-   * Unified permission check for all principal types (human, machine, cron, trigger).
-   *
-   * This is the preferred method when you have a `Principal` directly rather than
-   * a full `RequestContext`. Used by the Unified Principal Architecture to check
-   * access without constructing a fake context.
-   *
-   * Resolution:
-   *   1. system_admin (human with 'system_admin' role) → always true
-   *   2. machine principal → scope check via `checkMachineScope`
-   *   3. human principal with accountId → `canAccessFirstSurfaceRecord` (constructs minimal ctx)
-   *   4. all others → false
-   *
-   * @param principal - The fully resolved Principal from `resolvePrincipal()`
-   * @param record - The record being accessed; must include account_id and type for scope matching
-   * @param action - CRUD action being attempted
-   * @returns Promise<boolean> — true if the principal may perform the action
-   * @throws never
-   * @inputSpec principal: Principal — must be resolved (not ANONYMOUS_PRINCIPAL for useful results)
-   * @inputSpec record.account_id: string — required for human principals
-   * @inputSpec record.type: string | undefined — used for machine scope matching
-   * @outputSpec boolean
-   * @sideEffects DB read (human principal): types and people tables
-   * @calledBy Handlers that receive a Principal directly (e.g. CLI, import callers)
-   * @calls checkMachineScope, canAccessFirstSurfaceRecord
-   * @testUnit tests/unit/permissions.test.ts — 'canPrincipalAccessRecord' describe block
-   *
-   * @example Import usage (v2-custom/)
-   * ```ts
-   * import { PermissionEngine } from '../_shared/index'
-   * const allowed = await PermissionEngine.canPrincipalAccessRecord(
-   *   principal, { account_id: accountId, type: 'item' }, 'create'
-   * )
-   * ```
-   *
-   * @example CLI usage
-   * ```bash
-   * # Access checks happen automatically when CLI constructs CoreContext
-   * spine items create --data '{"title":"Test"}'
-   * ```
-   */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canPrincipalAccessRecord:method" type="method" identity="_PermissionEngineInternal.canPrincipalAccessRecord" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.canPrincipalAccessRecord permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.canPrincipalAccessRecord behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.canPrincipalAccessRecord logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   async canPrincipalAccessRecord(
     principal: Principal,
     record: { account_id: string; type?: string; [key: string]: any },
@@ -1186,31 +1018,22 @@ class _PermissionEngineInternal {
     
     return false
   }
-  
-  /**
-   * Evaluates whether a machine principal's scopes permit the requested action.
-   *
-   * Scope matching supports three patterns (evaluated in order):
-   *   1. Exact match: `'items:read'` matches `'items:read'`
-   *   2. Wildcard action: `'items:*'` matches any action on `items`
-   *   3. Global wildcard: `'*:*'` matches any resource and any action
-   *
-   * The required scope is constructed as `<record.type>:<action>`. If `record.type`
-   * is absent, `'resource'` is used as the resource name.
-   *
-   * @param principal - Machine principal (principal.type must be 'machine')
-   * @param record - The record being accessed (record.type used as resource name)
-   * @param action - The CRUD action string
-   * @returns boolean — true if any scope in principal.scopes grants the action
-   * @throws never
-   * @inputSpec principal.type: 'machine' — returns false for non-machine principals
-   * @inputSpec principal.scopes: string[] — list of granted scope strings
-   * @inputSpec record.type: string | undefined — resource name portion of scope check
-   * @outputSpec boolean
-   * @sideEffects none
-   * @calledBy canPrincipalAccessRecord (machine branch)
-   * @testUnit tests/unit/permissions.test.ts — 'checkMachineScope' describe block
-   */
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.canPrincipalAccessRecord permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.canPrincipalAccessRecord:method"]
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.checkMachineScope:method" type="method" identity="_PermissionEngineInternal.checkMachineScope" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.checkMachineScope permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.checkMachineScope behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.checkMachineScope logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   private checkMachineScope(
     principal: Principal,
     record: any,
@@ -1233,32 +1056,22 @@ class _PermissionEngineInternal {
     
     return false
   }
-  
-  /**
-   * Returns a structured summary of a principal's permission posture for use
-   * in audit log entries.
-   *
-   * Does not perform any access check — purely descriptive. The returned object
-   * is safe to serialize into the `metadata` column of the `logs` table.
-   *
-   * @param principal - The resolved principal to summarize
-   * @returns object — summary safe for audit log serialization
-   * @throws never
-   * @inputSpec principal: Principal — any resolved principal including ANONYMOUS
-   * @outputSpec { type, roles, is_system_admin } for human principals
-   * @outputSpec { type, machine_type, scopes, is_internal } for machine principals
-   * @outputSpec { type: 'unknown' } for all other types
-   * @sideEffects none
-   * @calledBy audit.ts (emitAudit), any handler that logs permission context
-   * @testUnit tests/unit/permissions.test.ts — 'getPrincipalPermissionSummary' describe block
-   *
-   * @example
-   * ```ts
-   * await emitAudit(ctx, 'record.read', record.id, {
-   *   permissions: PermissionEngine.getPrincipalPermissionSummary(ctx.principal)
-   * })
-   * ```
-   */
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.checkMachineScope permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.checkMachineScope:method"]
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.getPrincipalPermissionSummary:method" type="method" identity="_PermissionEngineInternal.getPrincipalPermissionSummary" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal.getPrincipalPermissionSummary permission method"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal.getPrincipalPermissionSummary behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal: Principal" outputs="object" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal.getPrincipalPermissionSummary logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
   getPrincipalPermissionSummary(principal: Principal): object {
     if (principal.type === 'human') {
       return {
@@ -1279,47 +1092,160 @@ class _PermissionEngineInternal {
     
     return { type: 'unknown' }
   }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal.getPrincipalPermissionSummary permission method'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal.getPrincipalPermissionSummary:method"]
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal_close:class" type="class" identity="_PermissionEngineInternal_close" parent="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal:class"]
+// CIL[DOC-MACRO purpose="Implements the _PermissionEngineInternal_close class"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the _PermissionEngineInternal_close behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the _PermissionEngineInternal_close logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Implements the _PermissionEngineInternal_close class'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:_PermissionEngineInternal_close:class"]
 
-// ─── SINGLETON EXPORT ────────────────────────────────────────────────────────
 
-/**
- * The single shared PermissionEngine instance.
- *
- * This is the ONLY export that should be used for permission checks. Import this
- * directly or use the named legacy aliases below. Do not instantiate
- * `_PermissionEngineInternal` yourself.
- *
- * @stability stable
- * @audience both
- * @calledBy All 19 API handlers, tests, and custom code in v2-custom/
- *
- * @example API handler
- * ```ts
- * import { PermissionEngine } from './_shared/permissions'
- * const sanitized = await PermissionEngine.sanitizeRecordData(ctx, record, 'item')
- * ```
- *
- * @example Import usage (v2-custom/)
- * ```ts
- * import { PermissionEngine } from '../_shared/index'
- * const allowed = await PermissionEngine.canPrincipalAccessRecord(principal, record, 'read')
- * ```
- */
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:PermissionEngine:constant" type="constant" identity="PermissionEngine" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the PermissionEngine convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the PermissionEngine behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="_PermissionEngineInternal" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the PermissionEngine logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const PermissionEngine: _PermissionEngineInternal = _PermissionEngineInternal.getInstance()
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the PermissionEngine convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:PermissionEngine:constant"]
 
-// ─── LEGACY EXPORTS ───────────────────────────────────────────────────────────
 
-/**
- * Legacy named exports — bound methods on the singleton for backward compatibility.
- * Prefer importing `PermissionEngine` and calling methods on it directly.
- * These will be removed in a future version.
- *
- * @deprecated Use `PermissionEngine.<methodName>()` instead.
- * @stability internal
- */
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:resolveFirstSurfacePermissions:constant" type="constant" identity="resolveFirstSurfacePermissions" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the resolveFirstSurfacePermissions convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the resolveFirstSurfacePermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="PermissionEngine" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the resolveFirstSurfacePermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const resolveFirstSurfacePermissions = PermissionEngine.resolveFirstSurfacePermissions.bind(PermissionEngine)
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the resolveFirstSurfacePermissions convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:resolveFirstSurfacePermissions:constant"]
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:isSystemAdmin:constant" type="constant" identity="isSystemAdmin" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the isSystemAdmin convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the isSystemAdmin behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="PermissionEngine" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the isSystemAdmin logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const isSystemAdmin = PermissionEngine.isSystemAdmin.bind(PermissionEngine)
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the isSystemAdmin convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:isSystemAdmin:constant"]
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:canAccessRecord:constant" type="constant" identity="canAccessRecord" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the canAccessRecord convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the canAccessRecord behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="PermissionEngine" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the canAccessRecord logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const canAccessRecord = PermissionEngine.canAccessRecord.bind(PermissionEngine)
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the canAccessRecord convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:canAccessRecord:constant"]
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:sanitizeRecordData:constant" type="constant" identity="sanitizeRecordData" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the sanitizeRecordData convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the sanitizeRecordData behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="PermissionEngine" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the sanitizeRecordData logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const sanitizeRecordData = PermissionEngine.sanitizeRecordData.bind(PermissionEngine)
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the sanitizeRecordData convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:sanitizeRecordData:constant"]
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/permissions.ts:validateUpdatePermissions:constant" type="constant" identity="validateUpdatePermissions" parent="~/.framework/functions/_shared/permissions.ts"]
+// CIL[DOC-MACRO purpose="Exports the validateUpdatePermissions convenience binding"]
+// CIL[DOC-RESPONSIBILITY responsibility="Supplies the validateUpdatePermissions behavior for permission decisions"]
+// CIL[DOC-CONTEXT module="permissions" layer="functions" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/middleware.ts,.framework/functions/_shared/permissions.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="PermissionEngine" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Implements the validateUpdatePermissions logic for the permissions module" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const validateUpdatePermissions = PermissionEngine.validateUpdatePermissions.bind(PermissionEngine)
+// CIL[DOC-VECTOR type="context" content="purpose='Exports the validateUpdatePermissions convenience binding'; No verified external callers; imports: .framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts,.framework/functions/_shared/middleware.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/permissions.ts:validateUpdatePermissions:constant"]
+
+
+

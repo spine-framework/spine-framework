@@ -1,23 +1,38 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypesPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/TypesPage.tsx"]
 /**
- * @module src/pages/admin/TypesPage
- * @audience installer
- * @layer frontend-page
+ * @module   TypesPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for item/account/person types. Fetches all types via
- * `/api/types?action=list`, then applies client-side search, category
- * filter (`all` | `system` | `custom` | `active`), and sort. Renders
- * inside `AdminListPage` with four stat cards and a sortable table.
- * Row clicks navigate to `/spine-framework/admin/configs/types/:id`.
+ * This module represents the TypesPage component within the admin section of the application, providing a user interface for managing various types. It integrates with the API to fetch data and utilizes several UI components for rendering. INVARIANT: The component must always be rendered within a valid routing context to function correctly.
  *
- * @seeAlso src/components/admin/AdminListPage.tsx
- * @seeAlso src/pages/admin/TypeDetailPage.tsx
+ * @seeAlso useApi (provides API interaction functionality).
+ * @seeAlso LoadingSpinner (used for loading states).
+ * @seeAlso AdminListPage (displays a list of admin items).
+ * @seeAlso SortableTableHeader (enables sorting functionality in tables).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
 import { 
+// CIL[END stable_id="~/.framework/src/pages/admin/TypesPage.tsx:module_header:module_header"]
   Plus,
   Box,
   FileText,
@@ -31,6 +46,29 @@ import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { formatDateTime } from '../../lib/utils'
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypesPage.tsx:Type:interface" type="interface" identity="Type" parent="~/.framework/src/pages/admin/TypesPage.tsx"]
+/**
+ * The Type interface defines the structure for a type object used in the admin panel, encapsulating various attributes related to types. It serves to standardize the representation of types within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface Type {
   id: string
   name: string
@@ -39,7 +77,7 @@ interface Type {
   description?: string
   icon?: string
   color?: string
-  schema: {
+  design_schema?: {
     fields: Record<string, {
       type: string
       label?: string
@@ -54,17 +92,47 @@ interface Type {
   app_id?: string | null
   app?: any
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TypesPage.tsx:Type:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TypesPage.tsx:TypesPage:component" type="component" identity="TypesPage" parent="~/.framework/src/pages/admin/TypesPage.tsx"]
+/**
+ * The TypesPage component manages the display and filtering of various types in an admin interface. It allows users to search, sort, and categorize types based on specific criteria.
+ *
+ * @macro       Admin interface component for managing and displaying types.
+ * @micro       Utilizes state management and API calls to fetch and filter types based on user input.
+ * @outputSpec  JSX.Element
+ * @throws      Error — if the API response is not ok
+ * @sideEffects API call to '/api/types?action=list&limit=500'
+ * @stability   internal
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if the API response is not ok
+ * @cil-generated
+ */
 export function TypesPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch types from API
   const { data: types, loading, error, refetch } = useApi<Type[]>(
     async ({ signal }: { signal?: AbortSignal }) => {
-      const response = await apiFetch('/api/types?action=list', { signal })
+      const response = await apiFetch('/api/types?action=list&limit=500&active=all', { signal })
       if (!response.ok) throw new Error('Failed to fetch types')
       const result = await response.json()
       return result.data || []
@@ -95,7 +163,6 @@ export function TypesPage() {
     return matchesSearch && matchesCategory
   })
 
-  // Helper functions
   const getCategoryBadgeColor = (type: Type) => {
     if (type.ownership === 'system') {
       return 'bg-purple-50 text-purple-700'
@@ -119,10 +186,9 @@ export function TypesPage() {
   }
 
   const handleRowClick = (type: Type) => {
-    window.location.href = `/spine-framework/admin/configs/types/${type.id}`
+    navigate(`/spine-framework/admin/configs/types/${type.id}`)
   }
 
-  // Sort types
   const sortedTypes = [...(filteredTypes || [])].sort((a, b) => {
     let aValue: any = a[sortKey as keyof Type]
     let bValue: any = b[sortKey as keyof Type]
@@ -161,7 +227,7 @@ export function TypesPage() {
     },
     {
       title: 'Total Fields',
-      value: (types || []).reduce((sum, t) => sum + Object.keys(t.schema?.fields || {}).length, 0),
+      value: (types || []).reduce((sum, t) => sum + Object.keys(t.design_schema?.fields || {}).length, 0),
       icon: FileText,
       iconColor: 'text-purple-600',
     }
@@ -262,7 +328,7 @@ export function TypesPage() {
                     <div className="text-sm text-muted-foreground">
                       {type.description || type.slug}
                       <span className="mx-1.5 text-muted-foreground">&middot;</span>
-                      {Object.keys(type.schema?.fields || {}).length} fields
+                      {Object.keys(type.design_schema?.fields || {}).length} fields
                     </div>
                   </div>
                 </td>
@@ -277,7 +343,7 @@ export function TypesPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                  {Object.keys(type.schema?.fields || {}).length}
+                  {Object.keys(type.design_schema?.fields || {}).length}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   {formatDateTime(type.created_at)}
@@ -293,3 +359,10 @@ export function TypesPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TypesPage.tsx:TypesPage:component"]
+
+
+
+
+
+

@@ -1,17 +1,29 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/TriggersPage.tsx"]
 /**
- * @module src/pages/admin/TriggersPage
- * @audience installer
- * @layer frontend-page
+ * @module   TriggersPage
+ * @audience internal
+ * @layer    app-specific
  * @stability stable
  *
- * Admin list page for event/schedule/webhook triggers. Fetches all
- * triggers via `/api/triggers?action=list`, applies client-side search,
- * trigger-type filter, and sort. Supports inline enable/disable toggle.
- * Renders inside `AdminListPage`. Row clicks navigate to
- * `/spine-framework/admin/configs/triggers/:id`.
+ * The TriggersPage module provides an interface for managing triggers within the admin section of the application. It allows users to view, create, and manipulate triggers through a user-friendly UI. This module relies on various UI components and hooks for API interaction and state management.
  *
- * @seeAlso src/pages/admin/TriggerDetailPage.tsx
+ * @seeAlso useApi (provides API interaction hooks).
+ * @seeAlso LoadingSpinner (displays loading state).
+ * @seeAlso AdminListPage (base component for admin list views).
+ * @seeAlso SortableTableHeader (enables sorting functionality in tables).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -25,7 +37,32 @@ import { Badge } from '../../components/ui/badge'
 import { formatDateTime } from '../../lib/utils'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
+// CIL[END stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:Trigger:interface" type="interface" identity="Trigger" parent="~/.framework/src/pages/admin/TriggersPage.tsx"]
+/**
+ * The Trigger interface defines the structure for trigger objects used in the admin panel, encapsulating properties related to the trigger's identity, configuration, and state. It serves as a blueprint for managing triggers within the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface Trigger {
   id: string
   name: string
@@ -39,11 +76,36 @@ interface Trigger {
   updated_at: string
   created_by: string
   account_id: string
-  execution_count: number
-  last_execution?: string
-  next_execution?: string
+  trigger_count?: number
+  last_triggered?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:Trigger:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:TriggerExecution:interface" type="interface" identity="TriggerExecution" parent="~/.framework/src/pages/admin/TriggersPage.tsx"]
+/**
+ * The TriggerExecution interface defines the structure for tracking the execution status of triggers within the system. It captures essential details such as the trigger's ID, execution status, timestamps, and any associated data or errors.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface TriggerExecution {
   id: string
   trigger_id: string
@@ -54,9 +116,40 @@ interface TriggerExecution {
   result?: Record<string, any>
   error?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:TriggerExecution:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:TriggersPage:component" type="component" identity="TriggersPage" parent="~/.framework/src/pages/admin/TriggersPage.tsx"]
+/**
+ * The TriggersPage component manages the display and filtering of trigger events in the admin interface. It allows users to search, sort, and filter triggers based on type and status.
+ *
+ * @macro       User interface component for managing trigger events.
+ * @micro       Utilizes state management and API calls to fetch and filter trigger data dynamically.
+ * @outputSpec  JSX.Element — renders the triggers page UI.
+ * @throws      Error — if the API response is not ok
+ * @sideEffects API call to '/api/triggers?action=list'
+ * @stability   stable
+ * @calls       apiFetch
+ * @errorHandling throws an error if the API response is not ok
+ * @cil-generated
+ */
 export function TriggersPage() {
-  console.log('TriggersPage rendering...')
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
@@ -64,32 +157,12 @@ export function TriggersPage() {
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch triggers from API
   const { data: triggers, loading, error, refetch } = useApi<Trigger[]>(
     async ({ signal }: { signal?: AbortSignal }) => {
-      try {
-        console.log('Fetching triggers...')
-        
-        const response = await apiFetch('/api/triggers?action=list', { signal })
-        console.log('Response status:', response.status)
-        
-        if (!response.ok) {
-          console.error('Response not ok:', response.statusText)
-          throw new Error(`Failed to fetch triggers: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        console.log('Raw API result:', result)
-        
-        // Handle both nested and direct responses
-        const triggers = result.data || result
-        console.log('Triggers after processing:', triggers)
-        
-        return triggers
-      } catch (error) {
-        console.error('Error in TriggersPage:', error)
-        throw error
-      }
+      const response = await apiFetch('/api/triggers?action=list', { signal })
+      if (!response.ok) throw new Error('Failed to fetch triggers')
+      const result = await response.json()
+      return result.data || result
     },
     { immediate: true }
   )
@@ -138,9 +211,6 @@ export function TriggersPage() {
     return 0
   })
 
-  console.log('TriggersPage - triggers:', triggers)
-  console.log('TriggersPage - filteredTriggers:', filteredTriggers)
-
   const getTriggerIcon = (triggerType: string) => {
     switch (triggerType) {
       case 'item_created':
@@ -181,14 +251,6 @@ export function TriggersPage() {
 
   const getStatusBadgeColor = (isActive: boolean) => {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'
-  }
-
-  const handleToggleTrigger = (trigger: Trigger) => {
-    console.log('Toggle trigger:', trigger.id)
-  }
-
-  const handleExecuteTrigger = (trigger: Trigger) => {
-    console.log('Execute trigger:', trigger.id)
   }
 
   const handleViewExecutions = (trigger: Trigger) => {
@@ -232,8 +294,8 @@ export function TriggersPage() {
           iconColor: "text-green-600"
         },
         {
-          title: "Executions Today",
-          value: "47",
+          title: "Total Fires",
+          value: (triggers || []).reduce((sum, t) => sum + (t.trigger_count || 0), 0),
           icon: Clock,
           iconColor: "text-orange-600"
         }
@@ -301,15 +363,15 @@ export function TriggersPage() {
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Executions"
-                sortKey="execution_count"
+                title="Fires"
+                sortKey="trigger_count"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Last Run"
-                sortKey="last_execution"
+                title="Last Fired"
+                sortKey="last_triggered"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -348,10 +410,10 @@ export function TriggersPage() {
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                  {trigger.execution_count}
+                  {trigger.trigger_count ?? 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {trigger.last_execution ? formatDateTime(trigger.last_execution) : 'Never'}
+                  {trigger.last_triggered ? formatDateTime(trigger.last_triggered) : 'Never'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
@@ -379,3 +441,12 @@ export function TriggersPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/TriggersPage.tsx:TriggersPage:component"]
+
+
+
+
+
+
+
+

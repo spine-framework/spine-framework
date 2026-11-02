@@ -1,56 +1,107 @@
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/observability.ts"]
 /**
- * @module observability
- * @audience core-contributor
- * @layer api-handler
+ * @module   observability
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Aggregated observability metrics API. All handlers delegate to Postgres
- * analytics RPCs that operate over the `v2.logs` table. Results are
- * read-only; no writes occur in this module.
+ * This module provides observability functions for the application, facilitating monitoring and logging of system behavior. It serves as a middleware handler that integrates with the database and user permissions to ensure that only authorized users can access certain functionalities. INVARIANT: All requests must be authenticated as system administrators to proceed with observability actions.
  *
- * **Routed by:** `GET/POST /.netlify/functions/observability`
+ * @seeAlso middleware.ts (provides the handler for observability functions).
+ * @seeAlso db.ts (handles database interactions necessary for observability).
+ * @seeAlso principal.ts (manages user permissions and roles).
  *
- * **Actions (all GET unless noted):**
- * | ?action               | handler                |
- * |-----------------------|------------------------|
- * | event_volume          | getEventVolume         |
- * | error_rate            | getErrorRate           |
- * | latency_percentiles   | getLatencyPercentiles  |
- * | pipeline_stats        | getPipelineStats       |
- * | top_actors            | getTopActors           |
- * | cleanup               | cleanupOldLogs (POST)  |
- *
- * **Authorization:** All read endpoints require account context (RLS-scoped
- * via `ctx.db`). `cleanup` additionally requires the `system_admin` role.
- *
- * INVARIANT: Every handler requires both `from` and `to` date params
- *   (except `cleanup`). Requests without them throw immediately.
- *
- * @seeAlso logs.ts (raw log access with filter/search)
- * @seeAlso system-cron.ts (evaluateThresholds calls observability RPCs)
- * @seeAlso pipeline-executions.ts (pipeline_stats RPC aggregates these)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { createHandler } from './_shared/middleware'
+import { adminDb } from './_shared/db'
+import { isSystemAdmin } from './_shared/principal'
+import { resolveTypeId } from './_shared/resolve-ids'
+// CIL[END stable_id="~/.framework/functions/observability.ts:module_header:module_header"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:floorBucket:function" type="function" identity="floorBucket" parent="~/.framework/functions/observability.ts"]
 /**
- * Returns time-bucketed event volume counts via the `get_event_volume` RPC.
+ * The floorBucket function normalizes a given date to the start of a specified time bucket, such as an hour or day, facilitating data aggregation based on time intervals.
  *
- * Query params: `from` (required, ISO), `to` (required, ISO),
- * `bucket` ('minute'|'hour'|'day', default 'hour')
+ * @inputSpec
+ *   - date: Date (required) — the date to be normalized.
+ *   - bucket: string (required) — the time bucket to normalize to, can be 'hour' or 'day'.
+ * @outputSpec  Date — the normalized date object.
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
+function floorBucket(date: Date, bucket: string): Date {
+  const d = new Date(date)
+  d.setMilliseconds(0)
+  d.setSeconds(0)
+  if (bucket === 'hour' || bucket === 'day') d.setMinutes(0)
+  if (bucket === 'day') d.setHours(0)
+  return d
+}
+// CIL[END stable_id="~/.framework/functions/observability.ts:floorBucket:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getEventVolume:constant" type="constant" identity="getEventVolume" parent="~/.framework/functions/observability.ts"]
+/**
+ * Retrieves the volume of events logged within a specified date range, grouped by time buckets. This function is essential for analyzing event frequency over time.
  *
- * @returns Array of `{ bucket_time, event_type, count }` rows
- * @throws Error('Account context required')
- * @throws Error('from and to dates are required')
- * @sideEffects DB read: get_event_volume RPC
- * @calledBy handler (?action=event_volume)
+ * @throws      Error — Account context required, Error — from and to dates are required.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('logs'), db.from('logs'), floorBucket
+ * @cil-generated
  */
 export const getEventVolume = createHandler(async (ctx, body) => {
   const { from, to, bucket = 'hour' } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -58,37 +109,61 @@ export const getEventVolume = createHandler(async (ctx, body) => {
     throw new Error('from and to dates are required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('get_event_volume', {
-      p_account_id: ctx.accountId,
-      p_event_type: null,
-      p_bucket: bucket,
-      p_from: from,
-      p_to: to,
-    })
+  let query = db
+    .from('logs')
+    .select('created_at')
+    .gte('created_at', from)
+    .lte('created_at', to)
+
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query.order('created_at', { ascending: true })
 
   if (err) throw err
-  return data || []
-})
 
-// ── Error Rate ───────────────────────────────────────────
+  const counts: Record<string, number> = {}
+  for (const row of data || []) {
+    const key = floorBucket(new Date(row.created_at), bucket).toISOString()
+    counts[key] = (counts[key] || 0) + 1
+  }
+
+  return Object.entries(counts)
+    .map(([bucket, count]) => ({ bucket, count }))
+    .sort((a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime())
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getEventVolume:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getErrorRate:constant" type="constant" identity="getErrorRate" parent="~/.framework/functions/observability.ts"]
 /**
- * Returns aggregate error rate for the account time window via the
- * `get_error_rate` RPC.
+ * Calculates the error rate of logs within a specified date range, returning the total number of logs, the number of errors, and the error rate. This function is essential for monitoring and observability purposes.
  *
- * Query params: `from` (required, ISO), `to` (required, ISO)
- *
- * @returns `{ total: number, errors: number, rate: number }` (0.0–1.0)
- * @throws Error('Account context required')
- * @throws Error('from and to dates are required')
- * @sideEffects DB read: get_error_rate RPC
- * @calledBy handler (?action=error_rate)
- * @calledBy system-cron.ts evaluateThresholds (metric='error_rate')
+ * @throws      Error — Account context required, or from and to dates are required.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('logs'), adminDb.select, adminDb.gte, adminDb.lte, adminDb.eq
+ * @cil-generated
  */
 export const getErrorRate = createHandler(async (ctx, body) => {
   const { from, to } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -96,35 +171,97 @@ export const getErrorRate = createHandler(async (ctx, body) => {
     throw new Error('from and to dates are required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('get_error_rate', {
-      p_account_id: ctx.accountId,
-      p_from: from,
-      p_to: to,
-    })
+  let query = db
+    .from('logs')
+    .select('outcome, level')
+    .gte('created_at', from)
+    .lte('created_at', to)
+
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query
 
   if (err) throw err
-  return data?.[0] || { total: 0, errors: 0, rate: 0 }
-})
 
+  const rows = data || []
+  const total = rows.length
+  const errors = rows.filter((r: any) => r.outcome === 'failure' || r.level === 'error').length
+  return {
+    total,
+    errors,
+    rate: total > 0 ? errors / total : 0,
+  }
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getErrorRate:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:percentile:function" type="function" identity="percentile" parent="~/.framework/functions/observability.ts"]
 /**
- * Returns request latency percentiles (p50/p90/p99) via the
- * `get_latency_percentiles` RPC.
+ * Calculates the p-th percentile of a sorted array of numbers for statistical analysis and data observability. This function is essential for deriving insights from numerical datasets.
  *
- * Query params: `from` (required, ISO), `to` (required, ISO),
- * `source` (log source filter, default 'request')
+ * @inputSpec
+ *   - sorted: number[] (required) — a sorted array of numbers to calculate the percentile from.
+ *   - p: number (required) — the desired percentile value (0-100).
+ * @outputSpec  number — the calculated percentile value.
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  const idx = (p / 100) * (sorted.length - 1)
+  const lower = Math.floor(idx)
+  const upper = Math.ceil(idx)
+  const weight = idx - lower
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight
+}
+// CIL[END stable_id="~/.framework/functions/observability.ts:percentile:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getLatencyPercentiles:constant" type="constant" identity="getLatencyPercentiles" parent="~/.framework/functions/observability.ts"]
+/**
+ * Calculates latency percentiles for logs within a specified date range while ensuring that only authorized users can access the data. It also handles errors related to missing parameters.
  *
- * @returns `{ p50: number, p90: number, p99: number }` (milliseconds)
- * @throws Error('Account context required')
- * @throws Error('from and to dates are required')
- * @sideEffects DB read: get_latency_percentiles RPC
- * @calledBy handler (?action=latency_percentiles)
- * @calledBy system-cron.ts evaluateThresholds (metric='latency_p95')
+ * @throws      Error — Account context required, Error — from and to dates are required.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('logs'), db.from('logs')
+ * @cil-generated
  */
 export const getLatencyPercentiles = createHandler(async (ctx, body) => {
   const { from, to, source = 'request' } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -132,35 +269,66 @@ export const getLatencyPercentiles = createHandler(async (ctx, body) => {
     throw new Error('from and to dates are required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('get_latency_percentiles', {
-      p_account_id: ctx.accountId,
-      p_source: source,
-      p_from: from,
-      p_to: to,
-    })
+  let query = db
+    .from('logs')
+    .select('duration_ms')
+    .not('duration_ms', 'is', null)
+    .gte('created_at', from)
+    .lte('created_at', to)
+
+  if (source) query = query.eq('span_name', source)
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query
 
   if (err) throw err
-  return data?.[0] || { p50: 0, p90: 0, p99: 0 }
-})
 
+  const values = (data || [])
+    .map((r: any) => Number(r.duration_ms))
+    .filter((v: number) => !isNaN(v) && v > 0)
+    .sort((a: number, b: number) => a - b)
+
+  return {
+    p50: percentile(values, 50),
+    p90: percentile(values, 90),
+    p95: percentile(values, 95),
+    p99: percentile(values, 99),
+  }
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getLatencyPercentiles:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getPipelineStats:constant" type="constant" identity="getPipelineStats" parent="~/.framework/functions/observability.ts"]
 /**
- * Returns per-pipeline execution statistics (success/failure counts,
- * average duration) via the `get_pipeline_stats` RPC.
+ * Fetches pipeline execution statistics based on a date range and account context, aggregating success and failure counts along with average execution duration for each pipeline.
  *
- * Query params: `from` (required, ISO), `to` (required, ISO)
- *
- * @returns Array of `{ pipeline_id, name, success_count, failure_count, avg_duration_ms }`
- * @throws Error('Account context required')
- * @throws Error('from and to dates are required')
- * @sideEffects DB read: get_pipeline_stats RPC
- * @calledBy handler (?action=pipeline_stats)
- * @calledBy system-cron.ts evaluateThresholds (metric='pipeline_failure_rate')
+ * @throws      Error — Account context required, or from and to dates are required, or database query error.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('pipeline_executions'), adminDb.select, adminDb.gte, adminDb.lte, adminDb.eq
+ * @errorHandling none
+ * @cil-generated
  */
 export const getPipelineStats = createHandler(async (ctx, body) => {
   const { from, to } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -168,34 +336,73 @@ export const getPipelineStats = createHandler(async (ctx, body) => {
     throw new Error('from and to dates are required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('get_pipeline_stats', {
-      p_account_id: ctx.accountId,
-      p_from: from,
-      p_to: to,
-    })
+  let query = db
+    .from('pipeline_executions')
+    .select('pipeline_id, status, started_at, completed_at')
+    .gte('created_at', from)
+    .lte('created_at', to)
+
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query
 
   if (err) throw err
-  return data || []
-})
 
+  const stats: Record<string, any> = {}
+  for (const row of data || []) {
+    const s = stats[row.pipeline_id] || { pipeline_id: row.pipeline_id, success_count: 0, failure_count: 0, total_duration_ms: 0, duration_count: 0 }
+    if (row.status === 'completed') s.success_count++
+    if (row.status === 'failed') s.failure_count++
+    if (row.started_at && row.completed_at) {
+      const duration = new Date(row.completed_at).getTime() - new Date(row.started_at).getTime()
+      if (duration > 0) {
+        s.total_duration_ms += duration
+        s.duration_count++
+      }
+    }
+    stats[row.pipeline_id] = s
+  }
+
+  return Object.values(stats).map((s: any) => ({
+    pipeline_id: s.pipeline_id,
+    success_count: s.success_count,
+    failure_count: s.failure_count,
+    avg_duration_ms: s.duration_count > 0 ? Math.round(s.total_duration_ms / s.duration_count) : 0,
+  }))
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getPipelineStats:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getTopActors:constant" type="constant" identity="getTopActors" parent="~/.framework/functions/observability.ts"]
 /**
- * Returns the most active principals (persons) by event count via the
- * `get_top_actors` RPC.
+ * Retrieves the top actors based on event counts within a specified date range while ensuring the user has the necessary account context and permissions. This function is essential for monitoring user activity in the system.
  *
- * Query params: `from` (required, ISO), `to` (required, ISO),
- * `limit` (default 5)
- *
- * @returns Array of `{ person_id, full_name, event_count }` ordered by count desc
- * @throws Error('Account context required')
- * @throws Error('from and to dates are required')
- * @sideEffects DB read: get_top_actors RPC
- * @calledBy handler (?action=top_actors)
+ * @throws      Error — Account context required, Error — from and to dates are required
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('logs'), adminDb.select, adminDb.gte, adminDb.lte, adminDb.eq
+ * @cil-generated
  */
 export const getTopActors = createHandler(async (ctx, body) => {
   const { from, to, limit = 5 } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
@@ -203,55 +410,193 @@ export const getTopActors = createHandler(async (ctx, body) => {
     throw new Error('from and to dates are required')
   }
 
-  const { data, error: err } = await ctx.db
-    .rpc('get_top_actors', {
-      p_account_id: ctx.accountId,
-      p_from: from,
-      p_to: to,
-      p_limit: parseInt(limit.toString()) || 5,
-    })
+  let query = db
+    .from('logs')
+    .select('created_by')
+    .gte('created_at', from)
+    .lte('created_at', to)
+
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
+
+  const { data, error: err } = await query
 
   if (err) throw err
-  return data || []
-})
 
-// ── Cleanup Old Logs (manual trigger) ────────────────────
+  const counts: Record<string, number> = {}
+  for (const row of data || []) {
+    const key = row.created_by || 'anonymous'
+    counts[key] = (counts[key] || 0) + 1
+  }
+
+  return Object.entries(counts)
+    .map(([principal_id, event_count]) => ({ principal_id, event_count }))
+    .sort((a, b) => b.event_count - a.event_count)
+    .slice(0, parseInt(limit.toString()) || 5)
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getTopActors:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:cleanupOldLogs:constant" type="constant" identity="cleanupOldLogs" parent="~/.framework/functions/observability.ts"]
 /**
- * Manually triggers cross-account log cleanup via the `cleanup_old_logs`
- * RPC. Requires `system_admin` role — not available to regular users.
+ * Cleans up old logs from the database based on a specified retention period. It ensures that only system administrators can perform this action.
  *
- * Query params: `days` (optional, default 90)
- *
- * @returns `{ deleted_count: number }`
- * @throws Error('System admin required') if principal lacks system_admin role
- * @sideEffects DB write: cleanup_old_logs RPC (cross-account DELETE)
- * @calledBy handler (?action=cleanup)
- * @calledBy system-cron.ts cleanupOldLogs (automated daily rotation)
+ * @throws      Error — System admin required, Error — if database RPC fails
+ * @sideEffects Database RPC call to 'cleanup_old_logs'
+ * @stability   internal
+ * @calls       ctx.db.rpc('cleanup_old_logs')
+ * @cil-generated
  */
 export const cleanupOldLogs = createHandler(async (ctx, body) => {
-  const { days = 90 } = ctx.query || {}
+  const { days = 30 } = ctx.query || {}
 
-  // Only system admins can trigger manual cleanup
   if (!ctx.principal?.roles?.includes('system_admin')) {
     throw new Error('System admin required')
   }
 
   const { data, error: err } = await ctx.db
     .rpc('cleanup_old_logs', {
-      p_retention_days: parseInt(days.toString()) || 90,
+      p_retention_days: parseInt(days.toString()) || 30,
     })
 
   if (err) throw err
   return { deleted_count: data?.[0]?.deleted_count || 0 }
 })
+// CIL[END stable_id="~/.framework/functions/observability.ts:cleanupOldLogs:constant"]
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:getAiSupportMetrics:constant" type="constant" identity="getAiSupportMetrics" parent="~/.framework/functions/observability.ts"]
 /**
- * Netlify function entry point. Dispatches to analytics handler by ?action.
- * All valid ?action values are listed in the module dispatch table.
- * @throws Error('Unknown action: <action>. Valid actions: ...') on mismatch
- * @calledBy Netlify function routing
+ * Retrieves AI support metrics for a specific account over a defined time period, aggregating feedback and resolution data to provide insights into AI performance and user satisfaction.
+ *
+ * @throws      Error — Account context required
+ * @sideEffects Database reads from 'items' table for metrics aggregation.
+ * @stability   internal
+ * @calls       adminDb.from('items'), resolveTypeId
+ * @cil-generated
+ */
+export const getAiSupportMetrics = createHandler(async (ctx, _body) => {
+  if (!ctx.accountId) throw new Error('Account context required')
+
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const from = ctx.query?.from || thirtyDaysAgo
+  const to   = ctx.query?.to   || now.toISOString()
+
+  const feedbackTypeId = await resolveTypeId('item', 'ai_feedback_record')
+
+  const [
+    feedbackResult,
+    resolvedResult,
+    escalatedResult,
+  ] = await Promise.allSettled([
+    adminDb
+      .from('items')
+      .select('data')
+      .eq('account_id', ctx.accountId)
+      .eq('type_id', feedbackTypeId)
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .limit(5000),
+
+    adminDb
+      .from('items')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', ctx.accountId)
+      .eq('status', 'resolved')
+      .eq('data->>aim_escalation_reason', 'none')
+      .gte('created_at', from)
+      .lte('created_at', to),
+
+    adminDb
+      .from('items')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', ctx.accountId)
+      .eq('status', 'human_assigned')
+      .gte('created_at', from)
+      .lte('created_at', to),
+  ])
+
+  const feedbackRows = feedbackResult.status === 'fulfilled'
+    ? (feedbackResult.value.data || [])
+    : []
+
+  const aiAttempted = feedbackRows.length
+  const notHelpful  = feedbackRows.filter((r: any) => r.data?.customer_feedback === 'not_helpful').length
+  const kbCreated   = feedbackRows.filter((r: any) => r.data?.kb_article_id).length
+  const kbReuseCount = feedbackRows.reduce((sum: number, r: any) => sum + (Number(r.data?.reuse_count) || 0), 0)
+  const knowledgeGaps = feedbackRows.filter((r: any) =>
+    r.data?.kb_candidate === false && r.data?.customer_feedback === 'not_helpful'
+  ).length
+
+  const aiResolved = resolvedResult.status === 'fulfilled' ? (resolvedResult.value.count || 0) : 0
+  const escalated  = escalatedResult.status === 'fulfilled' ? (escalatedResult.value.count || 0) : 0
+
+  const thumbsDownRate = aiAttempted > 0 ? notHelpful / aiAttempted : 0
+
+  return {
+    period: { from, to },
+    ai_attempted:       aiAttempted,
+    ai_resolved:        aiResolved,
+    human_escalations:  escalated,
+    thumbs_down_rate:   Math.round(thumbsDownRate * 1000) / 1000,
+    kb_articles_created: kbCreated,
+    kb_reuse_count:     kbReuseCount,
+    knowledge_gaps:     knowledgeGaps,
+  }
+})
+// CIL[END stable_id="~/.framework/functions/observability.ts:getAiSupportMetrics:constant"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/observability.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/observability.ts"]
+/**
+ * The handler processes incoming requests based on the specified action in the query parameters, executing the corresponding function for each action. It provides a centralized point for handling various observability metrics and actions.
+ *
+ * @throws      Error — Unknown action: if the action is not recognized.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       getEventVolume, getErrorRate, getLatencyPercentiles, getPipelineStats, getTopActors, getAiSupportMetrics, cleanupOldLogs
+ * @cil-generated
  */
 export const handler = createHandler(async (ctx, body) => {
   const { action } = ctx.query || {}
@@ -267,9 +612,18 @@ export const handler = createHandler(async (ctx, body) => {
       return await getPipelineStats(ctx, body)
     case 'top_actors':
       return await getTopActors(ctx, body)
+    case 'ai_support_metrics':
+      return await getAiSupportMetrics(ctx, body)
     case 'cleanup':
       return await cleanupOldLogs(ctx, body)
     default:
-      throw new Error(`Unknown action: ${action}. Valid actions: event_volume, error_rate, latency_percentiles, pipeline_stats, top_actors, cleanup`)
+      throw new Error(`Unknown action: ${action}. Valid actions: event_volume, error_rate, latency_percentiles, pipeline_stats, top_actors, ai_support_metrics, cleanup`)
   }
 })
+// CIL[END stable_id="~/.framework/functions/observability.ts:handler:constant"]
+
+
+
+
+
+

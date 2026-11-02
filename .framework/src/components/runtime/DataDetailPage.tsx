@@ -1,22 +1,93 @@
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/DataDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/components/runtime/DataDetailPage.tsx"]
+/**
+ * @module   DataDetailPage
+ * @audience both
+ * @layer    shared-core
+ * @stability stable
+ *
+ * This module provides the DataDetailPage component, which displays detailed information about a specific entity record. It integrates various UI components and hooks to fetch and manage the entity's data, allowing users to view and edit details seamlessly.
+ * INVARIANT: The entity record must exist for the page to render correctly.
+ *
+ * @seeAlso useEntityRecord (fetches the entity data needed for display).
+ * @seeAlso DataDetailHeader (renders the header for the detail page).
+ * @seeAlso SchemaDetailForm (provides the form for editing entity details).
+ *
+ * @cil-generated
+ */
+
+
+
+
+
+
+
+
+
+
+
+
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useEntityRecord } from '../../hooks/useEntityRecord'
 import { DataDetailHeader } from './DataDetailHeader'
 import { SchemaDetailForm } from './SchemaDetailForm'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
+// CIL[END stable_id="~/.framework/src/components/runtime/DataDetailPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/DataDetailPage.tsx:DataDetailPage:component" type="component" identity="DataDetailPage" parent="~/.framework/src/components/runtime/DataDetailPage.tsx"]
+/**
+ * The DataDetailPage component manages the display and editing of detailed records for various entities in the application. It handles navigation, data fetching, and form state management based on the entity type and record ID.
+ *
+ * @macro       Component responsible for rendering and managing entity detail views.
+ * @micro       Utilizes React hooks for state management and side effects, and dynamically configures based on entity parameters.
+ * @outputSpec  JSX.Element
+ * @sideEffects Fetches data from the API, updates URL search parameters, and navigates to different routes.
+ * @stability   internal
+ * @calls       useNavigate, useParams, useSearchParams, useEntityRecord
+ * @cil-generated
+ */
 export function DataDetailPage() {
+  const navigate = useNavigate()
   const { entity, id, typeSlug } = useParams<{ entity: string; id: string; typeSlug?: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   
-  const isCreating = !id
+  const recordId = id === 'new' ? undefined : id
+  const isCreating = !recordId
   const isEditing = searchParams.get('edit') === 'true' || isCreating
   
+  const defaultTypeSlugs: Record<string, string> = {
+    accounts: 'account',
+    people: 'person',
+    items: 'item',
+    threads: 'thread',
+    messages: 'message',
+    links: 'link',
+    attachments: 'attachment',
+    watchers: 'watcher',
+    item_progress: 'item_progress'
+  }
+
   const config = {
     entity: entity || '',
-    typeSlug: typeSlug || undefined,
+    typeSlug: typeSlug || (entity ? defaultTypeSlugs[entity] : undefined),
     icon: 'database',
     displayField: 'display_name',
     api: {
@@ -37,7 +108,7 @@ export function DataDetailPage() {
     delete: deleteRecord,
     saving,
     deleting
-  } = useEntityRecord(entity!, id, config)
+  } = useEntityRecord(entity!, recordId, config)
   
   const schema = record?.design_schema || null
   const view = schema?.views?.default_detail || null
@@ -80,7 +151,7 @@ export function DataDetailPage() {
   
   const handleCancel = () => {
     if (isCreating) {
-      window.location.href = `/spine-framework/admin/runtime/${entity}`
+      navigate(`/spine-framework/admin/runtime/${entity}`)
     } else {
       setSearchParams({})
       if (record && view) {
@@ -106,14 +177,14 @@ export function DataDetailPage() {
     if (!isCreating) {
       setSearchParams({})
     } else {
-      window.location.href = `/spine-framework/admin/runtime/${entity}`
+      navigate(`/spine-framework/admin/runtime/${entity}`)
     }
   }
   
   const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete this ${config?.entity?.slice(0, -1) || 'record'}?`)) {
       await deleteRecord()
-      window.location.href = `/spine-framework/admin/runtime/${entity}`
+      navigate(`/spine-framework/admin/runtime/${entity}`)
     }
   }
   
@@ -146,6 +217,8 @@ export function DataDetailPage() {
         entity={config.entity}
         icon={config.icon}
         title={isCreating ? `New ${config.entity.slice(0, -1)}` : recordTitle}
+// CIL[END stable_id="~/.framework/src/components/runtime/DataDetailPage.tsx:DataDetailPage:component"]
+
         isEditing={isEditing}
         isCreating={isCreating}
         onEdit={handleEdit}
@@ -169,3 +242,9 @@ export function DataDetailPage() {
     </div>
   )
 }
+
+
+
+
+
+

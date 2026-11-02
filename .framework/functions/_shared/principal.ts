@@ -1,171 +1,184 @@
-/**
- * @module principal
- * @audience both
- * @layer shared-core
- * @stability stable
- *
- * Unified identity abstraction for all actors in Spine v2. Every request —
- * whether from a human via JWT, an integration via API key, a scheduled cron
- * job, or an internal trigger — resolves to a single `Principal` object before
- * any permission check or DB query occurs.
- *
- * Resolution order in `resolvePrincipal`:
- *   1. `x-api-key` header  → machine principal (external integration)
- *   2. `x-cron-id` header  → machine principal (scheduled job)
- *   3. `x-trigger-id` header → machine principal (event trigger)
- *   4. `Authorization: Bearer <jwt>` → human principal
- *   5. (none)              → ANONYMOUS_PRINCIPAL (rejected by createHandler)
- *
- * INVARIANT: `resolvePrincipal` always returns a Principal, never null.
- *   ANONYMOUS_PRINCIPAL is the sentinel for unauthenticated requests and is
- *   rejected by `createHandler` before the handler runs.
- * INVARIANT: `adminDb` is used for all principal resolution lookups to avoid
- *   circular dependencies with RLS (which itself depends on the resolved principal).
- * INVARIANT: never store `authContext.jwt` or `authContext.apiKey` in logs.
- *   Use `formatPrincipalForAudit` which strips these fields.
- *
- * @seeAlso db.ts (adminDb, getUserDb — used for resolution and client selection)
- * @seeAlso middleware.ts (createHandler calls resolvePrincipal, getPrincipalDb)
- * @seeAlso permissions.ts (PermissionEngine.isSystemAdmin, canPrincipalAccessRecord)
- * @seeAlso audit.ts (formatPrincipalForAudit — safe audit serialization)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Shared principal and authorization module for Spine functions"]
+// CIL[DOC-RESPONSIBILITY responsibility="Defines the Principal model, resolves request principals from headers and tokens, and provides role/scope predicates"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts"]
+// CIL[DOC-CONTRACT inputs="HTTP event headers and tokens" outputs="Principal objects and authorization booleans" errors="Invalid or inactive credentials, rate limit exceeded, lookup errors" side_effects="Writes API key usage logs; updates people.auth_uid when linking by email"]
+// CIL[DOC-MICRO logic_summary="Imports shared db/supabase clients and crypto; declares the Principal interface and anonymous/system constants; exports resolvers and helper functions" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="framework developers, ai agents, security reviewers"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { getUserDb, adminDb } from './db'
 import { createClient } from '@supabase/supabase-js'
-import WebSocket from 'ws'
 
-// WebSocket constructor for Supabase Realtime in Node.js environment
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RealtimeWebSocket = WebSocket as any
+import { timingSafeEqual, createHash } from 'crypto'
+// CIL[DOC-VECTOR type="context" content="purpose='Shared principal and authorization module for Spine functions'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:module_header:module_header"]
 
-// ─── AUTH CLIENT ─────────────────────────────────────────────────────────────
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:isInternalInvokeAuthorized:function" type="function" identity="isInternalInvokeAuthorized" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Verify that a request carries the trusted internal invocation secret"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate shared secret header using timing-safe comparison"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="event object with headers" outputs="boolean" errors="none (returns false on any failure)" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Compare x-internal-secret against INTERNAL_INVOKE_SECRET using timingSafeEqual" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+function isInternalInvokeAuthorized(event: any): boolean {
+  const expected = (globalThis as any).process?.env?.INTERNAL_INVOKE_SECRET
+  if (!expected) return false
 
-// Supabase anon client used only for JWT validation (supabase.auth.getUser).
-// A separate client is used here to avoid importing the RLS-scoped client
-// before the principal is resolved.
-const env = (globalThis as any).process?.env || {}
-const supabase = createClient(
-  env.SUPABASE_URL!,
-  env.SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    },
-    realtime: { transport: RealtimeWebSocket }  // WebSocket for Node.js 20+
-  }
-)
+  const provided = event.headers?.['x-internal-secret'] || event.headers?.['X-Internal-Secret']
+  if (!provided || typeof provided !== 'string') return false
 
-// ─── PRINCIPAL INTERFACE ─────────────────────────────────────────────────────
+  // Hash both sides so the comparison always runs on equal-length (32-byte)
+  // inputs — an early-exit on length mismatch would leak the expected secret's
+  // length via response timing.
+  const expectedHash = createHash('sha256').update(expected).digest()
+  const providedHash = createHash('sha256').update(provided).digest()
 
-/**
- * Unified identity abstraction for all actors in Spine.
- *
- * Every request resolves to a `Principal` before any permission or DB access.
- * The `type` field gates which optional fields are populated:
- *   - `'human'` → `roles`, `displayName`, `email`, `authContext.jwt`
- *   - `'machine'` → `scopes`, `machineType`, `isInternal`, `authContext.apiKey`
- *
- * The `provenance` object is always populated and is the primary audit trail
- * field. It must not be modified after resolution.
- *
- * @inputSpec none — this is a pure type definition
- * @calledBy middleware.ts (RequestContext.principal), permissions.ts (all methods),
- *   audit.ts (formatPrincipalForAudit), tests/integration/helpers.ts (makeTestCtx)
- */
-export interface Principal {
-  /** Unique identifier — person UUID (human) or machine principal UUID (machine) */
-  id: string
-  
-  /** Actor type — gates which optional fields are populated */
-  type: 'human' | 'machine'
-  
-  /** Primary account context; null for internal system principals */
-  accountId: string | null
-  
-  // ─ Human-specific (only populated when type === 'human') ─────────────────
-  /** Role slugs from people.role_id → roles.slug; used by PermissionEngine */
-  roles?: string[]
-  
-  /** Display name from people.display_name or people.email */
-  displayName?: string
-  
-  /** Email address from people.email or Supabase auth user */
-  email?: string
-  
-  // ─ Machine-specific (only populated when type === 'machine') ─────────────
-  /** Explicit permission grants (e.g., ['items:read', 'people:write', '*:*']) */
-  scopes?: string[]
-  
-  /** Machine classification — determines UI visibility and default scopes */
-  machineType?: 'integration' | 'service_account' | 'internal' | 'timer'
-  
-  /** Internal machines (cron, trigger, pipeline) are hidden from the UI */
-  isInternal?: boolean
-  
-  // ─ Universal provenance — always populated, never modified after resolution
-  provenance: {
-    /** How this principal was authenticated */
-    sourceType: 'jwt' | 'api_key' | 'cron' | 'trigger' | 'manual' | 'webhook' | 'timer'
-    
-    /** Person who authorized this principal (may be self for humans) */
-    createdBy: string | null
-    
-    /** Chain ID for trigger/pipeline sequences */
-    parentExecutionId?: string
-    
-    /** When this principal context was created */
-    invokedAt: string
-    
-    // Source-specific context
-    /** API key ID (for api_key source) */
-    apiKeyId?: string
-    
-    /** Schedule ID (for cron source) */
-    cronId?: string
-    
-    /** Trigger ID (for trigger source) */
-    triggerId?: string
-    
-    /** Timer ID (for timer source) */
-    timerId?: string
-    
-    /** Event ID that triggered this execution */
-    eventId?: string
-    
-    /** IP address of the requester */
-    ipAddress?: string
-    
-    /** User agent string */
-    userAgent?: string
-  }
-  
-  // ============================================
-  // Authentication context (for RLS client selection)
-  // ============================================
-  authContext?: {
-    /** JWT token for human-scoped DB client */
-    jwt?: string
-    
-    /** API key value for machine verification */
-    apiKey?: string
+  try {
+    return timingSafeEqual(expectedHash, providedHash)
+  } catch {
+    return false
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Verify that a request carries the trusted internal invocation secret'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:isInternalInvokeAuthorized:function"]
 
-// ─── PRINCIPAL CONSTANTS ─────────────────────────────────────────────────────
 
-/**
- * Sentinel principal for unauthenticated requests.
- *
- * Returned by `resolvePrincipal` when no auth header is present. `createHandler`
- * checks for `principal.id === 'anonymous'` and rejects the request with 401.
- * Never use this principal for any DB access — it has no scopes or accountId.
- *
- * @stability stable
- * @calledBy resolvePrincipal (returned when no auth header is present)
- * @calledBy middleware.ts, requireUserContext, requireSystemContextWithAudit (checked against)
- * @calledBy permissions.ts (all surface methods check for 'anonymous' and deny)
- */
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:env:constant" type="constant" identity="env" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Access process environment variables"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provide a safe fallback for environment lookups"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="Record of environment variables" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return global process.env or an empty object" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+const env = (globalThis as any).process?.env || {}
+// CIL[DOC-VECTOR type="context" content="purpose='Access process environment variables'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:env:constant"]
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:supabase:constant" type="constant" identity="supabase" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Create a Supabase client configured for function use"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provide an anon-key Supabase client for auth.getUser JWT verification"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="Supabase client" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Instantiate createClient with URL, anon key, and auth options. Realtime transport omitted — this client is used only for supabase.auth.getUser; no realtime channels are opened server-side." notable_decisions="ws realtime transport removed to reduce bundle size and eliminate unnecessary module-level init overhead across every function"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+const supabase = createClient(
+  env.SUPABASE_URL || 'https://placeholder.supabase.co',
+  env.SUPABASE_ANON_KEY || 'placeholder',
+  {
+    auth: { autoRefreshToken: false, persistSession: false },
+  }
+)
+// CIL[DOC-VECTOR type="context" content="purpose='Create a Supabase client configured for function use'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:supabase:constant"]
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:Principal:interface" type="interface" identity="Principal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Define the canonical identity shape used across Spine"]
+// CIL[DOC-RESPONSIBILITY responsibility="Describe a principal's id, type, account, roles, scopes, machine metadata and provenance"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="TypeScript interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Declare human or machine identity with provenance and optional auth context" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+export interface Principal {
+  id: string
+  type: 'human' | 'machine'
+  accountId: string | null
+  roles?: string[]
+  displayName?: string
+  email?: string
+  scopes?: string[]
+  machineType?: 'integration' | 'service_account' | 'internal' | 'timer'
+  isInternal?: boolean
+  provenance: {
+    sourceType: 'jwt' | 'api_key' | 'cron' | 'trigger' | 'manual' | 'webhook' | 'timer'
+    createdBy: string | null
+    parentExecutionId?: string
+    invokedAt: string
+    apiKeyId?: string
+    cronId?: string
+    triggerId?: string
+    timerId?: string
+    eventId?: string
+    ipAddress?: string
+    userAgent?: string
+  }
+
+
+  // SECURITY: authContext carries raw credentials needed to build the
+  // user-scoped DB client (getPrincipalDb). It is transport-only — never pass
+  // a Principal to JSON.stringify, emitAudit, or any logging path. Use
+  // formatPrincipalForAudit() for serialized views. apiKey is deliberately
+  // absent: raw API keys are verified and discarded during resolution and must
+  // never be stored on objects that may be cached or serialized.
+  authContext?: {
+    jwt?: string
+  }
+}
+// CIL[DOC-VECTOR type="context" content="purpose='Define the canonical identity shape used across Spine'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:Principal:interface"]
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:ANONYMOUS_PRINCIPAL:constant" type="constant" identity="ANONYMOUS_PRINCIPAL" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Provide a default principal for unauthenticated requests"]
+// CIL[DOC-RESPONSIBILITY responsibility="Represent an anonymous machine principal with no scopes"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="Principal" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return an anonymous machine principal with manual provenance" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const ANONYMOUS_PRINCIPAL: Principal = {
   id: 'anonymous',
   type: 'machine',
@@ -177,37 +190,32 @@ export const ANONYMOUS_PRINCIPAL: Principal = {
     invokedAt: new Date().toISOString()
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Provide a default principal for unauthenticated requests'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:ANONYMOUS_PRINCIPAL:constant"]
 
-/**
- * System principal for internal Spine operations (cron, pipeline runner, trigger engine).
- *
- * Has `'*:*'` scope (all resources, all actions) and `isInternal: true`. When
- * a `CoreContext` is constructed for a system operation (e.g. in v2-custom/ or
- * the CLI), use `SYSTEM_PRINCIPAL` as the principal and `adminDb` as the db.
- *
- * Never expose this principal in an HTTP response or log the `authContext` field.
- *
- * @stability stable
- * @calledBy tests/integration/helpers.ts (makeTestCtx)
- * @calledBy CLI context construction
- * @calledBy v2-custom/ system-level import callers
- *
- * @example Import usage (v2-custom/)
- * ```ts
- * import { CoreContext, SYSTEM_PRINCIPAL, adminDb } from '../_shared/index'
- * const ctx: CoreContext = {
- *   principal: SYSTEM_PRINCIPAL,
- *   accountId: MY_ACCOUNT_ID,
- *   db: adminDb,
- *   requestId: crypto.randomUUID()
- * }
- * ```
- */
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:SYSTEM_PRINCIPAL:constant" type="constant" identity="SYSTEM_PRINCIPAL" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Provide a privileged internal principal for system operations"]
+// CIL[DOC-RESPONSIBILITY responsibility="Represent the system machine principal with full scope"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="Principal" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return a machine principal with wildcard scope and internal flag" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export const SYSTEM_PRINCIPAL: Principal = {
   id: 'system',
   type: 'machine',
   accountId: null,
-  scopes: ['*:*'],  // All scopes
+  scopes: ['*:*'],
   machineType: 'internal',
   isInternal: true,
   provenance: {
@@ -216,133 +224,197 @@ export const SYSTEM_PRINCIPAL: Principal = {
     invokedAt: new Date().toISOString()
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Provide a privileged internal principal for system operations'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:SYSTEM_PRINCIPAL:constant"]
 
-// ─── RESOLUTION FUNCTIONS ────────────────────────────────────────────────────
 
-/**
- * Main entry point for principal resolution. Called by `createHandler` on every
- * HTTP request before the handler runs.
- *
- * Examines request headers in priority order and delegates to the appropriate
- * resolver. Always returns a `Principal` — never throws for missing auth
- * (returns `ANONYMOUS_PRINCIPAL` instead). Throws only on invalid/expired
- * credentials (invalid API key, expired JWT, etc.).
- *
- * Resolution order:
- *   1. `x-api-key` / `X-Api-Key` header → `resolveMachinePrincipal`
- *   2. `x-cron-id` / `X-Cron-Id` header → `resolveCronPrincipal`
- *   3. `x-trigger-id` / `X-Trigger-Id` header → `resolveTriggerPrincipal`
- *   4. `Authorization: Bearer <jwt>` → `resolveHumanPrincipal`
- *   5. (none matched) → `ANONYMOUS_PRINCIPAL`
- *
- * @param event - Raw Netlify event object with `headers` and optional `body`
- * @returns Promise<Principal> — always resolves; throws on invalid credentials
- * @throws Error — on invalid API key, invalid JWT, or missing DB records
- * @inputSpec event.headers: Record<string, string> — HTTP request headers
- * @outputSpec Principal — fully resolved principal with provenance populated
- * @sideEffects DB reads: api_keys, schedules, triggers, people tables via sub-resolvers
- * @calledBy middleware.ts (createHandler) — once per HTTP request
- * @calls resolveMachinePrincipal | resolveCronPrincipal | resolveTriggerPrincipal |
- *   resolveHumanPrincipal
- * @testUnit tests/unit/principal.test.ts — 'resolvePrincipal' describe block
- * @testIntegration tests/integration/auth.test.ts
- */
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolvePrincipal:function" type="function" identity="resolvePrincipal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Resolve a Principal from incoming request headers"]
+// CIL[DOC-RESPONSIBILITY responsibility="Dispatch to machine, cron, trigger or human resolution based on headers"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="event object with headers" outputs="Principal" errors="Invalid or inactive credentials" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Check x-api-key, internal cron/trigger headers, or Bearer token, falling back to ANONYMOUS_PRINCIPAL" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export async function resolvePrincipal(event: any): Promise<Principal> {
-  // Check for API key (external machine)
   const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key']
   if (apiKey) {
     return resolveMachinePrincipal(apiKey, event)
   }
-  
-  // Check for internal cron header
-  const cronId = event.headers?.['x-cron-id'] || event.headers?.['X-Cron-Id']
-  if (cronId) {
-    return resolveCronPrincipal(cronId)
+
+  // x-cron-id / x-trigger-id let the caller assume a privileged machine
+  // principal by ID alone. They must never be honored unless the request
+  // also proves it came from a trusted internal caller via a shared
+  // secret (see isInternalInvokeAuthorized) — otherwise anyone who learns
+  // a valid schedule/trigger id (e.g. from the admin UI or an audit log)
+  // could impersonate that principal on any endpoint.
+  if (isInternalInvokeAuthorized(event)) {
+    const cronId = event.headers?.['x-cron-id'] || event.headers?.['X-Cron-Id']
+    if (cronId) {
+      return resolveCronPrincipal(cronId)
+    }
+
+    const triggerId = event.headers?.['x-trigger-id'] || event.headers?.['X-Trigger-Id']
+    if (triggerId) {
+      return resolveTriggerPrincipal(triggerId, event)
+    }
+
+    // A bare internal-invoke secret is itself a first-class credential —
+    // function-to-function calls without a cron/trigger principal to
+    // impersonate (e.g. manual system-cron runs) get the privileged
+    // system principal rather than falling through to anonymous.
+    return SYSTEM_PRINCIPAL
   }
-  
-  // Check for internal trigger header
-  const triggerId = event.headers?.['x-trigger-id'] || event.headers?.['X-Trigger-Id']
-  if (triggerId) {
-    return resolveTriggerPrincipal(triggerId, event)
-  }
-  
-  // Check for JWT Bearer (human)
+
   const authHeader = event.headers?.authorization || event.headers?.Authorization
   if (authHeader?.startsWith('Bearer ')) {
     return resolveHumanPrincipal(authHeader.replace('Bearer ', ''), event)
   }
   
-  // No authentication - return anonymous
   return ANONYMOUS_PRINCIPAL
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve a Principal from incoming request headers'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolvePrincipal:function"]
 
-/**
- * Resolves a machine principal by validating an API key against the DB.
- *
- * Calls the `validate_machine_principal` RPC which checks the key hash,
- * expiry, and active status in one query. Throws on any validation failure —
- * invalid keys are not silently demoted to anonymous.
- *
- * @param apiKey - Raw API key string from `x-api-key` header
- * @param event - Raw Netlify event (used for IP/user-agent provenance)
- * @returns Promise<Principal> — machine principal with scopes from the DB record
- * @throws Error — on invalid, expired, or inactive API key
- * @inputSpec apiKey: string — raw key value; hashed by the RPC for comparison
- * @outputSpec Principal with type='machine', scopes from DB, provenance.sourceType='api_key'
- * @sideEffects DB read: validate_machine_principal RPC (api_keys table)
- * @calledBy resolvePrincipal (api_key branch)
- * @calls adminDb.rpc('validate_machine_principal')
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolveMachinePrincipal:function" type="function" identity="resolveMachinePrincipal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Resolve a machine principal from an API key"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate key prefix and hash, enforce rate limits, and return the principal"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="apiKey: string, event: any" outputs="Principal" errors="Invalid or inactive machine principal, rate limit exceeded" side_effects="Inserts api_key_usage_logs row"]
+// CIL[DOC-MICRO logic_summary="Query api_keys by prefix, verify hash, count recent usage, log request, and build the principal" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 async function resolveMachinePrincipal(apiKey: string, event: any): Promise<Principal> {
-  // Validate the API key using the database function
-  const { data: rows, error } = await adminDb.rpc('validate_machine_principal', {
-    p_key_value: apiKey,
-    p_required_scope: null  // No specific scope required for resolution
-  })
-  const machine = Array.isArray(rows) ? rows[0] : rows
-  
-  if (error || !machine || !machine.is_valid) {
-    throw new Error(machine?.error_message || 'Invalid or inactive machine principal')
+  const keyPrefix = apiKey.slice(0, 8)
+
+  const { data: rows, error } = await adminDb
+    .from('api_keys')
+    .select('*')
+    .eq('key_prefix', keyPrefix)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  if (error || !rows || rows.length === 0) {
+    throw new Error('Invalid or inactive machine principal')
   }
-  
+
+  const now = Date.now()
+  const key = rows.find((k: any) => !k.expires_at || new Date(k.expires_at).getTime() >= now)
+  if (!key) {
+    throw new Error('Invalid or inactive machine principal')
+  }
+  const { verifyApiKey } = await import('./hash-api-key')
+  if (!verifyApiKey(apiKey, key.key_hash)) {
+    throw new Error('Invalid or inactive machine principal')
+  }
+
+  const rateWindowSeconds = (key.config?.rate_limit_window_seconds as number) || 60
+  const rateLimit = key.rate_limit || 100
+  const windowStart = new Date(Date.now() - rateWindowSeconds * 1000).toISOString()
+
+  const { count, error: countError } = await adminDb
+    .from('api_key_usage_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('api_key_id', key.id)
+    .gte('created_at', windowStart)
+
+  if (!countError && count !== null && count >= rateLimit) {
+    throw new Error('Rate limit exceeded for this API key')
+  }
+
+  // Secondary per-IP ceiling: the per-key limit alone cannot catch a caller
+  // rotating through many valid keys. rate_limit_hit (migration 035) is the
+  // atomic DB counter — key on the trusted client IP + endpoint so expensive
+  // endpoints can be tuned separately. Fail-open: a limiter outage must not
+  // take down machine authentication.
+  const clientIp = getClientIp(event)
+  if (clientIp) {
+    const ipWindowSeconds = 60
+    const ipLimit = Number(env.SPINE_IP_RATE_LIMIT || 300)
+    const ipWindowStart = new Date(
+      Math.floor(now / (ipWindowSeconds * 1000)) * ipWindowSeconds * 1000
+    ).toISOString()
+    try {
+      const { data: ipCount } = await adminDb.rpc('rate_limit_hit', {
+        p_key: `ip:${clientIp}:${event.path || '/'}`,
+        p_window_start: ipWindowStart,
+      })
+      if (typeof ipCount === 'number' && ipCount > ipLimit) {
+        throw new Error('Rate limit exceeded for this address')
+      }
+    } catch (err: any) {
+      if (err?.message === 'Rate limit exceeded for this address') throw err
+      console.warn('IP rate limit check failed (fail-open):', err?.message)
+    }
+  }
+
+  await adminDb.from('api_key_usage_logs').insert({
+    api_key_id: key.id,
+    account_id: key.account_id,
+    request_method: event.httpMethod,
+    request_path: event.path,
+    request_ip: getClientIp(event),
+    user_agent: event.headers?.['user-agent'] || event.headers?.['User-Agent'],
+    success: true,
+    metadata: { source: 'resolve_machine_principal' }
+  })
+
+  const isGlobal = (key.scopes || []).includes('*:*')
+
   return {
-    id: machine.machine_id,
+    id: key.id,
     type: 'machine',
-    accountId: machine.account_id,
-    scopes: machine.scopes || [],
-    machineType: machine.machine_type as any,
-    isInternal: machine.is_internal,
+    accountId: key.account_id,
+    scopes: key.scopes || [],
+    roles: isGlobal ? ['system_admin'] : [],
+    machineType: (key.machine_type as any) || 'integration',
+    isInternal: key.is_internal,
     provenance: {
       sourceType: 'api_key',
-      createdBy: machine.created_by,
+      createdBy: key.created_by,
       invokedAt: new Date().toISOString(),
-      apiKeyId: machine.machine_id,
+      apiKeyId: key.id,
       ipAddress: getClientIp(event),
       userAgent: event.headers?.['user-agent'] || event.headers?.['User-Agent']
-    },
-    authContext: { apiKey }
+    }
+    // The raw API key is intentionally NOT stored on the principal — the key is
+    // verified above and discarded. getPrincipalDb() returns adminDb for machine
+    // principals regardless, so no downstream consumer needs the credential.
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve a machine principal from an API key'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolveMachinePrincipal:function"]
 
-/**
- * Resolves a machine principal for a scheduled cron job execution.
- *
- * Loads the schedule record (with its linked machine principal) and validates
- * that the schedule creator is still active via `validate_schedule_creator` RPC.
- * Uses the schedule's `delegated_scopes` if set, falling back to the machine's
- * own scopes. This allows scopes to be narrowed per-schedule for least-privilege.
- *
- * @param scheduleId - UUID of the schedule from `x-cron-id` header
- * @returns Promise<Principal> — machine principal with delegated or own scopes
- * @throws Error — on invalid/inactive schedule, missing machine, or validation failure
- * @inputSpec scheduleId: string — valid UUID in the schedules table
- * @outputSpec Principal with type='machine', provenance.sourceType='cron', cronId set
- * @sideEffects DB reads: schedules table, validate_schedule_creator RPC
- * @calledBy resolvePrincipal (cron branch)
- * @calls adminDb.from('schedules'), adminDb.rpc('validate_schedule_creator')
- */
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolveCronPrincipal:function" type="function" identity="resolveCronPrincipal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Resolve a machine principal for a cron schedule"]
+// CIL[DOC-RESPONSIBILITY responsibility="Lookup a schedule, validate its creator, and return its associated machine principal"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="scheduleId string" outputs="Principal" errors="Invalid or inactive schedule, validation failed" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Fetch schedule with machine join, call validate_schedule_creator RPC, and build principal with cron provenance" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 async function resolveCronPrincipal(scheduleId: string): Promise<Principal> {
-  // Load the schedule with its machine principal
   const { data: schedule, error: scheduleError } = await adminDb
     .from('schedules')
     .select(`
@@ -356,7 +428,6 @@ async function resolveCronPrincipal(scheduleId: string): Promise<Principal> {
     throw new Error('Invalid or inactive schedule: ' + scheduleId)
   }
   
-  // Validate the schedule creator is still active
   const { data: validation, error: validationError } = await adminDb.rpc('validate_schedule_creator', {
     p_schedule_id: scheduleId
   })
@@ -382,26 +453,23 @@ async function resolveCronPrincipal(scheduleId: string): Promise<Principal> {
     }
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve a machine principal for a cron schedule'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolveCronPrincipal:function"]
 
-/**
- * Resolves a machine principal for an event trigger execution.
- *
- * Loads the trigger record and its associated action. The action must have a
- * `default_machine_principal_id` configured — this is the API key record that
- * provides identity and scopes for the trigger's execution context.
- *
- * @param triggerId - UUID of the trigger from `x-trigger-id` header
- * @param event - Raw Netlify event (used for eventId and provenance)
- * @returns Promise<Principal> — machine principal from the trigger's action config
- * @throws Error — on invalid trigger, missing action config, or missing machine
- * @inputSpec triggerId: string — valid UUID in the triggers table
- * @outputSpec Principal with type='machine', provenance.sourceType='trigger', triggerId set
- * @sideEffects DB reads: triggers table, api_keys table
- * @calledBy resolvePrincipal (trigger branch)
- * @calls adminDb.from('triggers'), adminDb.from('api_keys')
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolveTriggerPrincipal:function" type="function" identity="resolveTriggerPrincipal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Resolve a machine principal for a trigger invocation"]
+// CIL[DOC-RESPONSIBILITY responsibility="Load trigger, find its action's default machine, and return the principal"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="triggerId: string, event: any" outputs="Principal" errors="Invalid trigger, no machine configured" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Fetch trigger with action join, resolve default machine from api_keys, and build trigger provenance" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 async function resolveTriggerPrincipal(triggerId: string, event: any): Promise<Principal> {
-  // Load the trigger
   const { data: trigger, error: triggerError } = await adminDb
     .from('triggers')
     .select(`
@@ -415,7 +483,6 @@ async function resolveTriggerPrincipal(triggerId: string, event: any): Promise<P
     throw new Error('Invalid trigger: ' + triggerId)
   }
   
-  // Get the action's default machine principal
   const action = trigger.action
   if (!action?.default_machine_principal_id) {
     throw new Error('Trigger action has no machine principal configured')
@@ -447,108 +514,162 @@ async function resolveTriggerPrincipal(triggerId: string, event: any): Promise<P
     }
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve a machine principal for a trigger invocation'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolveTriggerPrincipal:function"]
 
-/**
- * Resolves a human principal from a Supabase JWT Bearer token.
- *
- * Validates the token with `supabase.auth.getUser`, resolves the internal
- * person UUID from the auth user, then loads the person's role via `role_id` FK.
- * Role slugs are the source of truth for `PermissionEngine.isSystemAdmin` checks.
- *
- * If the person's `auth_uid` is not yet set, it is backfilled on first login
- * (side effect on the people table).
- *
- * @param token - Raw JWT string extracted from `Authorization: Bearer <token>`
- * @param event - Raw Netlify event (used for IP/user-agent provenance)
- * @returns Promise<Principal> — human principal with roles from the DB
- * @throws Error('Invalid authentication token') — on expired or invalid JWT
- * @throws Error('Person not found') — if people record doesn't exist for this auth user
- * @inputSpec token: string — valid non-expired Supabase JWT
- * @outputSpec Principal with type='human', roles from people.role_id → roles.slug
- * @sideEffects DB reads: supabase.auth.getUser, people table (with role join)
- * @sideEffects DB write (conditional): people.auth_uid backfill on first login
- * @calledBy resolvePrincipal (jwt branch)
- * @calls supabase.auth.getUser, resolveInternalPersonId, adminDb.from('people')
- * @testIntegration tests/integration/auth.test.ts
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolveHumanPrincipal:function" type="function" identity="resolveHumanPrincipal" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Resolve a human principal from a JWT bearer token"]
+// CIL[DOC-RESPONSIBILITY responsibility="Validate Supabase user, map to internal person, and build the principal"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="token: string, event: any" outputs="Principal" errors="Person lookup error, person not found" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Get Supabase user, resolve internal person id, load person with role, and construct human principal; result cached ~60s keyed by token hash, provenance refreshed on hit; principals lacking both account_id and role_id are never cached" notable_decisions="cache avoids three sequential auth/people lookups on every polled request; provenance timestamps are refreshed per request so audit stays honest; unplaced (mid-registration, both fields null) principals skip the cache so placement lands on the next request instead of stalling 60s"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// Module-level cache: sha256(token) → resolved human principal. Resolution
+// costs 3 sequential round-trips (supabase.auth.getUser, person-id mapping,
+// people+role join) and runs on every request — polling-heavy clients were
+// paying ~1s of auth overhead per poll. 60s TTL bounds staleness for
+// role/account changes. The authContext.jwt in the cached entry is only ever
+// served back to the request that presented the same token. Principals for
+// people missing BOTH account_id and role_id (registration placement still
+// in flight) are never cached — see the comment at the cache write.
+//
+// SECURITY NOTE: role revocations, account deactivations, and account
+// reassignments take up to 60 seconds to propagate to in-flight requests on
+// warm function instances. This is a deliberate performance trade-off. Incident
+// response: a full function redeploy clears the in-memory cache immediately. A
+// DB-backed invalidation channel (e.g. a version counter on the people row)
+// would close the window but costs a round-trip per cached hit.
+const humanPrincipalCache = new Map<string, { principal: Principal; expiresAt: number }>()
+const PRINCIPAL_CACHE_TTL_MS = 60_000
+const PRINCIPAL_CACHE_MAX = 500
+
 async function resolveHumanPrincipal(token: string, event: any): Promise<Principal> {
-  // Validate JWT with Supabase
+  const cacheKey = createHash('sha256').update(token).digest('hex')
+  const cached = humanPrincipalCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    // Refresh request-scoped provenance so audit/log rows keep honest metadata
+    return {
+      ...cached.principal,
+      provenance: {
+        ...cached.principal.provenance,
+        invokedAt: new Date().toISOString(),
+        ipAddress: getClientIp(event),
+        userAgent: event.headers?.['user-agent'] || event.headers?.['User-Agent']
+      }
+    }
+  }
+
   const { data: { user }, error } = await supabase.auth.getUser(token)
   
   if (error || !user) {
     return ANONYMOUS_PRINCIPAL
   }
   
-  // Resolve internal person ID from auth user
   const personId = await resolveInternalPersonId(user.id, user.email)
+  const userDb = getUserDb(token)
   
-  // Load person details
-  const { data: person, error: personError } = await adminDb
+  const { data: person, error: personError } = await userDb
     .from('people')
-    .select('*, role:role_id(slug, name, is_system, is_protected)')
+    .select('*, role:roles!role_id(id, slug, name, is_system, permissions)')
     .eq('id', personId)
     .single()
   
-  if (personError || !person) {
+  if (personError) {
+    throw new Error('Person lookup error: ' + personError.message + ' (id: ' + personId + ')')
+  }
+  if (!person) {
     throw new Error('Person not found: ' + personId)
   }
   
-  // Resolve role from role_id
-  const roleSlugs = person.role?.slug ? [person.role.slug] : []
+  const role = Array.isArray(person.role) ? person.role[0] : person.role
+  const roleSlugs = role?.slug ? [role.slug] : []
   
-  return {
+  const principal: Principal = {
     id: personId,
     type: 'human',
     accountId: person.account_id || null,
     roles: roleSlugs,
-    displayName: person.full_name || person.email,
+    displayName: person.display_name || person.email,
     email: person.email,
     provenance: {
       sourceType: 'jwt',
-      createdBy: personId,  // Self-created through auth
+      createdBy: personId,
       invokedAt: new Date().toISOString(),
       ipAddress: getClientIp(event),
       userAgent: event.headers?.['user-agent'] || event.headers?.['User-Agent']
     },
     authContext: { jwt: token }
   }
-}
 
-/**
- * Resolves the internal people table UUID from a Supabase auth user ID.
- *
- * Lookup strategy (in order):
- *   1. Match by `email` — most reliable; also backfills `auth_uid` if missing
- *   2. Fallback: match by `auth_uid` directly
- *   3. Last resort: return `authUserId` as-is (person not yet in people table)
- *
- * The email-first strategy handles the case where a person was created manually
- * in the people table before the user completed Supabase Auth registration.
- *
- * @param authUserId - UUID from Supabase auth.users (supabase.auth.getUser result)
- * @param email - Email address from the Supabase auth user (optional but preferred)
- * @returns Promise<string> — internal person UUID, or authUserId as fallback
- * @throws never — graceful fallback to authUserId on any lookup failure
- * @inputSpec authUserId: string — valid Supabase auth user UUID
- * @inputSpec email: string | undefined — used for primary lookup
- * @outputSpec string — internal people.id UUID
- * @sideEffects DB reads: people table (by email, then by auth_uid)
- * @sideEffects DB write (conditional): people.auth_uid backfill when found by email
- * @calledBy resolveHumanPrincipal
- * @calls adminDb.from('people')
- */
-async function resolveInternalPersonId(authUserId: string, email?: string): Promise<string> {
-  // Try to find by email first (more reliable)
+  // Never cache an unplaced principal. Between signUp (people row created)
+  // and complete_registration_placement (account_id + role_id stamped
+  // atomically), requests would otherwise pin accountId:null for the full
+  // TTL — the documented ~60s "Account context required" stall. Both-null
+  // is the exact signature of "placement hasn't run yet" — a contact with
+  // an account but no role is a valid steady state and still caches.
+  if (!person.account_id && !person.role_id) {
+    return principal
+  }
+
+  if (humanPrincipalCache.size >= PRINCIPAL_CACHE_MAX) {
+    for (const [key, entry] of humanPrincipalCache) {
+      if (entry.expiresAt <= Date.now()) humanPrincipalCache.delete(key)
+    }
+    if (humanPrincipalCache.size >= PRINCIPAL_CACHE_MAX) humanPrincipalCache.clear()
+  }
+  humanPrincipalCache.set(cacheKey, { principal, expiresAt: Date.now() + PRINCIPAL_CACHE_TTL_MS })
+
+  return principal
+}
+// CIL[DOC-VECTOR type="context" content="purpose='Resolve a human principal from a JWT bearer token'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolveHumanPrincipal:function"]
+
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:resolveInternalPersonId:function" type="function" identity="resolveInternalPersonId" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Map a Supabase auth user to an internal person id"]
+// CIL[DOC-RESPONSIBILITY responsibility="Link auth user to person by email or auth_uid, falling back to the auth id"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="authUserId: string, email?: string" outputs="person id string" errors="none" side_effects="Updates people.auth_uid when linking by email"]
+// CIL[DOC-MICRO logic_summary="auth_uid lookup first (authoritative); email fallback only binds rows that are NOT invite stubs — invited/pending status or a stored invite_token is never claimed by email alone" notable_decisions="Invite stubs are claimed exclusively by the token-gated path in handle_new_auth_user (migration 052); binding one here by email would bypass token/expiry/revocation checks"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-NOTE type="security" content="Registration/invitation hardening: previously this bound auth_uid to ANY person row matching the JWT email with auth_uid NULL — including unclaimed invite stubs — bypassing the invite token entirely."]
+export async function resolveInternalPersonId(authUserId: string, email?: string): Promise<string> {
+  // auth_uid binding is authoritative — resolve it before any email fallback.
+  const { data: byAuthId } = await adminDb
+    .from('people')
+    .select('id')
+    .eq('auth_uid', authUserId)
+    .maybeSingle()
+
+  if (byAuthId) return byAuthId.id
+
   if (email) {
     const { data: byEmail } = await adminDb
       .from('people')
-      .select('id, auth_uid')
+      .select('id, auth_uid, status, data')
       .eq('email', email)
       .maybeSingle()
-    
+
     if (byEmail) {
-      // Update auth_uid if not set
       if (!byEmail.auth_uid) {
+        // Never claim an invite stub by email alone — only bind rows that
+        // are not invited/pending and carry no stored invite token.
+        const isInviteStub =
+          byEmail.status === 'invited' ||
+          byEmail.status === 'pending' ||
+          !!(byEmail.data && (byEmail.data as any).invite_token)
+        if (isInviteStub) return authUserId
         await adminDb
           .from('people')
           .update({ auth_uid: authUserId })
@@ -557,248 +678,148 @@ async function resolveInternalPersonId(authUserId: string, email?: string): Prom
       return byEmail.id
     }
   }
-  
-  // Fallback: try by auth_uid
-  const { data: byAuthId } = await adminDb
-    .from('people')
-    .select('id')
-    .eq('auth_uid', authUserId)
-    .maybeSingle()
-  
-  if (byAuthId) return byAuthId.id
-  
-  // Not found — auto-create the person (handles cases where auth user pre-existed DB reset
-  // or trigger fired before seed data was in place)
-  const { data: account } = await adminDb
-    .from('accounts')
-    .select('id')
-    .eq('slug', 'spine-system')
-    .single()
 
-  const { data: type } = await adminDb
-    .from('types')
-    .select('id')
-    .eq('kind', 'person')
-    .eq('slug', 'person')
-    .single()
-
-  if (!account || !type) {
-    throw new Error('Cannot auto-create person: spine-system account or person type not found in DB')
-  }
-
-  // First person ever gets system_admin role
-  const { count } = await adminDb
-    .from('people')
-    .select('id', { count: 'exact', head: true })
-
-  let roleId: string | null = null
-  if ((count ?? 0) === 0) {
-    const { data: adminRole } = await adminDb
-      .from('roles')
-      .select('id')
-      .eq('slug', 'system_admin')
-      .single()
-    roleId = adminRole?.id ?? null
-  }
-
-  const { data: newPerson, error: createError } = await adminDb
-    .from('people')
-    .upsert({
-      id: authUserId,
-      auth_uid: authUserId,
-      email: email ?? '',
-      full_name: email ? email.split('@')[0] : 'Unknown',
-      account_id: account.id,
-      type_id: type.id,
-      role_id: roleId,
-      is_active: true
-    }, { onConflict: 'id' })
-    .select('id')
-    .single()
-
-  if (createError || !newPerson) {
-    throw new Error('Failed to auto-create person for auth user ' + authUserId + ': ' + createError?.message)
-  }
-
-  return newPerson.id
+  return authUserId
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Map a Supabase auth user to an internal person id'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:resolveInternalPersonId:function"]
 
-// ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
-
-/**
- * Extracts the client IP address from event headers.
- *
- * Checks headers in priority order: `x-forwarded-for` (load balancer),
- * `x-real-ip` (proxy), then `requestContext.identity.sourceIp` (API Gateway).
- * Returns `undefined` if none are present.
- *
- * @param event - Raw Netlify event object
- * @returns string | undefined — first non-empty IP found
- * @throws never
- * @inputSpec event.headers: Record<string, string> | undefined
- * @outputSpec string — IPv4 or IPv6 address; may contain comma-separated list
- *   from x-forwarded-for (take first value if parsing is needed)
- * @sideEffects none
- * @calledBy resolveMachinePrincipal, resolveHumanPrincipal (for provenance)
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:getClientIp:function" type="function" identity="getClientIp" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Extract the client IP from request headers or context"]
+// CIL[DOC-RESPONSIBILITY responsibility="Return the most likely originating IP for a request"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="event with headers and requestContext" outputs="ip string or undefined" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Prefer Netlify's x-nf-client-connection-ip (set by the edge, not client-controllable), then x-forwarded-for's first hop, x-real-ip, and requestContext.identity.sourceIp" notable_decisions="x-nf-client-connection-ip first because x-forwarded-for is client-spoofable and feeds rate limiting/provenance"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 function getClientIp(event: any): string | undefined {
-  return event.headers?.['x-forwarded-for'] ||
-         event.headers?.['X-Forwarded-For'] ||
+  // x-nf-client-connection-ip is set by Netlify's edge and cannot be spoofed by
+  // the client; x-forwarded-for's first hop is client-controllable, so it is a
+  // fallback only. Used for provenance AND IP rate limiting — spoofability
+  // would let a caller mint fresh buckets by rotating the header.
+  return event.headers?.['x-nf-client-connection-ip'] ||
+         event.headers?.['X-Nf-Client-Connection-Ip'] ||
+         (event.headers?.['x-forwarded-for'] || event.headers?.['X-Forwarded-For'] || '').split(',')[0].trim() ||
          event.headers?.['x-real-ip'] ||
          event.headers?.['X-Real-Ip'] ||
-         event.requestContext?.identity?.sourceIp
+         event.requestContext?.identity?.sourceIp ||
+         undefined
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Extract the client IP from request headers or context'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:getClientIp:function"]
 
-/**
- * Checks whether a machine principal has been granted a specific scope.
- *
- * Scope matching supports three patterns:
- *   1. Exact: `'items:read'` matches only `'items:read'`
- *   2. Wildcard action: `'items:*'` matches `'items:read'`, `'items:write'`, etc.
- *   3. Global wildcard: `'*:*'` matches any scope
- *
- * Returns `false` for non-machine principals — role-based checks use `humanHasRole`.
- *
- * @param principal - The principal to check
- * @param scope - The required scope string in `'resource:action'` format
- * @returns boolean — true if any of the principal's scopes grant the required scope
- * @throws never
- * @inputSpec principal.type: 'machine' — returns false for human principals
- * @inputSpec scope: string — must be in 'resource:action' format
- * @inputSpec principal.scopes: string[] — list of granted scope strings
- * @outputSpec boolean
- * @sideEffects none
- * @calledBy permissions.ts (checkMachineScope), any custom code doing scope checks
- * @testUnit tests/unit/principal.test.ts — 'machineHasScope' describe block
- *
- * @example
- * ```ts
- * import { machineHasScope } from '../_shared/index'
- * if (!machineHasScope(principal, 'items:write')) {
- *   return { error: 'Insufficient scope' }
- * }
- * ```
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:machineHasScope:function" type="function" identity="machineHasScope" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Check whether a machine principal holds a given scope"]
+// CIL[DOC-RESPONSIBILITY responsibility="Evaluate scope including resource wildcard and global wildcard matches"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal: Principal, scope: string" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return true if scope, resource wildcard, or global wildcard is present" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function machineHasScope(principal: Principal, scope: string): boolean {
   if (principal.type !== 'machine') return false
   
   const scopes = principal.scopes || []
   const [resource, action] = scope.split(':')
   
-  // Exact match
   if (scopes.includes(scope)) return true
   
-  // Wildcard resource
   if (scopes.includes(`${resource}:*`)) return true
   
-  // Global wildcard
   if (scopes.includes('*:*')) return true
   
   return false
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Check whether a machine principal holds a given scope'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:machineHasScope:function"]
 
-/**
- * Checks whether a human principal has been assigned a specific role.
- *
- * Returns `false` for non-human (machine) principals — scope checks use
- * `machineHasScope`. Role slugs come from `people.role_id → roles.slug`
- * and are loaded at resolution time in `resolveHumanPrincipal`.
- *
- * @param principal - The principal to check
- * @param roleSlug - The role slug to look for (e.g. 'system_admin', 'agent')
- * @returns boolean — true if principal.roles includes the given slug
- * @throws never
- * @inputSpec principal.type: 'human' — returns false for machine principals
- * @inputSpec roleSlug: string — must match exactly (case-sensitive)
- * @inputSpec principal.roles: string[] | undefined
- * @outputSpec boolean
- * @sideEffects none
- * @calledBy isSystemAdmin, permissions.ts (PermissionEngine.isSystemAdmin)
- * @testUnit tests/unit/principal.test.ts — 'humanHasRole' describe block
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:humanHasRole:function" type="function" identity="humanHasRole" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Check whether a human principal has a role"]
+// CIL[DOC-RESPONSIBILITY responsibility="Test principal roles array for a role slug"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal: Principal, roleSlug: string" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return true if principal is human and roles includes the slug" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function humanHasRole(principal: Principal, roleSlug: string): boolean {
   if (principal.type !== 'human') return false
   return principal.roles?.includes(roleSlug) || false
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Check whether a human principal has a role'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:humanHasRole:function"]
 
-/**
- * Returns true if the principal holds the `system_admin` role.
- *
- * This is the canonical system admin check used by `middleware.ts`
- * (`requireSystemContextWithAudit`) and re-exported from `permissions.ts`
- * (`PermissionEngine.isSystemAdmin`). system_admin bypasses all three
- * permission surfaces.
- *
- * @param principal - The principal to check
- * @returns boolean — true only if type='human' and roles includes 'system_admin'
- * @throws never
- * @inputSpec principal: Principal — any resolved principal
- * @outputSpec boolean — false for machine principals, anonymous, or missing roles
- * @sideEffects none
- * @calledBy middleware.ts (requireSystemContextWithAudit), permissions.ts (PermissionEngine),
- *   any handler doing system-admin-only checks
- * @calls humanHasRole
- * @testUnit tests/unit/principal.test.ts — 'isSystemAdmin' describe block
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:isSystemAdmin:function" type="function" identity="isSystemAdmin" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Determine if a principal is a system administrator"]
+// CIL[DOC-RESPONSIBILITY responsibility="Check roles for system_admin by slug or object shape"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal" outputs="boolean" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return true if roles contains system_admin as a string or slug property" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function isSystemAdmin(principal: Principal): boolean {
-  return humanHasRole(principal, 'system_admin')
+  return principal?.roles?.some(r => r === 'system_admin' || r?.slug === 'system_admin') || false
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Determine if a principal is a system administrator'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:isSystemAdmin:function"]
 
-/**
- * Selects the correct Supabase database client for the given principal.
- *
- * This is the only place in the codebase where the two-client selection
- * decision is made. The result is stored in `ctx.db` and used for all
- * subsequent DB queries in the request.
- *
- * Selection logic:
- *   - Human principal with JWT → `getUserDb(jwt)` — enforces RLS
- *   - Machine principal → `adminDb` — RLS policies check machine ID in policies
- *   - Anonymous → `adminDb` (but anonymous requests are rejected before DB access)
- *
- * @param principal - The resolved principal
- * @returns SupabaseClient — RLS-scoped for humans, admin for machines
- * @throws never
- * @inputSpec principal.type: 'human' | 'machine'
- * @inputSpec principal.authContext.jwt: string | undefined — required for human client
- * @outputSpec SupabaseClient — getUserDb result (human) or adminDb (machine)
- * @sideEffects none (client construction only)
- * @calledBy middleware.ts (createHandler — `const ctxDb = getPrincipalDb(principal)`)
- * @calls getUserDb (db.ts), adminDb (db.ts)
- * @testUnit tests/unit/principal.test.ts — 'getPrincipalDb' describe block
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:getPrincipalDb:function" type="function" identity="getPrincipalDb" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Select the appropriate database client for a principal"]
+// CIL[DOC-RESPONSIBILITY responsibility="Return user-scoped db for humans with JWT, otherwise admin db"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal" outputs="Supabase client" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Use getUserDb with JWT for humans, otherwise return adminDb" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function getPrincipalDb(principal: Principal) {
   if (principal.type === 'human' && principal.authContext?.jwt) {
     return getUserDb(principal.authContext.jwt)
   }
   
-  // Machines use admin client - RLS policies check their ID
   return adminDb
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Select the appropriate database client for a principal'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:getPrincipalDb:function"]
 
-/**
- * Serializes a principal into a safe, structured object for audit log entries.
- *
- * Strips `authContext` entirely (never log JWT or API key values). The returned
- * object is safe to store in the `metadata` JSONB column of the `logs` table.
- *
- * @param principal - Any resolved principal including ANONYMOUS_PRINCIPAL
- * @returns object — audit-safe principal summary
- * @throws never
- * @inputSpec principal: Principal — any resolved principal
- * @outputSpec { id, type, account_id } + role/scope fields depending on type
- * @outputSpec authContext is NEVER included in output
- * @sideEffects none
- * @calledBy audit.ts (emitAudit — in metadata.principal)
- * @testUnit tests/unit/principal.test.ts — 'formatPrincipalForAudit' describe block
- *
- * @example
- * ```ts
- * await emitAudit(ctx, 'items.delete', { type: 'item', id }, {
- *   principal_snapshot: formatPrincipalForAudit(ctx.principal)
- * })
- * ```
- */
+// CIL[BEGIN stable_id="~/.framework/functions/_shared/principal.ts:formatPrincipalForAudit:function" type="function" identity="formatPrincipalForAudit" parent="~/.framework/functions/_shared/principal.ts"]
+// CIL[DOC-MACRO purpose="Serialize a principal for audit logs"]
+// CIL[DOC-RESPONSIBILITY responsibility="Produce a safe, structured view of principal identity and provenance"]
+// CIL[DOC-CONTEXT module="functions/_shared/principal" layer="shared" related_files=".framework/functions/_shared/db.ts,.framework/functions/_shared/principal.ts"]
+// CIL[DOC-CONTRACT inputs="principal" outputs="audit object" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Return id, type, account_id, human/machine fields, and provenance spread" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// Deliberately omits authContext — it holds the raw credential (JWT) and must
+// never reach audit rows, log output, or any serialized payload.
 export function formatPrincipalForAudit(principal: Principal): object {
   return {
     id: principal.id,
@@ -816,3 +837,10 @@ export function formatPrincipalForAudit(principal: Principal): object {
     provenance: principal.provenance
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Serialize a principal for audit logs'; No verified external callers; imports: .framework/functions/_shared/db.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/functions/_shared/principal.ts:formatPrincipalForAudit:function"]

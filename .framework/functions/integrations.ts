@@ -1,58 +1,127 @@
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/integrations.ts"]
 /**
- * @module integrations
- * @audience core-contributor
- * @layer api-handler
+ * @module   integrations
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * CRUD API for the `integrations` table. Integration records describe
- * third-party service connections (API credentials, provider, version,
- * configuration). Each integration is scoped to an account and optionally
- * to an app. `is_configured` tracks whether credentials have been set.
+ * This module provides integration functions for handling various operations within the application. It serves as a middleware layer that processes requests, ensuring proper authentication and data sanitization before interacting with the database. INVARIANT: All requests must be authenticated as a system admin to access sensitive operations.
  *
- * **Routed by:** `GET/POST/PATCH/DELETE /.netlify/functions/integrations`
+ * @seeAlso middleware.ts (provides request handling capabilities).
+ * @seeAlso db.ts (contains database interaction functions).
+ * @seeAlso audits.ts (handles logging of operations).
+ * @seeAlso permissions.ts (ensures data access control).
  *
- * **Standard CRUD — routes directly by HTTP method (no ?action switch):**
- * | method | condition | handler |
- * |--------|-----------|---------|
- * | GET    | ?id       | get     |
- * | GET    | (default) | list    |
- * | POST   | —         | create  |
- * | PATCH  | —         | update  |
- * | DELETE | —         | remove (soft) |
- *
- * **Authorization:** All operations use `ctx.db` (RLS-scoped). Authenticated
- * principal required for writes.
- *
- * INVARIANT: `remove` is a soft delete (sets `is_active = false`). Hard deletes
- *   are not supported to preserve audit trails on integration-linked data.
- * INVARIANT: `update` only patches the explicit allowlist of fields.
- *
- * @seeAlso api-keys.ts (api_keys belong to integrations)
- * @seeAlso trigger-engine.ts (integration webhooks trigger pipelines)
- * @seeAlso audit.ts (emitLog for integration.* events)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
 import { createHandler } from './_shared/middleware'
-import { joins } from './_shared/db'
+import { joins, adminDb } from './_shared/db'
 import { emitLog } from './_shared/audit'
 import { sanitizeRecordData } from './_shared/permissions'
+import { isSystemAdmin } from './_shared/principal'
+// CIL[END stable_id="~/.framework/functions/integrations.ts:module_header:module_header"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: INTEGRATIONS_LIST ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:deriveSlug:function" type="function" identity="deriveSlug" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_LIST_1_0_0
- * @version     1.0.0
- * @hash        5faf0b7052d9aac5f764d1fc30ddde1485a0296ad2b209cd2e3a73c09061a1fc
- * @macro       Integrations List Handler
- * @micro       Lists integrations with filtering, pagination, and joins
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Array of sanitized integration records with app/createdBy joins
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, permission sanitization]
- * @tags        integrations, list, crud, pagination
+ * Derives a URL-friendly slug from a given name, ensuring it is lowercase and replaces spaces with hyphens while removing invalid characters. This function can also use a provided slug if available.
+ *
+ * @inputSpec
+ *   - name: string (required) — the name to derive the slug from.
+ *   - slug: string (optional) — an optional slug to use instead of deriving from the name.
+ * @outputSpec  string — a URL-friendly slug derived from the name or the provided slug.
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
+function deriveSlug(name: string, slug?: string): string {
+  return slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+}
+// CIL[END stable_id="~/.framework/functions/integrations.ts:deriveSlug:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:computeIsConfigured:function" type="function" identity="computeIsConfigured" parent="~/.framework/functions/integrations.ts"]
+/**
+ * Determines if the provided credentials are configured correctly by checking for valid entries in the credentials object. This function ensures that all necessary credential values are present and valid.
+ *
+ * @inputSpec
+ *   credentials: Record<string, any> | undefined (optional) — an object containing credential entries or undefined.
+ * @outputSpec  boolean — returns true if all entries are valid, otherwise false.
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
+function computeIsConfigured(credentials: Record<string, any> | undefined): boolean {
+  if (!credentials || Object.keys(credentials).length === 0) return false
+  return Object.values(credentials).every((entry: any) => {
+    if (!entry || !entry.source) return false
+    return typeof entry.value === 'string' && entry.value.length > 0
+  })
+}
+// CIL[END stable_id="~/.framework/functions/integrations.ts:computeIsConfigured:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:list:constant" type="constant" identity="list" parent="~/.framework/functions/integrations.ts"]
+/**
+ * The 'list' constant defines an asynchronous handler that retrieves a list of integrations based on various query parameters, ensuring that the request context includes an account ID. It applies filters based on the provided query parameters.
+ *
+ * @throws      Error — Account context required if ctx.accountId is missing.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('integrations'), ctx.db.from('integrations'), sanitizeRecordData
+ * @errorHandling none
+ * @cil-generated
  */
 export const list = createHandler(async (ctx, _body) => {
   const { integration_type, provider, is_active, is_configured, limit = 100, offset = 0 } = ctx.query || {}
@@ -61,7 +130,9 @@ export const list = createHandler(async (ctx, _body) => {
     throw new Error('Account context required')
   }
 
-  let query = ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  let query = db
     .from('integrations')
     .select(`*, ${joins.app}, ${joins.createdBy}`)
     .order('name')
@@ -93,22 +164,31 @@ export const list = createHandler(async (ctx, _body) => {
 
   return sanitized
 })
-// ─── CHUNK_END: INTEGRATIONS_LIST ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:list:constant"]
 
-// ─── CHUNK_START: INTEGRATIONS_GET ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:get:constant" type="constant" identity="get" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_GET_1_0_0
- * @version     1.0.0
- * @hash        975126629cff24c75d2b74328d1ae08dd033ed451d3820d828c62b1f7a27413e
- * @macro       Integration Get Handler
- * @micro       Returns single integration record with joins and sanitization
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for GET)
- * @outputs     Sanitized integration record with app/createdBy joins
- * @depends-on  [createHandler, joins, sanitizeRecordData]
- * @depended-by [Netlify function routing]
- * @side-effects [DB single row query, permission sanitization]
- * @tags        integrations, get, crud, single-record
+ * Retrieves a specific integration record from the database based on the provided integration ID. This function ensures that the caller has the necessary permissions and handles potential errors during the database query.
+ *
+ * @throws      Error — Integration ID is required, Error — database query error
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('integrations'), ctx.db.from('integrations'), sanitizeRecordData
+ * @cil-generated
  */
 export const get = createHandler(async (ctx, _body) => {
   const { id } = ctx.query || {}
@@ -117,7 +197,9 @@ export const get = createHandler(async (ctx, _body) => {
     throw new Error('Integration ID is required')
   }
 
-  const { data, error: err } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data, error: err } = await db
     .from('integrations')
     .select(`*, ${joins.app}, ${joins.createdBy}`)
     .eq('id', id)
@@ -127,22 +209,31 @@ export const get = createHandler(async (ctx, _body) => {
 
   return await sanitizeRecordData(ctx, data, 'integration')
 })
-// ─── CHUNK_END: INTEGRATIONS_GET ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:get:constant"]
 
-// ─── CHUNK_START: INTEGRATIONS_CREATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_CREATE_1_0_0
- * @version     1.0.0
- * @hash        27d2242703930d7eeb33b49bbce4c22681ab891750c4c7a298c1c717a39870d7
- * @macro       Integration Create Handler
- * @micro       Creates integration record with validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Integration data including name, integration_type, provider
- * @outputs     Inserted integration record
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB insert, audit logging]
- * @tags        integrations, create, crud, audit
+ * Creates a new integration record in the database based on the provided parameters while ensuring required fields are present and validating user context. This function is essential for managing integrations within the application.
+ *
+ * @throws      Error — name, integration_type, and provider are required; Error — User context (person and account) required; Error — database insert error.
+ * @sideEffects Writes a new record to the 'integrations' table and emits a log event.
+ * @stability   internal
+ * @calls       adminDb.from('integrations'), ctx.db.from('integrations'), emitLog
+ * @cil-generated
  */
 export const create = createHandler(async (ctx, body) => {
   const { app_id, name, description, integration_type, provider, version, config, credentials, metadata } = body
@@ -155,20 +246,26 @@ export const create = createHandler(async (ctx, body) => {
     throw new Error('User context (person and account) required')
   }
 
-  const { data, error: err } = await ctx.db
+  const safeCredentials = credentials || {}
+
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data, error: err } = await db
     .from('integrations')
     .insert({
       app_id: app_id || null,
       account_id: ctx.accountId,
+      slug: deriveSlug(name, body.slug),
       name,
       description: description || null,
       integration_type,
       provider,
       version: version || '1.0.0',
       config: config || {},
-      credentials: credentials || {},
+      credentials: safeCredentials,
       metadata: metadata || {},
-      created_by: ctx.principal.id
+      is_configured: computeIsConfigured(safeCredentials),
+      created_by: ctx.principal.type === 'human' ? ctx.principal.id : null
     })
     .select()
     .single()
@@ -182,22 +279,31 @@ export const create = createHandler(async (ctx, body) => {
 
   return data
 })
-// ─── CHUNK_END: INTEGRATIONS_CREATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:create:constant"]
 
-// ─── CHUNK_START: INTEGRATIONS_UPDATE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:update:constant" type="constant" identity="update" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_UPDATE_1_0_0
- * @version     1.0.0
- * @hash        ab5c8404ddec24ff912c55e7e52cd0ecdd220646b0e07f56a49a02ef3288f3e9
- * @macro       Integration Update Handler
- * @micro       Updates integration with field allowlist and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Integration updates including id
- * @outputs     Updated integration record
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB update, audit logging]
- * @tags        integrations, update, crud, audit
+ * The update constant defines a handler for updating integration records in the database. It ensures that required fields are present and only allowed fields are updated.
+ *
+ * @throws      Error — Integration ID is required, Error — database update error
+ * @sideEffects DB writes to the 'integrations' table, emits a log event for the update.
+ * @stability   internal
+ * @calls       adminDb.from('integrations'), ctx.db.from('integrations'), emitLog
+ * @cil-generated
  */
 export const update = createHandler(async (ctx, body) => {
   const id = body?.id || ctx.query?.id
@@ -207,13 +313,19 @@ export const update = createHandler(async (ctx, body) => {
     throw new Error('Integration ID is required')
   }
 
-  const allowed = ['name', 'description', 'integration_type', 'provider', 'version', 'config', 'credentials', 'metadata', 'is_active', 'is_configured']
+  const allowed = ['name', 'slug', 'description', 'integration_type', 'provider', 'version', 'config', 'credentials', 'metadata', 'is_active']
   const updateData: Record<string, any> = { updated_at: new Date().toISOString() }
   for (const key of allowed) {
     if (updates[key] !== undefined) updateData[key] = updates[key]
   }
 
-  const { data, error: err } = await ctx.db
+  if (updateData.credentials !== undefined) {
+    updateData.is_configured = computeIsConfigured(updateData.credentials)
+  }
+
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data, error: err } = await db
     .from('integrations')
     .update(updateData)
     .eq('id', id)
@@ -222,29 +334,45 @@ export const update = createHandler(async (ctx, body) => {
 
   if (err) throw err
 
+  // S-005: redact credentials from the audit payload — the DB write above is
+  // untouched, but `after` lands in public.logs and must never carry secrets.
+  const auditAfter = { ...updateData }
+  if (auditAfter.credentials !== undefined) {
+    auditAfter.credentials = { __redacted: true }
+  }
+
   await emitLog(ctx, 'integration.updated', 
     { type: 'integration', id }, 
-    { after: updateData }
+    { after: auditAfter }
   )
 
   return data
 })
-// ─── CHUNK_END: INTEGRATIONS_UPDATE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:update:constant"]
 
-// ─── CHUNK_START: INTEGRATIONS_REMOVE ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:remove:constant" type="constant" identity="remove" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_REMOVE_1_0_0
- * @version     1.0.0
- * @hash        a8b5f084d745d2ce69a1e29d74903832ed39647ccb779d0f651a99157777a08a
- * @macro       Integration Remove Handler
- * @micro       Soft-deletes integration with validation and audit logging
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      _body: any — Request body (unused for DELETE)
- * @outputs     Updated integration record with is_active: false
- * @depends-on  [createHandler, emitLog]
- * @depended-by [Netlify function routing]
- * @side-effects [DB soft delete, audit logging]
- * @tags        integrations, remove, crud, audit
+ * The 'remove' constant defines a handler for deleting an integration by its ID, marking it as inactive in the database. It ensures that the integration ID is provided and logs the deletion event.
+ *
+ * @throws      Error — Integration ID is required, Error — Integration not found, Error — database error
+ * @sideEffects Updates the 'integrations' table in the database and emits a log event.
+ * @stability   internal
+ * @calls       adminDb.from('integrations'), ctx.db.from('integrations'), emitLog
+ * @cil-generated
  */
 export const remove = createHandler(async (ctx, _body) => {
   const id = ctx.query?.id
@@ -253,7 +381,9 @@ export const remove = createHandler(async (ctx, _body) => {
     throw new Error('Integration ID is required')
   }
 
-  const { data: current } = await ctx.db
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
+
+  const { data: current } = await db
     .from('integrations')
     .select('id, name, provider')
     .eq('id', id)
@@ -261,7 +391,7 @@ export const remove = createHandler(async (ctx, _body) => {
 
   if (!current) throw new Error('Integration not found')
 
-  const { data, error: err } = await ctx.db
+  const { data, error: err } = await db
     .from('integrations')
     .update({ is_active: false, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -277,24 +407,31 @@ export const remove = createHandler(async (ctx, _body) => {
 
   return data
 })
-// ─── CHUNK_END: INTEGRATIONS_REMOVE ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:remove:constant"]
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: INTEGRATIONS_HANDLER ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/integrations.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/integrations.ts"]
 /**
- * @chunk-id    INTEGRATIONS_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        14c00f276a22287ed65c019efe327cbb513f860a408191e299864b05c641833c
- * @macro       Integrations Router
- * @micro       Routes HTTP methods to appropriate handlers (no action switch)
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST/PATCH operations
- * @outputs     Varies — Depends on routed handler (list/get/create/update/remove)
- * @depends-on  [createHandler, list, get, create, update, remove]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        integrations, router, crud, netlify-function
+ * The handler processes incoming requests based on the HTTP method specified in the query parameters. It routes the request to the appropriate function for handling GET, POST, PATCH, or DELETE operations.
+ *
+ * @throws      Error — Unsupported method: {method}
+ * @sideEffects none
+ * @stability   internal
+ * @calls       get, list, create, update, remove
+ * @cil-generated
  */
 export const handler = createHandler(async (ctx, body) => {
   const method = ctx.query?.method || 'GET'
@@ -316,4 +453,11 @@ export const handler = createHandler(async (ctx, body) => {
       throw new Error(`Unsupported method: ${method}`)
   }
 })
-// ─── CHUNK_END: INTEGRATIONS_HANDLER ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/integrations.ts:handler:constant"]
+
+
+
+
+
+
+

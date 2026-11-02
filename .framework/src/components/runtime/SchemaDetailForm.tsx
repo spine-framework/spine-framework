@@ -1,44 +1,30 @@
-/**
- * @module src/components/runtime/SchemaDetailForm
- * @audience installer
- * @layer frontend-component
- * @stability stable
- *
- * Renders a `DetailView`'s sections as a schema-driven form. Each
- * `DetailViewSection` becomes a white card containing a `SchemaFields`
- * grid. Field definitions come from `DesignSchema.fields`; display widget
- * overrides come from the view's per-field `ViewFieldConfig.display_type`.
- *
- * **Field source resolution:**
- * - Field schema (`data_type`, `required`, `validation`, etc.) →
- *   `schema.fields[fieldName]`
- * - Display widget override → `view.sections[n].fields[fieldName].display_type`
- * - `system` fields read from `record[fieldName]`; custom fields read
- *   from `record.data[fieldName]` (split handled upstream by `DataDetailPage`)
- *
- * **Read vs edit rendering:** passes `readonly={!isEditing}` to `SchemaFields`
- * so all field components switch between display and input mode.
- *
- * @seeAlso src/components/shared/SchemaFields.tsx
- * @seeAlso src/types/types.ts (DesignSchema, DetailView)
- * @seeAlso src/components/runtime/DataDetailPage.tsx (parent, owns form state)
- */
-
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:module_header:module_header" type="module_header" identity="module_header" parent="none"]
+// CIL[DOC-MACRO purpose="React component for rendering schema-driven detail forms"]
+// CIL[DOC-RESPONSIBILITY responsibility="Defines module imports for SchemaDetailForm and related types/components"]
+// CIL[DOC-CONTEXT module="runtime" layer="frontend" related_files=".framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports DesignSchema, detail view types, and the shared SchemaFields component." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="internal"]
 import { DesignSchema, DetailView, DetailViewSection, FieldDefinition } from '../../types/types'
 import { SchemaFields } from '../shared/SchemaFields'
 
-/**
- * Props for `SchemaDetailForm`.
- *
- * @prop schema - Full `DesignSchema` for field definitions and permissions
- * @prop view - The `default_detail` `DetailView` from the schema
- * @prop record - Raw fetched record (used in read-only mode)
- * @prop isEditing - If true, renders input fields; false = read-only display
- * @prop isCreating - If true, skips reading from `record` (no record yet)
- * @prop permissions - Per-field `{ read, write }` map from `useEntityRecord`
- * @prop formData - Controlled values for all fields (owned by `DataDetailPage`)
- * @prop onFieldChange - Callback to update a single field value
- */
+// CIL[DOC-VECTOR type="context" content="purpose='React component for rendering schema-driven detail forms'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/SchemaFields.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:module_header:module_header"]
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:schemadetailformprops:interface" type="interface" identity="schemadetailformprops" parent="~/.framework/src/components/runtime/SchemaDetailForm.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Props interface for SchemaDetailForm"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declares the input contract for SchemaDetailForm"]
+// CIL[DOC-CONTEXT module="runtime" layer="frontend" related_files=".framework/src/components/runtime/SchemaDetailForm.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="SchemaDetailFormProps interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Defines props including schema, view, record, editing flags, permissions, form data, and onFieldChange callback." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 interface SchemaDetailFormProps {
   schema: DesignSchema
   view: DetailView
@@ -49,14 +35,23 @@ interface SchemaDetailFormProps {
   formData: Record<string, any>
   onFieldChange: (key: string, value: any) => void
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Props interface for SchemaDetailForm'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/SchemaFields.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:schemadetailformprops:interface"]
 
-/**
- * Renders a schema-defined `DetailView` as a sectioned form.
- *
- * @param props - `SchemaDetailFormProps`
- * @returns One card per `DetailViewSection`, or an empty-state message
- * @sideEffects none (pure rendering)
- */
+
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:schemadetailform:function" type="function" identity="schemadetailform" parent="~/.framework/src/components/runtime/SchemaDetailForm.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Renders a detail form from a design schema and view"]
+// CIL[DOC-RESPONSIBILITY responsibility="Renders schema-driven detail sections and field controls"]
+// CIL[DOC-CONTEXT module="runtime" layer="frontend" related_files=".framework/src/components/runtime/SchemaDetailForm.tsx,.framework/src/components/shared/SchemaFields.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="schema, view, record, isEditing, isCreating, permissions, formData, onFieldChange" outputs="JSX.Element" errors="none" side_effects="renders UI"]
+// CIL[DOC-MICRO logic_summary="Maps view sections to FieldDefinition arrays, builds display_type overrides, and delegates rendering to SchemaFields." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function SchemaDetailForm({
   schema,
   view,
@@ -67,7 +62,6 @@ export function SchemaDetailForm({
   formData,
   onFieldChange
 }: SchemaDetailFormProps) {
-  
   const renderSection = (section: DetailViewSection, sectionIndex: number) => {
     const fieldNames = Array.isArray(section.fields) ? section.fields : Object.keys(section.fields || {})
     const sectionFields = fieldNames.map((fieldName: string) => {
@@ -132,3 +126,10 @@ export function SchemaDetailForm({
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Renders a detail form from a design schema and view'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/shared/SchemaFields.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/runtime/SchemaDetailForm.tsx:schemadetailform:function"]

@@ -1,36 +1,58 @@
-/**
- * @module src/pages/DashboardPage
- * @audience installer
- * @layer frontend-page
- * @stability stable
- *
- * Admin home page. On mount, fetches all active item types (`kind=item`)
- * from `/api/types` and then fans out parallel requests to
- * `/api/admin-data?action=stats&entity=items&type_slug=…` to collect
- * per-type item counts (capped at 8 types). Renders:
- * - **Entity overview grid** — one stat card per type + a "Configuration"
- *   shortcut card
- * - **Quick Actions row** — "New <Type>" buttons for the first 4 types plus
- *   a "Configure Types" shortcut
- *
- * @seeAlso src/contexts/AuthContext.tsx (provides current user)
- * @seeAlso src/lib/api.ts (apiFetch)
- */
+// CIL[BEGIN stable_id="~/.framework/src/pages/DashboardPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/DashboardPage.tsx"]
+// CIL[DOC-MACRO purpose="Admin dashboard page module"]
+// CIL[DOC-RESPONSIBILITY responsibility="Provide the dashboard page entry point and declare its dependencies"]
+// CIL[DOC-CONTEXT module="dashboard" layer="page" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="module exports" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports React hooks, auth context, API helpers, routing, and icons for the dashboard page" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developer"]
+
 
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useApi } from '../hooks/useApi'
 import { apiFetch } from '../lib/api'
 import { useNavigate } from 'react-router-dom'
-import { Box, UserGroupIcon, FileText, BarChart3, Settings, Plus } from 'lucide-react';
+import { Box, UserGroupIcon, FileText, BarChart3, Settings, Plus, CubeIcon } from 'lucide-react';
+// CIL[DOC-VECTOR type="context" content="purpose='Admin dashboard page module'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/DashboardPage.tsx:module_header:module_header"]
 
+// CIL[BEGIN stable_id="~/.framework/src/pages/DashboardPage.tsx:TypeStat:interface" type="interface" identity="TypeStat" parent="~/.framework/src/pages/DashboardPage.tsx"]
+// CIL[DOC-MACRO purpose="Type definition for a single entity type statistic"]
+// CIL[DOC-RESPONSIBILITY responsibility="Describe the fields of a type stat object"]
+// CIL[DOC-CONTEXT module="dashboard" layer="type" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/pages/DashboardPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="TypeStat interface definition" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Declares name, count, slug, and icon fields for a statistic card" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 interface TypeStat {
   name: string
   count: number
   slug: string
   icon: any
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Type definition for a single entity type statistic'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/DashboardPage.tsx:TypeStat:interface"]
 
+// CIL[BEGIN stable_id="~/.framework/src/pages/DashboardPage.tsx:DashboardPage:component" type="component" identity="DashboardPage" parent="~/.framework/src/pages/DashboardPage.tsx"]
+// CIL[DOC-MACRO purpose="Render the admin dashboard page"]
+// CIL[DOC-RESPONSIBILITY responsibility="Fetch item type statistics, render entity cards, and provide quick-action navigation"]
+// CIL[DOC-CONTEXT module="dashboard" layer="page" related_files=".framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/pages/DashboardPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="JSX dashboard UI" errors="console.error on failed fetches" side_effects="apiFetch calls and client-side navigation"]
+// CIL[DOC-MICRO logic_summary="On mount fetch active item types, counts per type, and renders a grid of cards plus quick action buttons" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -47,11 +69,10 @@ export function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch active types with their counts
         const typesResponse = await apiFetch('/api/types?kind=item&is_active=true')
         if (typesResponse.ok) {
           const response = await typesResponse.json()
-          const types = response.data || response // Handle both wrapped and unwrapped responses
+          const types = response.data || response
           
           if (!Array.isArray(types)) {
             console.error('Expected array of types, got:', types)
@@ -59,7 +80,6 @@ export function DashboardPage() {
             return
           }
           
-          // Get counts for each type
           const statsPromises = types.map(async (type: any) => {
             const countResponse = await apiFetch(`/api/admin-data?action=stats&entity=items&type_slug=${type.slug}`)
             if (countResponse.ok) {
@@ -68,14 +88,14 @@ export function DashboardPage() {
                 name: type.name,
                 count: countData.count || 0,
                 slug: type.slug,
-                icon: CubeIcon // Default icon, could be enhanced to use type.icon
+                icon: CubeIcon
               }
             }
             return null
           })
           
           const resolvedStats = await Promise.all(statsPromises)
-          const validStats = resolvedStats.filter((s): s is NonNullable<typeof s> => s !== null).slice(0, 8) // Limit to 8 types
+          const validStats = resolvedStats.filter((s): s is NonNullable<typeof s> => s !== null).slice(0, 8)
           setTypeStats(validStats)
         }
       } catch (error) {
@@ -106,7 +126,6 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Type Stats */}
       <div>
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Entity Overview</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -131,7 +150,6 @@ export function DashboardPage() {
             )
           })}
           
-          {/* Quick Actions Card */}
           <div
             className="rounded-xl border border-slate-200 bg-white p-5 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigate('/spine-framework/admin/configs/types')}
@@ -149,7 +167,6 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h3 className="text-sm font-semibold text-slate-900 mb-4">
           Quick Actions
@@ -179,3 +196,10 @@ export function DashboardPage() {
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render the admin dashboard page'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/DashboardPage.tsx:DashboardPage:component"]

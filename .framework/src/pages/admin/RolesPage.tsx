@@ -1,19 +1,36 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RolesPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/RolesPage.tsx"]
 /**
- * @module src/pages/admin/RolesPage
- * @audience installer
- * @layer frontend-page
+ * @module   RolesPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for roles. Fetches all roles via `/api/roles?action=list`,
- * applies client-side search and sort, and renders inside `AdminListPage`
- * with stat cards and a sortable table. Row clicks navigate to
- * `/spine-framework/admin/configs/roles/:id`.
+ * The RolesPage module provides an interface for managing user roles within the admin panel of the application. It allows administrators to view, add, and modify roles, leveraging various UI components for a seamless experience.
+ * INVARIANT: The user must have admin privileges to access this page.
  *
- * @seeAlso src/components/admin/AdminListPage.tsx
- * @seeAlso src/pages/admin/RoleDetailPage.tsx
+ * @seeAlso AdminListPage (provides the list view for admin roles).
+ * @seeAlso LoadingSpinner (indicates loading states during API calls).
+ * @seeAlso useApi (custom hook for API interactions).
+ * @seeAlso SortableTableHeader (enables sorting functionality in tables).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, ShieldCheck, CheckCircle, XCircle, Settings, FileText, Cog } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Button } from '../../components/ui/button'
@@ -22,7 +39,32 @@ import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { formatDateTime } from '../../lib/utils'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
+// CIL[END stable_id="~/.framework/src/pages/admin/RolesPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RolesPage.tsx:Role:interface" type="interface" identity="Role" parent="~/.framework/src/pages/admin/RolesPage.tsx"]
+/**
+ * The Role interface defines the structure of a role object used in the admin panel for managing user roles and permissions. It encapsulates essential attributes such as identification, status, and metadata related to roles within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface Role {
   id: string
   name: string
@@ -36,15 +78,46 @@ interface Role {
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/RolesPage.tsx:Role:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/RolesPage.tsx:RolesPage:component" type="component" identity="RolesPage" parent="~/.framework/src/pages/admin/RolesPage.tsx"]
+/**
+ * The RolesPage component manages the display and filtering of user roles in the admin interface. It provides functionality for searching, sorting, and navigating to role details.
+ *
+ * @macro       Component responsible for rendering and managing roles in an admin dashboard.
+ * @micro       Utilizes state management and API calls to filter and sort roles based on user input.
+ * @outputSpec  JSX.Element — renders a UI for managing roles.
+ * @throws      Error — if the API call fails
+ * @sideEffects API call to '/api/roles?action=list' to fetch roles.
+ * @stability   internal
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if the API call fails.
+ * @cil-generated
+ */
 export function RolesPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch roles from API
+  
   const { data: roles, loading, error, refetch } = useApi<Role[]>(
     async () => {
       const response = await apiFetch('/api/roles?action=list')
@@ -68,7 +141,7 @@ export function RolesPage() {
     return matchesSearch && matchesStatus && matchesType
   })
 
-  // Helper functions
+  
   const getStatusBadge = (role: Role) => {
     if (!role.is_active) {
       return <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-md bg-slate-100 text-slate-600">Inactive</span>
@@ -89,10 +162,9 @@ export function RolesPage() {
   }
 
   const handleRowClick = (role: Role) => {
-    window.location.href = `/spine-framework/admin/configs/roles/${role.id}`
+    navigate(`/spine-framework/admin/configs/roles/${role.id}`)
   }
 
-  // Sort roles
   const sortedRoles = [...(filteredRoles || [])].sort((a, b) => {
     let aValue: any = a[sortKey as keyof Role]
     let bValue: any = b[sortKey as keyof Role]
@@ -290,3 +362,10 @@ export function RolesPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/RolesPage.tsx:RolesPage:component"]
+
+
+
+
+
+

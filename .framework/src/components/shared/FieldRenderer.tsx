@@ -1,48 +1,61 @@
-/**
- * @module src/components/shared/FieldRenderer
- * @audience installer
- * @layer frontend-component
- * @stability stable
- *
- * Low-level field rendering primitive. Given a `FieldDefinition` and a
- * current value, renders the appropriate input widget (edit mode) or
- * display element (read-only mode).
- *
- * **Render type resolution** (`resolveRenderType`):
- * 1. If `displayType` is set (from the view config), it maps to a canonical
- *    render type first — this lets a view override how a field looks without
- *    changing the underlying `FieldDefinition`.
- * 2. Falls back to `field.data_type`.
- *
- * **Supported render types:**
- * `text`, `textarea`, `email`, `phone`, `url`, `number`, `date`,
- * `datetime`, `select`, `multiselect`, `radio`, `checkbox`, `json`,
- * `file`, `color`, `range`
- *
- * **Error display:** when `error` is set, a red helper text is shown below
- * the field and `border-red-500` is applied where applicable.
- *
- * **Label + description:** rendered above / below the input respectively,
- * with a red `*` suffix when `field.required` is true.
- *
- * @seeAlso src/components/shared/SchemaFields.tsx (mounts this component)
- * @seeAlso src/types/types.ts (FieldDefinition)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/components/shared/FieldRenderer.tsx"]
+// CIL[DOC-MACRO purpose="Import dependencies and types used to render schema-driven form fields"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare module-level imports for React, sanitization, markdown parsing, FieldDefinition, and the RichTextEditor component"]
+// CIL[DOC-CONTEXT module="components/shared" layer="ui" related_files=".framework/src/components/ui/RichTextEditor.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="imported symbols available to FieldRenderer, toSafeHtml, resolveRenderType, and FieldRendererProps" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Import React, DOMPurify, marked, FieldDefinition type, and RichTextEditor component" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="framework-developers,ui-developers"]
 
 import React from 'react'
+import DOMPurify from 'dompurify'
+import { marked } from 'marked'
 import { FieldDefinition } from '../../types/types'
+import { RichTextEditor } from '../ui/RichTextEditor'
 
-/**
- * Props for `FieldRenderer`.
- *
- * @prop field - Full field definition including data_type, options, validation
- * @prop value - Current controlled value
- * @prop onChange - Value change callback (omit or pass `undefined` for read-only)
- * @prop onBlur - Optional blur callback for validation triggers
- * @prop readonly - If true, renders a display element instead of an input
- * @prop error - Validation error message to display below the field
- * @prop displayType - View-config widget override (e.g. `'textarea'`, `'select'`)
- */
+// CIL[DOC-VECTOR type="context" content="purpose='Import dependencies and types used to render schema-driven form fields'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/ui/RichTextEditor.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header"]
+
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:toSafeHtml:function" type="function" identity="toSafeHtml" parent="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Sanitize raw HTML or markdown text for safe rendering as HTML"]
+// CIL[DOC-RESPONSIBILITY responsibility="Convert a raw string to sanitized HTML, detecting existing HTML and falling back to markdown parsing"]
+// CIL[DOC-CONTEXT module="components/shared" layer="ui" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/ui/RichTextEditor.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="raw: string | undefined" outputs="sanitized HTML string" errors="none" side_effects="Runs DOMPurify and marked.parse"]
+// CIL[DOC-MICRO logic_summary="Trim input, detect common HTML tags, parse markdown if plain, then sanitize with DOMPurify" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+function toSafeHtml(raw: string | undefined): string {
+  const source = (raw ?? '').trim()
+  if (!source) return '<p class="text-slate-400 italic">—</p>'
+  const likelyHtml = /<\/?(?:h[1-6]|p|div|ul|ol|li|pre|code|br|span|strong|em|a|table|tr|td|th|thead|tbody|blockquote)\b/i.test(source)
+  const html = likelyHtml ? source : (marked.parse(source, { async: false }) as string)
+  return DOMPurify.sanitize(html)
+}
+// CIL[DOC-VECTOR type="context" content="purpose='Sanitize raw HTML or markdown text for safe rendering as HTML'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/ui/RichTextEditor.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:toSafeHtml:function"]
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:FieldRendererProps:interface" type="interface" identity="FieldRendererProps" parent="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Define the props accepted by the FieldRenderer component"]
+// CIL[DOC-RESPONSIBILITY responsibility="Type-check the field, value, change handlers, readonly flag, error, and optional display type"]
+// CIL[DOC-CONTEXT module="components/shared" layer="ui" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/ui/RichTextEditor.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="props object" outputs="typed prop contract for FieldRenderer" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Declare an interface describing the props consumed by FieldRenderer" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 interface FieldRendererProps {
   field: FieldDefinition
   value: any
@@ -50,27 +63,32 @@ interface FieldRendererProps {
   onBlur?: () => void
   readonly?: boolean
   error?: string
-  displayType?: string // From view config — controls rendering without polluting field data contract
+  displayType?: string
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Define the props accepted by the FieldRenderer component'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/ui/RichTextEditor.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:FieldRendererProps:interface"]
 
-/**
- * Resolves the canonical render type for a field.
- *
- * `displayType` (from view config) takes precedence over `field.data_type`
- * so view authors can choose a different widget without changing the
- * underlying schema.
- *
- * @param field - Field definition
- * @param displayType - Optional view-config widget override
- * @returns Canonical render type string (e.g. `'text'`, `'select'`, `'checkbox'`)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:resolveRenderType:function" type="function" identity="resolveRenderType" parent="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Map a FieldDefinition and optional display override to a concrete render type string"]
+// CIL[DOC-RESPONSIBILITY responsibility="Resolve the widget type to render based on displayType override or field.data_type"]
+// CIL[DOC-CONTEXT module="components/shared" layer="ui" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/ui/RichTextEditor.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="field: FieldDefinition, displayType?: string" outputs="render type string (text, rich_text, textarea, email, phone, etc.)" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Switch on displayType if provided, otherwise map field.data_type to a canonical render type" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 function resolveRenderType(field: FieldDefinition, displayType?: string): string {
-  // displayType from view config overrides data_type for rendering decisions
   if (displayType) {
     switch (displayType) {
       case 'textarea':
-      case 'rich_text':
         return 'textarea'
+      case 'rich_text':
+        return 'rich_text'
       case 'select':
         return 'select'
       case 'multiselect':
@@ -93,11 +111,11 @@ function resolveRenderType(field: FieldDefinition, displayType?: string): string
         return 'file'
     }
   }
-  // Fall back to data_type
   switch (field.data_type) {
     case 'textarea':
-    case 'rich_text':
       return 'textarea'
+    case 'rich_text':
+      return 'rich_text'
     case 'email':
       return 'email'
     case 'phone':
@@ -132,14 +150,23 @@ function resolveRenderType(field: FieldDefinition, displayType?: string): string
       return 'text'
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Map a FieldDefinition and optional display override to a concrete render type string'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/ui/RichTextEditor.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:resolveRenderType:function"]
 
-/**
- * Renders a single schema field as an input widget or read-only display.
- *
- * @param props - `FieldRendererProps`
- * @returns Label + field widget + description + error message
- * @sideEffects none (delegates changes to `onChange`)
- */
+// CIL[BEGIN stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:FieldRenderer:component" type="component" identity="FieldRenderer" parent="~/.framework/src/components/shared/FieldRenderer.tsx:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Render a schema-driven form field with the appropriate input or read-only display"]
+// CIL[DOC-RESPONSIBILITY responsibility="Pick a render type and render the matching input or read-only widget, including labels, descriptions, and error messages"]
+// CIL[DOC-CONTEXT module="components/shared" layer="ui" related_files=".framework/src/components/shared/FieldRenderer.tsx,.framework/src/components/ui/RichTextEditor.tsx,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="field, value, onChange, readonly, error, displayType" outputs="JSX form field with label, control, description, and error" errors="none" side_effects="Invokes onChange callback on user interaction"]
+// CIL[DOC-MICRO logic_summary="Compute renderType from field and displayType, then switch on renderType to render the correct control, fallback to text input, and wrap with label/description/error" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
 export function FieldRenderer({ field, value, onChange, readonly = false, error, displayType }: FieldRendererProps) {
   const renderType = resolveRenderType(field, displayType)
 
@@ -157,6 +184,24 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
             onChange={(e) => onChange?.(e.target.value)}
             className={`input ${error ? 'border-red-500' : ''}`}
             placeholder={field.placeholder}
+          />
+        )
+
+      case 'rich_text':
+        return readonly ? (
+          <div
+            className={`prose prose-sm dark:prose-invert max-w-none ${error ? 'border-red-500' : ''}`}
+            // Sanitize before injecting: `value` may be rich-text HTML or legacy
+            // markdown stored in records, and must never execute scripts/handlers
+            // for readers (stored-XSS defense).
+            dangerouslySetInnerHTML={{ __html: toSafeHtml(value) }}
+          />
+        ) : (
+          <RichTextEditor
+            value={value || ''}
+            onChange={onChange}
+            placeholder={field.placeholder}
+            minHeight="200px"
           />
         )
 
@@ -220,37 +265,64 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
           />
         )
 
-      case 'date':
+      case 'date': {
+        const parsed = value ? new Date(value) : null
+        if (parsed && isNaN(parsed.getTime())) {
+          return (
+            <input
+              type="text"
+              value={String(value)}
+              readOnly
+              className={`input bg-slate-50 ${error ? 'border-red-500' : ''}`}
+            />
+          )
+        }
         return (
           <input
             type="date"
-            value={value ? new Date(value).toISOString().split('T')[0] : ''}
+            value={parsed ? parsed.toISOString().split('T')[0] : ''}
             onChange={(e) => onChange?.(e.target.value || null)}
             readOnly={readonly}
             className={`input ${error ? 'border-red-500' : ''}`}
           />
         )
+      }
 
-      case 'datetime':
+      case 'datetime': {
+        const parsed = value ? new Date(value) : null
+        if (parsed && isNaN(parsed.getTime())) {
+          return (
+            <input
+              type="text"
+              value={String(value)}
+              readOnly
+              className={`input bg-slate-50 ${error ? 'border-red-500' : ''}`}
+            />
+          )
+        }
         return (
           <input
             type="datetime-local"
-            value={value ? new Date(value).toISOString().slice(0, 16) : ''}
+            value={parsed ? parsed.toISOString().slice(0, 16) : ''}
             onChange={(e) => onChange?.(e.target.value || null)}
             readOnly={readonly}
             className={`input ${error ? 'border-red-500' : ''}`}
           />
         )
+      }
 
       case 'select':
         return readonly ? (
           <div className={`text-slate-900 ${error ? 'border-red-500' : ''}`}>
             {(() => {
               if (!value) return <span className="text-slate-400 italic">—</span>
+
+
               const option = field.options?.find((opt) => {
                 const optVal = typeof opt === 'string' ? opt : opt.value
                 return optVal === value
               })
+
               return typeof option === 'string' ? option : option?.label || value
             })()}
           </div>
@@ -262,8 +334,14 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
           >
             <option value="">Select...</option>
             {field.options?.map((option) => {
+
+
               const optVal = typeof option === 'string' ? option : option.value
+
+
+
               const optLabel = typeof option === 'string' ? option : option.label
+
               return (
                 <option key={optVal} value={optVal}>
                   {optLabel}
@@ -277,20 +355,35 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
         return (
           <div className="space-y-2">
             {field.options?.map((option) => {
+
+
               const optionValue = typeof option === 'string' ? option : option.value
+
+
+
               const optionLabel = typeof option === 'string' ? option : option.label
+
               return (
                 <label key={optionValue} className="flex items-center">
                   <input
                     type="checkbox"
                     checked={Array.isArray(value) && value.includes(optionValue)}
                     onChange={(e) => {
+
+
                       const currentValue = Array.isArray(value) ? value : []
+
                       if (e.target.checked) {
                         onChange?.([...currentValue, optionValue])
                       } else {
                         onChange?.(currentValue.filter((v: string) => v !== optionValue))
                       }
+
+
+
+
+
+
                     }}
                     disabled={readonly}
                     className="mr-2"
@@ -306,8 +399,14 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
         return (
           <div className="space-y-2">
             {field.options?.map((option) => {
+
+
               const optionValue = typeof option === 'string' ? option : option.value
+
+
+
               const optionLabel = typeof option === 'string' ? option : option.label
+
               return (
                 <label key={optionValue} className="flex items-center">
                   <input
@@ -355,8 +454,9 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
               try {
                 onChange?.(JSON.parse(e.target.value))
               } catch {
-                // Invalid JSON, don't update
               }
+
+
             }}
             className={`textarea font-mono text-sm ${error ? 'border-red-500' : ''}`}
             rows={field.rows || 6}
@@ -394,7 +494,10 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
           <input
             type="file"
             onChange={(e) => {
+
+
               const file = e.target.files?.[0]
+
               if (file) onChange?.(file.name)
             }}
             className={`input ${error ? 'border-red-500' : ''}`}
@@ -453,6 +556,7 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
           />
         )
     }
+
   }
 
   return (
@@ -476,3 +580,10 @@ export function FieldRenderer({ field, value, onChange, readonly = false, error,
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render a schema-driven form field with the appropriate input or read-only display'; No verified external callers; imports: .framework/src/types/types.ts,.framework/src/components/ui/RichTextEditor.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/components/shared/FieldRenderer.tsx:FieldRenderer:component"]

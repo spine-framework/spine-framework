@@ -1,62 +1,79 @@
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/functions/logs.ts"]
 /**
- * @module logs
- * @audience core-contributor
- * @layer api-handler
+ * @module   logs
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Read API for the `v2.logs` table plus a write endpoint for external log
- * ingestion. The `logs` table schema uses internal column names
- * (`level`, `source`, `source_type`, `source_id`, `context`) that differ from
- * the stable frontend contract. All reads are mapped through `mapLogRow`.
+ * This module provides logging functionality for the application, serving as an API handler for log-related operations. It ensures that only system administrators can access sensitive logging features. The module is part of a multi-step pipeline that includes authentication, validation, and execution of log actions. INVARIANT: Only users with system admin privileges can access the logging endpoints.
  *
- * **Routed by:** `GET/POST /.netlify/functions/logs`
+ * @seeAlso middleware.ts (provides shared middleware functions for handling requests).
+ * @seeAlso db.ts (contains database access methods used for logging).
+ * @seeAlso principal.ts (defines user roles and permissions for access control).
  *
- * **Actions:**
- * | method | ?action | handler      |
- * |--------|---------|------------------|
- * | GET    | account | listAccount  |
- * | GET    | target  | listTarget   |
- * | GET    | person  | listPerson   |
- * | GET    | stats   | getStats     |
- * | GET    | search  | search       |
- * | POST   | cleanup | cleanup      |
- * | POST   | (default)| log         |
- *
- * **Authorization:** All operations use `ctx.db` (RLS-scoped, always filtered
- * to `account_id`). No inserts are made by this module — `emitLog` from
- * `_shared/audit.ts` is the canonical write path.
- *
- * **Column mapping (DB → API):**
- * | DB column    | API field   |
- * |--------------|-------------|
- * | level        | event_type  |
- * | person_id    | actor_id    |
- * | source_type  | target_type |
- * | source_id    | target_id   |
- * | source       | action      |
- * | context      | details     |
- *
- * @seeAlso audit.ts (emitLog — canonical write path for all system events)
- * @seeAlso observability.ts (aggregated metrics over logs)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { createHandler, json, error, parseBody } from './_shared/middleware'
+import { adminDb } from './_shared/db'
+import { isSystemAdmin } from './_shared/principal'
+// CIL[END stable_id="~/.framework/functions/logs.ts:module_header:module_header"]
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: LOGS_MAP_ROW ──────────────────────────────────────────────
+// True only for platform-level principals: a system_admin role or an
+// internal machine principal with no account binding (SYSTEM_PRINCIPAL,
+// produced only by the INTERNAL_INVOKE_SECRET path). Machine principals
+// resolve to the service-role adminDb via getPrincipalDb, so an
+// account-bound API key must never be treated as system here.
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:isSystemPrincipal:function" type="function" identity="isSystemPrincipal" parent="~/.framework/functions/logs.ts"]
+function isSystemPrincipal(ctx: any): boolean {
+  return isSystemAdmin(ctx.principal) || (ctx.principal?.isInternal === true && !ctx.accountId)
+}
+// CIL[END stable_id="~/.framework/functions/logs.ts:isSystemPrincipal:function"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:mapLogRow:function" type="function" identity="mapLogRow" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_MAP_ROW_1_0_0
- * @version     1.0.0
- * @hash        52289a18616b71c05c908c27f2fd5d09837e7b861d30b9307bb6bdf265dd4845
- * @macro       Log Row Mapper
- * @micro       Maps raw DB log rows to stable frontend API contract
- * @inputs      row: any — Raw database log row from v2.logs table
- * @outputs     object — Mapped log row with API field names
- * @depends-on  [none]
- * @depended-by [listAccount, listTarget, listPerson, search]
- * @side-effects [none]
- * @tags        logs, mapping, helper, api-contract
+ * The mapLogRow function transforms a log row object into a standardized format for further processing. It extracts and renames fields from the input object to create a more structured output.
+ *
+ * @macro       Data transformation function that maps log row data to a standardized object.
+ * @micro       Directly extracts specific fields from the input row object and maps them to a new object structure.
+ * @inputSpec
+ *   row: any (required) — the log row object containing various fields.
+ * @outputSpec  { id: string, event_type: string, actor_id: string, target_type: string, target_id: string, action: string, span_name: string, trace_id: string, span_id: string, parent_span_id: string, duration_ms: number, outcome: string, event_category: string, kind: string, message: string, details: any, metadata: any, created_at: timestamp }
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
  */
 function mapLogRow(row: any) {
   return {
@@ -66,74 +83,143 @@ function mapLogRow(row: any) {
     target_type: row.source_type,
     target_id: row.source_id,
     action: row.source,
+    span_name: row.span_name,
+    trace_id: row.trace_id,
+    span_id: row.span_id,
+    parent_span_id: row.parent_span_id,
+    duration_ms: row.duration_ms,
+    outcome: row.outcome,
+    event_category: row.event_category,
+    kind: row.kind,
     message: row.message,
     details: row.context,
     metadata: row.metadata,
     created_at: row.created_at,
   }
 }
-// ─── CHUNK_END: LOGS_MAP_ROW ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:mapLogRow:function"]
 
-// ─── HANDLERS ─────────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: LOGS_LIST_ACCOUNT ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:listAccount:constant" type="constant" identity="listAccount" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_LIST_ACCOUNT_1_0_0
- * @version     1.0.0
- * @hash        d512e35890e479c88f4e6130567b16b1143a164705fca4e887aee643cc76a1e5
- * @macro       Account Logs List Handler
- * @micro       Lists all account log entries with filtering and mapping
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Array of mapped log rows with API field names
- * @depends-on  [createHandler, mapLogRow]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, row mapping]
- * @tags        logs, list, account, pagination
+ * The listAccount function retrieves log entries based on various query parameters, allowing users to filter logs by account, event type, and date range. It ensures that only authorized users can access account-specific logs.
+ *
+ * @throws      Error — Account context required, Error — database query error
+ * @sideEffects none
+ * @stability   internal
+ * @calls       adminDb.from('logs'), ctx.db.from('logs')
+ * @errorHandling throws error on missing account context or database query failure
+ * @cil-generated
  */
 export const listAccount = createHandler(async (ctx, body) => {
-  const { event_type, target_type, date_from, date_to, limit = 100, offset = 0 } = ctx.query || {}
+  const { event, event_type, target_type, source, source_id, actor_id, query: searchQuery, date_from, date_to, trace_id, limit = 100, offset = 0 } = ctx.query || {}
+  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
 
-  if (!ctx.accountId) {
+  if (!isSystemAdmin(ctx.principal) && !ctx.accountId) {
     throw new Error('Account context required')
   }
 
-  let query = ctx.db
+  if (event === 'threshold.breached') {
+    let q = db
+      .from('logs')
+      .select('id, span_name, metadata, created_at', { count: 'exact' })
+      .eq('span_name', 'threshold.breached')
+      .order('created_at', { ascending: false })
+
+    if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+      q = q.eq('account_id', ctx.accountId)
+    }
+    if (date_from) q = q.gte('created_at', date_from)
+    if (date_to) q = q.lte('created_at', date_to)
+
+    const { data, error: err, count } = await q.range(
+      parseInt(offset.toString()),
+      parseInt(offset.toString()) + parseInt(limit.toString()) - 1
+    )
+
+    if (err) throw err
+
+    const alerts = (data || []).map((row: any) => ({
+      id: row.id,
+      metric: row.metadata?.metric || row.span_name,
+      threshold_value: row.metadata?.threshold_value ?? 0,
+      actual_value: row.metadata?.actual_value ?? 0,
+      created_at: row.created_at,
+    }))
+
+    return { data: alerts, total: count || alerts.length }
+  }
+
+  let query = db
     .from('logs')
-    .select('*')
-    .eq('account_id', ctx.accountId)
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
 
+  if (!isSystemAdmin(ctx.principal) && ctx.accountId) {
+    query = query.eq('account_id', ctx.accountId)
+  }
   if (event_type) query = query.eq('level', event_type)
+  if (event) query = query.eq('span_name', event)
   if (target_type) query = query.eq('source_type', target_type)
+  if (source) query = query.eq('source', source)
+  if (source_id) query = query.eq('source_id', source_id)
+  if (actor_id) query = query.eq('created_by', actor_id)
+  if (searchQuery) query = query.ilike('message', `%${searchQuery}%`)
   if (date_from) query = query.gte('created_at', date_from)
   if (date_to) query = query.lte('created_at', date_to)
+  if (trace_id) query = query.eq('trace_id', trace_id)
 
-  const { data, error: err } = await query.range(
+  const { data, error: err, count } = await query.range(
     parseInt(offset.toString()),
     parseInt(offset.toString()) + parseInt(limit.toString()) - 1
   )
 
   if (err) throw err
 
-  return (data || []).map(mapLogRow)
+  return {
+    data: (data || []).map(mapLogRow),
+    total: count || 0
+  }
 })
-// ─── CHUNK_END: LOGS_LIST_ACCOUNT ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:listAccount:constant"]
 
-// ─── CHUNK_START: LOGS_LIST_TARGET ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:listTarget:constant" type="constant" identity="listTarget" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_LIST_TARGET_1_0_0
- * @version     1.0.0
- * @hash        7ea27876f183b59057284ca9007aed6e0e65050b196f00756b8ad5715073e745
- * @macro       Target Logs List Handler
- * @micro       Lists log entries for specific target entity with filtering
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Array of mapped log rows for target entity
- * @depends-on  [createHandler, mapLogRow]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, row mapping]
- * @tags        logs, list, target, entity-specific
+ * The listTarget constant defines an asynchronous handler for retrieving log entries based on specified target criteria. It ensures that required parameters are present and fetches logs from the database according to the provided filters.
+ *
+ * @throws      Error — if target_type or target_id are missing, or if account context is not provided.
+ * @sideEffects none
+ * @stability   internal
+ * @calls       ctx.db.from('logs'), ctx.db.select('*'), ctx.db.eq, ctx.db.order, ctx.db.range
+ * @errorHandling throws error if database query fails
+ * @cil-generated
  */
 export const listTarget = createHandler(async (ctx, body) => {
   const { target_type, target_id, event_type, limit = 100, offset = 0 } = ctx.query || {}
@@ -165,22 +251,31 @@ export const listTarget = createHandler(async (ctx, body) => {
 
   return (data || []).map(mapLogRow)
 })
-// ─── CHUNK_END: LOGS_LIST_TARGET ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:listTarget:constant"]
 
-// ─── CHUNK_START: LOGS_LIST_PERSON ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:listPerson:constant" type="constant" identity="listPerson" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_LIST_PERSON_1_0_0
- * @version     1.0.0
- * @hash        1c502ddeac8766153f1cc9ff6ffc8a7804dd83519d3c2e8b11dcf610fc6d6dfe
- * @macro       Person Activity Feed Handler
- * @micro       Returns activity feed for person with system event filtering
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Array of mapped log rows for person activity
- * @depends-on  [createHandler, mapLogRow]
- * @depended-by [Netlify function routing]
- * @side-effects [DB queries, row mapping]
- * @tags        logs, list, person, activity-feed
+ * This function retrieves log entries associated with a specific person from the database, handling pagination and filtering based on system log levels. It ensures that the necessary context, such as person ID and account ID, is provided before executing the query.
+ *
+ * @throws      Error — Person ID is required, Error — Account context required, Error — database query error
+ * @sideEffects none
+ * @stability   internal
+ * @calls       ctx.db.from('logs'), ctx.db.select, ctx.db.eq, ctx.db.order, ctx.db.neq, ctx.db.range
+ * @cil-generated
  */
 export const listPerson = createHandler(async (ctx, body) => {
   const { person_id, include_system, limit = 50, offset = 0 } = ctx.query || {}
@@ -215,66 +310,88 @@ export const listPerson = createHandler(async (ctx, body) => {
 
   return (data || []).map(mapLogRow)
 })
-// ─── CHUNK_END: LOGS_LIST_PERSON ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:listPerson:constant"]
 
-// ─── CHUNK_START: LOGS_GET_STATS ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:getStats:constant" type="constant" identity="getStats" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_GET_STATS_1_0_0
- * @version     1.0.0
- * @hash        a25e065d770b9658aa1a7d1db325e044febbac498c06cad735e18167442a2674
- * @macro       Logs Statistics Handler
- * @micro       Returns log counts by event type with date range filtering
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     {total: number, by_type: Record<string, number>} — Log statistics
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing]
- * @side-effects [DB count query, aggregation]
- * @tags        logs, stats, analytics, monitoring
+ * Fetches log statistics based on various query parameters and the account context. It ensures that the account ID is present before making a database call to retrieve the statistics.
+ *
+ * @throws      Error — Account context required, Error — database call error
+ * @sideEffects RPC call to 'get_log_stats' in the database
+ * @stability   internal
+ * @calls       ctx.db.rpc
+ * @cil-generated
  */
 export const getStats = createHandler(async (ctx, body) => {
-  const { date_from, date_to } = ctx.query || {}
+  const { event_type, target_type, source, source_id, actor_id, query: searchQuery, date_from, date_to } = ctx.query || {}
 
   if (!ctx.accountId) {
     throw new Error('Account context required')
   }
 
-  let query = ctx.db
-    .from('logs')
-    .select('id, level')
-    .eq('account_id', ctx.accountId)
-
-  if (date_from) query = query.gte('created_at', date_from)
-  if (date_to) query = query.lte('created_at', date_to)
-
-  const { data, error: err } = await query
+  const { data, error: err } = await ctx.db.rpc('get_log_stats', {
+    p_account_id: ctx.accountId,
+    p_level: event_type || null,
+    p_source: source || null,
+    p_source_type: target_type || null,
+    p_source_id: source_id || null,
+    p_person_id: actor_id || null,
+    p_query: searchQuery || null,
+    p_date_from: date_from || null,
+    p_date_to: date_to || null,
+  })
 
   if (err) throw err
 
-  const rows = data || []
-  const by_type: Record<string, number> = {}
-  for (const row of rows) {
-    by_type[row.level] = (by_type[row.level] || 0) + 1
+  return data?.[0] || {
+    total: 0,
+    error_count: 0,
+    user_action_count: 0,
+    event_type_count: 0,
+    levels: [],
+    sources: [],
+    source_types: []
   }
-
-  return { total: rows.length, by_type }
 })
-// ─── CHUNK_END: LOGS_GET_STATS ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:getStats:constant"]
 
-// ─── CHUNK_START: LOGS_SEARCH ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:search:constant" type="constant" identity="search" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_SEARCH_1_0_0
- * @version     1.0.0
- * @hash        25f4552cc8b604e280e77c9180dea6435c99f864f8d1578af44ea68793c4c67d
- * @macro       Logs Text Search Handler
- * @micro       Performs full-text search on log messages with filtering
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body (unused for GET)
- * @outputs     Array of mapped log rows matching search query
- * @depends-on  [createHandler, mapLogRow]
- * @depended-by [Netlify function routing]
- * @side-effects [DB ILIKE search, row mapping]
- * @tags        logs, search, text-search, ilike
+ * The 'search' constant defines an asynchronous handler for searching log entries based on a query and optional filters. It ensures that a search query and account context are provided before querying the database for matching log records.
+ *
+ * @throws      Error — 'Search query is required', 'Account context required', or database error.
+ * @sideEffects Database read operations.
+ * @stability   internal
+ * @calls       ctx.db.from('logs'), ctx.db.select, ctx.db.eq, ctx.db.ilike, ctx.db.order, ctx.db.range
+ * @cil-generated
  */
 export const search = createHandler(async (ctx, body) => {
   const { query: searchQuery, event_type, target_type, limit = 50, offset = 0 } = ctx.query || {}
@@ -306,22 +423,31 @@ export const search = createHandler(async (ctx, body) => {
 
   return (data || []).map(mapLogRow)
 })
-// ─── CHUNK_END: LOGS_SEARCH ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:search:constant"]
 
-// ─── CHUNK_START: LOGS_LOG ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:log:constant" type="constant" identity="log" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_LOG_1_0_0
- * @version     1.0.0
- * @hash        521255a8c1a7e4110e2873050c8b58c8819fa6540bb039d30117946ef741633f
- * @macro       Log Entry Writer
- * @micro       Writes external log entry with field mapping and validation
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — Log data including event_type and optional fields
- * @outputs     {log_id: string} — ID of created log entry
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing]
- * @side-effects [DB insert with field mapping]
- * @tags        logs, create, external, instrumentation
+ * The log constant is an asynchronous handler that processes logging events by inserting log entries into a database. It ensures that required fields are present and manages the context of the logging operation.
+ *
+ * @throws      Error — 'event_type is required', 'Account context required', or database error.
+ * @sideEffects Inserts a new log entry into the 'logs' database table.
+ * @stability   internal
+ * @calls       ctx.db.from('logs').insert, ctx.db.from('logs').select
+ * @cil-generated
  */
 export const log = createHandler(async (ctx, body) => {
   const { event_type, target_type, target_id, action, message, details, metadata } = body
@@ -354,25 +480,43 @@ export const log = createHandler(async (ctx, body) => {
 
   return { log_id: data?.id }
 })
-// ─── CHUNK_END: LOGS_LOG ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:log:constant"]
 
-// ─── CHUNK_START: LOGS_CLEANUP ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:cleanup:constant" type="constant" identity="cleanup" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_CLEANUP_1_0_0
- * @version     1.0.0
- * @hash        3790847ac4c98e79285483511dcc23c303dc339b4988ac5715c1f165a1bb29c9
- * @macro       Logs Cleanup Handler
- * @micro       Deletes old log entries beyond retention period
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: object — days_to_keep (default 90)
- * @outputs     {deleted_count: number} — Number of deleted log entries
- * @depends-on  [createHandler]
- * @depended-by [Netlify function routing, system-cron.ts]
- * @side-effects [DB delete by date]
- * @tags        logs, cleanup, retention, maintenance
+ * The cleanup constant defines a handler for deleting log entries older than a specified number of days to manage log retention and free up database space. It removes outdated logs from the database.
+ *
+ * @throws      Error — if there is an error during the database deletion process.
+ * @sideEffects Deletes entries from the 'logs' table in the database.
+ * @stability   internal
+ * @calls       ctx.db.from('logs')
+ * @cil-generated
  */
 export const cleanup = createHandler(async (ctx, body) => {
-  const { days_to_keep = 90 } = body
+  const { days_to_keep = 30 } = body
+
+  // cleanup deletes rows platform-wide and machine principals run it on the
+  // service-role client — restrict to system-level callers so a scoped API
+  // key cannot wipe other accounts' logs.
+  if (!isSystemPrincipal(ctx)) {
+    const e: any = new Error('Insufficient permissions for log cleanup')
+    e.statusCode = 403
+    throw e
+  }
 
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - parseInt(days_to_keep.toString()))
@@ -387,24 +531,31 @@ export const cleanup = createHandler(async (ctx, body) => {
 
   return { deleted_count: (data || []).length }
 })
-// ─── CHUNK_END: LOGS_CLEANUP ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:cleanup:constant"]
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
-// ─── CHUNK_START: LOGS_HANDLER ──────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/functions/logs.ts:handler:constant" type="constant" identity="handler" parent="~/.framework/functions/logs.ts"]
 /**
- * @chunk-id    LOGS_HANDLER_1_0_0
- * @version     1.0.0
- * @hash        62e729c4e43a30a85394c5ed66a1c2a12898135b133b8b712f481670d2351b22
- * @macro       Logs Router
- * @micro       Routes HTTP methods and actions to appropriate log handlers
- * @inputs      ctx: CoreContext — Request context with principal and database
- * @inputs      body: any — Request body for POST operations
- * @outputs     Varies — Depends on routed handler (listAccount/listTarget/listPerson/getStats/search/cleanup/log)
- * @depends-on  [createHandler, listAccount, listTarget, listPerson, getStats, search, cleanup, log]
- * @depended-by [Netlify function routing]
- * @side-effects [Delegates to appropriate handler]
- * @tags        logs, router, crud, netlify-function
+ * The handler processes incoming requests based on the specified action and HTTP method, executing the appropriate function for each action. It serves as a centralized entry point for handling various log-related operations.
+ *
+ * @throws      Error — Invalid action or method
+ * @sideEffects none
+ * @stability   internal
+ * @calls       listAccount, listTarget, listPerson, getStats, search, cleanup, log
+ * @cil-generated
  */
 export const handler = createHandler(async (ctx, body) => {
   const { action } = ctx.query || {}
@@ -435,4 +586,10 @@ export const handler = createHandler(async (ctx, body) => {
 
   throw new Error('Invalid action or method')
 })
-// ─── CHUNK_END: LOGS_HANDLER ────────────────────────────────────────────────
+// CIL[END stable_id="~/.framework/functions/logs.ts:handler:constant"]
+
+
+
+
+
+

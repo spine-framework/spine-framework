@@ -1,19 +1,37 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/PromptConfigsPage.tsx"]
 /**
- * @module src/pages/admin/PromptConfigsPage
- * @audience installer
- * @layer frontend-page
+ * @module   PromptConfigsPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for LLM prompt configurations. Fetches all configs via
- * `/api/prompt-configs?action=list`, applies client-side search, category
- * filter, and sort. Highlights the default config with a star badge.
- * Renders inside `AdminListPage`. Row clicks navigate to
- * `/spine-framework/admin/configs/prompt-configs/:id`.
+ * This module represents the Prompt Configurations page in the admin section of the application, allowing administrators to manage prompt configurations effectively. It utilizes various UI components and hooks to provide a responsive interface for listing and sorting configurations.
+ * INVARIANT: The user must have admin privileges to access this page.
  *
- * @seeAlso src/pages/admin/PromptConfigDetailPage.tsx
+ * @seeAlso LoadingSpinner (provides loading feedback for async operations).
+ * @seeAlso Button (used for triggering actions on the page).
+ * @seeAlso AdminListPage (base component for displaying lists in the admin section).
+ * @seeAlso SortableTableHeader (enables sorting functionality for table headers).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, CheckCircle, Star, Cpu, MessageSquare } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Button } from '../../components/ui/button'
@@ -22,7 +40,32 @@ import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { formatDateTime } from '../../lib/utils'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
+// CIL[END stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:PromptConfig:interface" type="interface" identity="PromptConfig" parent="~/.framework/src/pages/admin/PromptConfigsPage.tsx"]
+/**
+ * The PromptConfig interface defines the structure for configuration objects related to prompts in the application. It encapsulates various properties that dictate the behavior and metadata of prompts.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface PromptConfig {
   id: string
   name: string
@@ -33,17 +76,48 @@ interface PromptConfig {
   max_tokens?: number
   is_multi_turn?: boolean
   is_active: boolean
-  is_default?: boolean
-  prompt_type?: string
-  category?: string
+  is_system?: boolean
+  output_mode?: string
   app_id?: string
   app?: any
   created_by?: string
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:PromptConfig:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:PromptConfigsPage:component" type="component" identity="PromptConfigsPage" parent="~/.framework/src/pages/admin/PromptConfigsPage.tsx"]
+/**
+ * The PromptConfigsPage component manages the display and filtering of prompt configuration settings in the admin interface. It allows users to search, sort, and navigate to detailed views of prompt configurations.
+ *
+ * @macro       Admin interface component for managing prompt configurations.
+ * @micro       Utilizes state management for search and sorting, and fetches data from an external API.
+ * @outputSpec  JSX.Element — renders the UI for managing prompt configurations.
+ * @throws      Error — if the API fetch fails
+ * @sideEffects Fetches prompt configurations from an external API.
+ * @stability   internal
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if the API fetch fails
+ * @cil-generated
+ */
 export function PromptConfigsPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
@@ -67,11 +141,11 @@ export function PromptConfigsPage() {
     const matchesStatus = selectedStatus === 'all' || 
       (selectedStatus === 'active' && config.is_active) ||
       (selectedStatus === 'inactive' && !config.is_active)
-    const matchesType = selectedType === 'all' || config.prompt_type === selectedType
+    const matchesType = selectedType === 'all' || config.output_mode === selectedType
     return matchesSearch && matchesStatus && matchesType
   })
 
-  const promptTypes = Array.from(new Set((promptConfigs || []).map(c => c.prompt_type).filter(Boolean)))
+  const promptTypes = Array.from(new Set((promptConfigs || []).map(c => c.output_mode).filter(Boolean)))
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -83,7 +157,7 @@ export function PromptConfigsPage() {
   }
 
   const handleRowClick = (config: PromptConfig) => {
-    window.location.href = `/spine-framework/admin/configs/prompts/${config.id}`
+    navigate(`/spine-framework/admin/configs/prompts/${config.id}`)
   }
 
   const sortedConfigs = [...(filteredPromptConfigs || [])].sort((a, b) => {
@@ -117,8 +191,8 @@ export function PromptConfigsPage() {
       iconColor: 'text-green-500'
     },
     {
-      title: 'Default',
-      value: (promptConfigs || []).filter(c => c.is_default).length,
+      title: 'System',
+      value: (promptConfigs || []).filter(c => c.is_system).length,
       icon: Star,
       iconColor: 'text-yellow-500'
     },
@@ -149,7 +223,7 @@ export function PromptConfigsPage() {
       onChange: (v: string) => setSelectedStatus(v)
     },
     {
-      label: 'Type',
+      label: 'Output',
       value: selectedType,
       options: typeOptions,
       onChange: (v: string) => setSelectedType(v)
@@ -199,8 +273,8 @@ export function PromptConfigsPage() {
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Type"
-                sortKey="prompt_type"
+                title="Output"
+                sortKey="output_mode"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -214,7 +288,7 @@ export function PromptConfigsPage() {
               />
               <SortableTableHeader
                 title="Settings"
-                sortKey="is_default"
+                sortKey="is_system"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -255,7 +329,7 @@ export function PromptConfigsPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-slate-600 capitalize">{config.prompt_type || 'General'}</span>
+                  <span className="text-sm text-slate-600 capitalize">{config.output_mode || '—'}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-md ${
@@ -268,8 +342,8 @@ export function PromptConfigsPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex gap-1">
-                    {config.is_default && (
-                      <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-yellow-100 text-yellow-700">Default</span>
+                    {config.is_system && (
+                      <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-yellow-100 text-yellow-700">System</span>
                     )}
                     {config.is_multi_turn && (
                       <span className="inline-flex px-1.5 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-700">Multi-turn</span>
@@ -290,3 +364,10 @@ export function PromptConfigsPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PromptConfigsPage.tsx:PromptConfigsPage:component"]
+
+
+
+
+
+

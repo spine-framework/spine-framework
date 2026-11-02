@@ -1,12 +1,12 @@
-/**
- * @module src/pages/admin/DesignedPage
- * @audience installer
- * @layer frontend-page
- * @stability testing
- *
- * A properly designed page with left navigation and content area.
- * Demonstrates shadcn components in a real application context.
- */
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/DesignedPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/DesignedPage.tsx"]
+// CIL[DOC-MACRO purpose="Define the admin dashboard page module and its top-level imports"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare React page dependencies and export the DesignedPage component for admin dashboard rendering"]
+// CIL[DOC-CONTEXT module="pages/admin" layer="presentation" related_files=".framework/src/components/ui/accordion.tsx,.framework/src/components/ui/alert.tsx,.framework/src/components/ui/badge.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/card.tsx,.framework/src/components/ui/checkbox.tsx,.framework/src/components/ui/dialog.tsx,.framework/src/components/ui/dropdown-menu.tsx,.framework/src/components/ui/input.tsx,.framework/src/components/ui/label.tsx,.framework/src/components/ui/select.tsx,.framework/src/components/ui/separator.tsx,.framework/src/components/ui/switch.tsx,.framework/src/components/ui/tabs.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="DesignedPage React component and module imports" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports React, shadcn UI primitives, and icons used across the admin dashboard page" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers"]
 
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
@@ -74,6 +74,21 @@ import {
   Zap
 } from 'lucide-react'
 
+// CIL[DOC-VECTOR type="context" content="purpose='Define the admin dashboard page module and its top-level imports'; No verified external callers; imports: .framework/src/components/ui/card.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/input.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/admin/DesignedPage.tsx:module_header:module_header"]
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/DesignedPage.tsx:DesignedPage:component" type="component" identity="DesignedPage" parent="~/.framework/src/pages/admin/DesignedPage.tsx"]
+// CIL[DOC-MACRO purpose="Render the admin DesignedPage dashboard with sidebar, header, stats, tabs, and settings"]
+// CIL[DOC-RESPONSIBILITY responsibility="Render the admin dashboard UI including navigation, search, quick stats, activity, analytics, reports, and preferences"]
+// CIL[DOC-CONTEXT module="pages/admin" layer="presentation" related_files=".framework/src/components/ui/accordion.tsx,.framework/src/components/ui/alert.tsx,.framework/src/components/ui/badge.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/card.tsx,.framework/src/components/ui/checkbox.tsx,.framework/src/components/ui/dialog.tsx,.framework/src/components/ui/dropdown-menu.tsx,.framework/src/components/ui/input.tsx,.framework/src/components/ui/label.tsx,.framework/src/components/ui/select.tsx,.framework/src/components/ui/separator.tsx,.framework/src/components/ui/switch.tsx,.framework/src/components/ui/tabs.tsx,.framework/src/pages/admin/DesignedPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none (uses local React state)" outputs="JSX dashboard UI" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Manages selected tab, search query, and notification/autosave toggles; renders sidebar navigation, top search/filter bar, stat cards, tabbed content panels, and security/preferences form" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function DesignedPage() {
   const [selectedTab, setSelectedTab] = useState('overview')
   const [searchQuery, setSearchQuery] = useState('')
@@ -82,7 +97,6 @@ export function DesignedPage() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Left Navigation */}
       <div className="w-64 flex-shrink-0 border-r border-border bg-card">
         <div className="flex h-16 items-center px-6 border-b border-border">
           <div className="flex items-center gap-2">
@@ -141,9 +155,7 @@ export function DesignedPage() {
         </nav>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
           <div className="flex h-16 items-center justify-between px-6">
             <div className="flex items-center gap-4">
@@ -158,6 +170,7 @@ export function DesignedPage() {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+
                   className="pl-10 w-64"
                 />
               </div>
@@ -195,10 +208,8 @@ export function DesignedPage() {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Stats Cards */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -253,7 +264,6 @@ export function DesignedPage() {
               </Card>
             </div>
 
-            {/* Main Content Tabs */}
             <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -264,7 +274,6 @@ export function DesignedPage() {
               
               <TabsContent value="overview" className="space-y-4">
                 <div className="grid gap-6 lg:grid-cols-3">
-                  {/* Recent Activity */}
                   <Card className="lg:col-span-2">
                     <CardHeader>
                       <CardTitle>Recent Activity</CardTitle>
@@ -310,7 +319,6 @@ export function DesignedPage() {
                     </CardContent>
                   </Card>
                   
-                  {/* Quick Actions */}
                   <Card>
                     <CardHeader>
                       <CardTitle>Quick Actions</CardTitle>
@@ -489,3 +497,10 @@ export function DesignedPage() {
     </div>
   )
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Render the admin DesignedPage dashboard with sidebar, header, stats, tabs, and settings'; No verified external callers; imports: .framework/src/components/ui/card.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/input.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/pages/admin/DesignedPage.tsx:DesignedPage:component"]

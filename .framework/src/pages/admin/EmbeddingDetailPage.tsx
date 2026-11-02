@@ -1,534 +1,305 @@
-/**
- * @module src/pages/admin/EmbeddingDetailPage
- * @audience installer
- * @layer frontend-page
- * @stability stable
- *
- * Create / view / edit page for a single embedding model configuration.
- */
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx"]
+// CIL[DOC-MACRO purpose="Admin page for viewing a single embedding record and its vector."]
+// CIL[DOC-RESPONSIBILITY responsibility="Provides React imports, type definitions, and the EmbeddingDetailPage component for the admin knowledge base."]
+// CIL[DOC-CONTEXT module="admin/kb/embeddings" layer="presentation" related_files=".framework/src/components/admin/PageInstructions.tsx,.framework/src/components/ui/alert.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/card.tsx,.framework/src/components/ui/collapsible.tsx,.framework/src/components/ui/skeleton.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="EmbeddingDetailPage component and EmbeddingRecord interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Module header imports dependencies for the embedding detail page." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers"]
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
 import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Textarea } from '../../components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { Label } from '../../components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
-import { ArrowLeft, Pencil, AlertCircle } from 'lucide-react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible'
+import { ArrowLeft, AlertCircle, ChevronDown } from 'lucide-react'
+import { formatDateTime } from '../../lib/utils'
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:module_header:module_header"]
 
-interface EmbeddingModel {
+
+// CIL[DOC-VECTOR type="context" content="purpose='Admin page for viewing a single embedding record and its vector.'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/components/ui/button.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="TypeScript interface describing a single embedding row."]
+// CIL[DOC-RESPONSIBILITY responsibility="Defines the shape of public.embeddings records consumed by the detail page."]
+// CIL[DOC-CONTEXT module="admin/kb/embeddings" layer="presentation" related_files=".framework/src/components/admin/PageInstructions.tsx,.framework/src/components/ui/alert.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/card.tsx,.framework/src/components/ui/collapsible.tsx,.framework/src/components/ui/skeleton.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts,.framework/src/pages/admin/EmbeddingDetailPage.tsx"]
+// CIL[DOC-CONTRACT inputs="database embedding row fields" outputs="EmbeddingRecord interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="EmbeddingRecord fields: id, account_id, model_id, document_id, chunk_index, content, embedding array, metadata, lifecycle timestamps, content hash, created/updated." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:EmbeddingRecord:interface" type="interface" identity="EmbeddingRecord" parent="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx"]
+interface EmbeddingRecord {
   id: string
-  name: string
-  description?: string
-  model_name: string
-  provider: 'openai' | 'anthropic' | 'local' | 'custom'
-  config: {
-    dimension: number
-    chunk_size: number
-    overlap: number
-    batch_size: number
-  }
-  is_active: boolean
+  account_id: string
+  model_id: string
+  document_id: string
+  chunk_index: number
+  content: string
+  embedding: number[]
+  metadata: Record<string, any> | null
+  approved_at: string | null
+  revoked_at: string | null
+  content_hash: string
   created_at: string
   updated_at: string
-  created_by: string
-  account_id: string
-  document_count: number
-  embedding_count: number
-  storage_size: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:EmbeddingRecord:interface"]
+// CIL[DOC-VECTOR type="context" content="purpose='TypeScript interface describing a single embedding row.'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/components/ui/button.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
 
+
+// CIL[DOC-MACRO purpose="Render a read-only admin detail page for a single embedding record."]
+// CIL[DOC-RESPONSIBILITY responsibility="Fetch embedding by id, display metadata, status, content, metadata JSON, and the stored vector, with loading, error, and missing-id states."]
+// CIL[DOC-CONTEXT module="admin/kb/embeddings" layer="presentation" related_files=".framework/src/components/admin/PageInstructions.tsx,.framework/src/components/ui/alert.tsx,.framework/src/components/ui/button.tsx,.framework/src/components/ui/card.tsx,.framework/src/components/ui/collapsible.tsx,.framework/src/components/ui/skeleton.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts,.framework/src/pages/admin/EmbeddingDetailPage.tsx"]
+// CIL[DOC-CONTRACT inputs="React Router id parameter" outputs="JSX detail page" errors="Fetch errors, missing or invalid id" side_effects="navigates on user actions; triggers embedding fetch via useApi"]
+// CIL[DOC-MICRO logic_summary="Conditionally renders not-found, loading, error, and record views; computes status from revoked_at/approved_at; exposes a collapsible vector section." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:EmbeddingDetailPage:component" type="component" identity="EmbeddingDetailPage" parent="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx"]
 export function EmbeddingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isCreateMode = !id || id === 'new'
-  
-  const [isEditing, setIsEditing] = useState(isCreateMode)
-  const [editData, setEditData] = useState<Record<string, any>>({})
+  const [showVector, setShowVector] = useState(false)
 
-  const { data: embedding, loading, error, refetch } = useApi(
+  const { data: record, loading, error, refetch } = useApi<EmbeddingRecord>(
     async () => {
-      if (isCreateMode) {
-        return {
-          id: '',
-          name: '',
-          description: '',
-          model_name: 'text-embedding-ada-002',
-          provider: 'openai' as const,
-          config: {
-            dimension: 1536,
-            chunk_size: 1000,
-            overlap: 200,
-            batch_size: 100
-          },
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: '',
-          account_id: '',
-          document_count: 0,
-          embedding_count: 0,
-          storage_size: 0
-        }
-      }
-      
-      const response = await apiFetch(`/api/embeddings?action=get&id=${id}`)
-      if (!response.ok) throw new Error('Failed to fetch embedding')
+      const response = await apiFetch(`/api/embeddings?method=GET&action=get&id=${id}`)
+      if (!response.ok) throw new Error('Failed to fetch embedding record')
       const result = await response.json()
-      return result.data
+      return (result.data || result) as EmbeddingRecord
     },
-    { immediate: !isCreateMode }
+    { immediate: !!id && id !== 'new' }
   )
 
-  useEffect(() => {
-    if (embedding) {
-      setEditData({
-        name: embedding.name,
-        description: embedding.description || '',
-        model_name: embedding.model_name,
-        provider: embedding.provider,
-        config: embedding.config || {
-          dimension: 1536,
-          chunk_size: 1000,
-          overlap: 200,
-          batch_size: 100
-        },
-        is_active: embedding.is_active
-      })
-    }
-  }, [embedding])
-
-  const handleSave = async () => {
-    try {
-      const url = isCreateMode 
-        ? '/api/embeddings?action=create'
-        : `/api/embeddings?action=update&id=${id}`
-      
-      const method = isCreateMode ? 'POST' : 'PATCH'
-      
-      const response = await apiFetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(editData)
-      })
-      
-      if (!response.ok) throw new Error('Failed to save embedding')
-      
-      if (isCreateMode) {
-        const result = await response.json()
-        const newId = result.data?.id || result.id
-        navigate(`/spine-framework/admin/configs/embeddings/${newId}`)
-      } else {
-        await refetch()
-        setIsEditing(false)
-      }
-    } catch (error) {
-      console.error('Error saving embedding:', error)
-    }
-  }
-
-  const handleCancel = () => {
-    if (isCreateMode) {
-      navigate('/spine-framework/admin/configs/embeddings')
-      return
-    }
-    
-    if (embedding) {
-      setEditData({
-        name: embedding.name,
-        description: embedding.description || '',
-        model_name: embedding.model_name,
-        provider: embedding.provider,
-        config: embedding.config || {
-          dimension: 1536,
-          chunk_size: 1000,
-          overlap: 200,
-          batch_size: 100
-        },
-        is_active: embedding.is_active
-      })
-    }
-    setIsEditing(false)
-  }
-
-  const handleEdit = () => {
-    setIsEditing(true)
+  if (!id || id === 'new') {
+    return (
+      <div className="p-8 max-w-3xl mx-auto">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-slate-400" />
+            <h1 className="mt-4 text-lg font-medium">Not Found</h1>
+            <p className="text-sm text-slate-500 mt-2">No embedding ID was provided.</p>
+            <Button className="mt-4" onClick={() => navigate('/spine-framework/admin/kb/embeddings')}>
+              Back to Embeddings
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Card>
-          <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </CardContent>
-        </Card>
+      <div className="p-8 space-y-6 max-w-5xl mx-auto">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Failed to load embedding</AlertTitle>
-        <AlertDescription>{String(error)}</AlertDescription>
-      </Alert>
+      <div className="p-8 max-w-5xl mx-auto">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <div className="mt-4">
+          <Button onClick={() => refetch()}>Retry</Button>
+          <Button variant="outline" className="ml-2" onClick={() => navigate('/spine-framework/admin/kb/embeddings')}>
+            Back
+          </Button>
+        </div>
+      </div>
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => isCreateMode ? navigate('/spine-framework/admin/configs/embeddings') : navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {isCreateMode ? 'Create Embedding Model' : embedding?.name || 'Embedding Detail'}
-            </h1>
-            <p className="text-sm text-muted-foreground">Embedding Model Configuration</p>
-          </div>
-        </div>
-        
-        <div className="flex space-x-2">
-          {isEditing ? (
-            <>
-              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-              <Button onClick={handleSave}>
-                {isCreateMode ? 'Create' : 'Save Changes'}
-              </Button>
-            </>
-          ) : (
-            !isCreateMode && (
-              <Button variant="outline" onClick={handleEdit}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            )
-          )}
-        </div>
-      </div>
-
-      {isCreateMode ? (
+  if (!record) {
+    return (
+      <div className="p-8 max-w-3xl mx-auto">
         <Card>
-          <CardContent className="p-6 space-y-6">
-            <div>
-              <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={editData.name || ''}
-                    onChange={(e) => setEditData({...editData, name: e.target.value})}
-                    placeholder="Enter model name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <Select value={editData.provider || 'openai'} onValueChange={(v) => setEditData({...editData, provider: v})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic</SelectItem>
-                      <SelectItem value="local">Local</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <Label>Description</Label>
-                <Textarea
-                  value={editData.description || ''}
-                  onChange={(e) => setEditData({...editData, description: e.target.value})}
-                  rows={3}
-                  placeholder="Describe this embedding model"
-                />
-              </div>
-              <div className="mt-4 space-y-2">
-                <Label>Model Name</Label>
-                <Input
-                  value={editData.model_name || ''}
-                  onChange={(e) => setEditData({...editData, model_name: e.target.value})}
-                  placeholder="e.g., text-embedding-ada-002"
-                />
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-medium mb-4">Configuration</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Dimensions</Label>
-                  <Input
-                    type="number"
-                    value={editData.config?.dimension || 1536}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      config: {
-                        ...editData.config,
-                        dimension: parseInt(e.target.value)
-                      }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Chunk Size</Label>
-                  <Input
-                    type="number"
-                    value={editData.config?.chunk_size || 1000}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      config: {
-                        ...editData.config,
-                        chunk_size: parseInt(e.target.value)
-                      }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Overlap</Label>
-                  <Input
-                    type="number"
-                    value={editData.config?.overlap || 200}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      config: {
-                        ...editData.config,
-                        overlap: parseInt(e.target.value)
-                      }
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Batch Size</Label>
-                  <Input
-                    type="number"
-                    value={editData.config?.batch_size || 100}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      config: {
-                        ...editData.config,
-                        batch_size: parseInt(e.target.value)
-                      }
-                    })}
-                  />
-                </div>
-              </div>
-            </div>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-slate-400" />
+            <h1 className="mt-4 text-lg font-medium">Record not found</h1>
+            <Button className="mt-4" onClick={() => navigate('/spine-framework/admin/kb/embeddings')}>
+              Back to Embeddings
+            </Button>
           </CardContent>
         </Card>
-      ) : embedding ? (
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Name:</span>
-                      {isEditing ? (
-                        <Input
-                          value={editData.name || ''}
-                          onChange={(e) => setEditData({...editData, name: e.target.value})}
-                          className="w-48"
-                        />
-                      ) : (
-                        <span className="text-sm font-medium">{embedding.name}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Provider:</span>
-                      {isEditing ? (
-                        <Select value={editData.provider || embedding.provider} onValueChange={(v) => setEditData({...editData, provider: v})}>
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="openai">OpenAI</SelectItem>
-                            <SelectItem value="anthropic">Anthropic</SelectItem>
-                            <SelectItem value="local">Local</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-sm">{embedding.provider}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-sm text-muted-foreground">Description:</span>
-                      {isEditing ? (
-                        <Textarea
-                          value={editData.description || ''}
-                          onChange={(e) => setEditData({...editData, description: e.target.value})}
-                          rows={3}
-                          className="w-48"
-                        />
-                      ) : (
-                        <span className="text-sm">{embedding.description || '—'}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Model Name:</span>
-                      {isEditing ? (
-                        <Input
-                          value={editData.model_name || embedding.model_name}
-                          onChange={(e) => setEditData({...editData, model_name: e.target.value})}
-                          className="w-48"
-                        />
-                      ) : (
-                        <span className="text-sm font-mono">{embedding.model_name}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Active:</span>
-                      {isEditing ? (
-                        <Select value={String(editData.is_active)} onValueChange={(v) => setEditData({...editData, is_active: v === 'true'})}>
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="true">Yes</SelectItem>
-                            <SelectItem value="false">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-sm">{embedding.is_active ? 'Yes' : 'No'}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-4">Configuration</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Dimensions:</span>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          value={editData.config?.dimension || embedding.config?.dimension}
-                          onChange={(e) => setEditData({
-                            ...editData,
-                            config: {
-                              ...editData.config,
-                              dimension: parseInt(e.target.value)
-                            }
-                          })}
-                          className="w-24"
-                        />
-                      ) : (
-                        <span className="text-sm">{embedding.config?.dimension || '—'}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Chunk Size:</span>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          value={editData.config?.chunk_size || embedding.config?.chunk_size}
-                          onChange={(e) => setEditData({
-                            ...editData,
-                            config: {
-                              ...editData.config,
-                              chunk_size: parseInt(e.target.value)
-                            }
-                          })}
-                          className="w-24"
-                        />
-                      ) : (
-                        <span className="text-sm">{embedding.config?.chunk_size || '—'}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Overlap:</span>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          value={editData.config?.overlap || embedding.config?.overlap}
-                          onChange={(e) => setEditData({
-                            ...editData,
-                            config: {
-                              ...editData.config,
-                              overlap: parseInt(e.target.value)
-                            }
-                          })}
-                          className="w-24"
-                        />
-                      ) : (
-                        <span className="text-sm">{embedding.config?.overlap || '—'}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Batch Size:</span>
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          value={editData.config?.batch_size || embedding.config?.batch_size}
-                          onChange={(e) => setEditData({
-                            ...editData,
-                            config: {
-                              ...editData.config,
-                              batch_size: parseInt(e.target.value)
-                            }
-                          })}
-                          className="w-24"
-                        />
-                      ) : (
-                        <span className="text-sm">{embedding.config?.batch_size || '—'}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Usage Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><dt className="text-sm text-muted-foreground">Documents</dt><dd className="font-mono text-sm">{embedding.document_count}</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Embeddings</dt><dd className="font-mono text-sm">{embedding.embedding_count}</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Storage Size</dt><dd className="font-mono text-sm">{Math.round(embedding.storage_size / 1024 / 1024 * 100) / 100} MB</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Created</dt><dd className="font-mono text-sm">{new Date(embedding.created_at).toLocaleString()}</dd></div>
-              </dl>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><dt className="text-sm text-muted-foreground">ID</dt><dd className="font-mono text-sm">{embedding.id}</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Updated</dt><dd className="font-mono text-sm">{new Date(embedding.updated_at).toLocaleString()}</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Created By</dt><dd className="font-mono text-sm">{embedding.created_by}</dd></div>
-                <div><dt className="text-sm text-muted-foreground">Account ID</dt><dd className="font-mono text-sm">{embedding.account_id}</dd></div>
-              </dl>
-            </CardContent>
-          </Card>
+      </div>
+    )
+  }
+
+
+
+
+
+  const status = record.revoked_at
+    ? { label: 'Revoked', color: 'bg-red-100 text-red-700' }
+    : record.approved_at
+    ? { label: 'Approved', color: 'bg-green-100 text-green-700' }
+    : { label: 'Pending', color: 'bg-slate-100 text-slate-600' }
+
+
+  return (
+    <div className="p-8 space-y-6 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Embedding Record</h1>
+          <p className="text-sm text-muted-foreground">{record.id}</p>
         </div>
-      ) : null}
+        <Button variant="outline" onClick={() => navigate('/spine-framework/admin/kb/embeddings')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Model ID</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-900 break-all">{record.model_id}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Document ID</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-900 break-all">{record.document_id}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Chunk Index</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-900">{record.chunk_index}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${status.color}`}>
+              {status.label}
+            </span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Content Hash</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-slate-500 font-mono break-all">{record.content_hash}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Created / Updated</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <p className="text-sm text-slate-900">Created: {formatDateTime(record.created_at)}</p>
+            <p className="text-sm text-slate-900">Updated: {formatDateTime(record.updated_at)}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Approved At</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-900">{record.approved_at ? formatDateTime(record.approved_at) : '—'}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-slate-500">Revoked At</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-900">{record.revoked_at ? formatDateTime(record.revoked_at) : '—'}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-slate-500">Content</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="whitespace-pre-wrap break-words max-h-96 overflow-auto rounded bg-slate-50 p-3 text-sm font-mono border border-slate-200">
+            {record.content || '—'}
+          </pre>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-slate-500">Metadata</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="whitespace-pre-wrap break-words max-h-80 overflow-auto rounded bg-slate-50 p-3 text-xs font-mono border border-slate-200">
+            {JSON.stringify(record.metadata, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <Collapsible open={showVector} onOpenChange={setShowVector}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-between px-6 py-4 h-auto font-medium text-sm text-slate-500 hover:text-slate-900 group"
+            >
+              <span>Embedding vector ({record.embedding?.length ?? 0} dimensions)</span>
+              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <pre className="whitespace-pre-wrap break-words max-h-96 overflow-auto rounded bg-slate-50 p-3 text-xs font-mono border border-slate-200">
+                {JSON.stringify(record.embedding, null, 2)}
+              </pre>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingDetailPage.tsx:EmbeddingDetailPage:component"]
+// CIL[DOC-VECTOR type="context" content="purpose='Render a read-only admin detail page for a single embedding record.'; No verified external callers; imports: .framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/components/ui/button.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+

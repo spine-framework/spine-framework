@@ -1,17 +1,33 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/PipelinesPage.tsx"]
 /**
- * @module src/pages/admin/PipelinesPage
- * @audience installer
- * @layer frontend-page
+ * @module   PipelinesPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for automation pipelines. Fetches all pipelines via
- * `/api/pipelines?action=list`, applies client-side search, status filter,
- * trigger-type filter, and sort. Renders inside `AdminListPage` with stat
- * cards and a sortable table. Row clicks navigate to
- * `/spine-framework/admin/configs/pipelines/:id`.
+ * This module represents the PipelinesPage component within the admin section of the application, providing a user interface for managing and viewing pipelines. It leverages hooks for API interactions and includes various UI components for functionality such as sorting and filtering. INVARIANT: The user must have admin privileges to access this page.
  *
- * @seeAlso src/pages/admin/PipelineDetailPage.tsx
+ * @seeAlso useApi (provides API interaction capabilities).
+ * @seeAlso AdminListPage (base component for admin list functionality).
+ * @seeAlso SortableTableHeader (for sorting capabilities in tables).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -24,7 +40,31 @@ import { Badge } from '../../components/ui/badge'
 import { formatDateTime } from '../../lib/utils'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:Pipeline:interface" type="interface" identity="Pipeline" parent="~/.framework/src/pages/admin/PipelinesPage.tsx"]
+/**
+ * The Pipeline interface defines the structure of a data pipeline, including its configuration, stages, and metadata. It is used to manage and execute data processing workflows within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface Pipeline {
   id: string
   name: string
@@ -38,83 +78,142 @@ interface Pipeline {
     order: number
   }>
   is_active: boolean
+  app_id?: string
   created_at: string
   updated_at: string
   created_by: string
   account_id: string
-  execution_count: number
+  execution_count?: number
   last_execution?: string
   next_execution?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:Pipeline:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:PipelineExecution:interface" type="interface" identity="PipelineExecution" parent="~/.framework/src/pages/admin/PipelinesPage.tsx"]
+/**
+ * The PipelineExecution interface defines the structure for tracking the execution state of a pipeline, including its status and timestamps. It is essential for managing and monitoring the lifecycle of pipeline executions within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface PipelineExecution {
   id: string
   pipeline_id: string
   status: 'pending' | 'running' | 'completed' | 'failed'
-  started_at: string
+  started_at?: string
+  created_at: string
   completed_at?: string
-  trigger_data: Record<string, any>
+  trigger_data?: Record<string, any>
   result?: Record<string, any>
   error?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:PipelineExecution:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:PipelinesPage:component" type="component" identity="PipelinesPage" parent="~/.framework/src/pages/admin/PipelinesPage.tsx"]
+/**
+ * The PipelinesPage component manages the display and interaction with pipeline data in the admin interface. It fetches pipelines, executions, and related statistics from the API and allows users to filter and sort this data.
+ *
+ * @macro       Admin interface component for managing and displaying pipeline data.
+ * @micro       Uses multiple API calls to fetch pipelines, executions, and statistics, and maintains local state for filtering and sorting.
+ * @outputSpec  JSX.Element — renders the pipelines management interface.
+ * @throws      Error — failed to fetch pipelines
+ * @sideEffects Makes external API calls to fetch pipeline and execution data.
+ * @stability   internal
+ * @calls       useApi, apiFetch
+ * @errorHandling none
+ * @cil-generated
+ */
 export function PipelinesPage() {
-  console.log('PipelinesPage rendering...')
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTrigger, setSelectedTrigger] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
-  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null)
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch pipelines from API
   const { data: pipelines, loading, error, refetch } = useApi<Pipeline[]>(
     async ({ signal }: { signal?: AbortSignal }) => {
-      try {
-        console.log('Fetching pipelines...')
-        
-        // Check authentication using the same method as apiFetch
-        const { supabase } = await import('../../lib/supabase')
-        const { data: { session } } = await supabase.auth.getSession()
-        console.log('Supabase session exists:', !!session)
-        console.log('Supabase access token exists:', !!session?.access_token)
-        console.log('Supabase access token length:', session?.access_token?.length || 0)
-        
-        // Also check localStorage for comparison
-        const localToken = localStorage.getItem('access_token')
-        console.log('localStorage token exists:', !!localToken)
-        console.log('localStorage token length:', localToken?.length || 0)
-        
-        const response = await apiFetch('/api/pipelines?action=list', { signal })
-        console.log('Response status:', response.status)
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-        
-        if (!response.ok) {
-          console.error('Response not ok:', response.statusText)
-          throw new Error(`Failed to fetch pipelines: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        console.log('Raw API result:', result)
-        console.log('Result data type:', typeof result.data)
-        console.log('Result data is array:', Array.isArray(result.data))
-        console.log('Result data length:', result.data?.length || 'N/A')
-        
-        // Handle both nested and direct responses
-        const pipelines = result.data || result
-        console.log('Pipelines after processing:', pipelines)
-        console.log('Pipelines is array:', Array.isArray(pipelines))
-        console.log('Pipelines length:', pipelines.length)
-        
-        return pipelines
-      } catch (error) {
-        console.error('Error in PipelinesPage:', error)
-        throw error
-      }
+      const response = await apiFetch('/api/pipelines?action=list', { signal })
+      if (!response.ok) throw new Error('Failed to fetch pipelines')
+      const result = await response.json()
+      return result.data || result
     },
     { immediate: true }
   )
+
+  const { data: executions } = useApi<PipelineExecution[]>(
+    async ({ signal }: { signal?: AbortSignal }) => {
+      const response = await apiFetch('/api/pipeline-executions?action=list&limit=500', { signal })
+      if (!response.ok) return []
+      const result = await response.json()
+      return result.data || result || []
+    },
+    { immediate: true }
+  )
+
+  const { data: execStats } = useApi<{ total: number }>(
+    async ({ signal }: { signal?: AbortSignal }) => {
+      const today = new Date()
+      today.setUTCHours(0, 0, 0, 0)
+      const response = await apiFetch(`/api/pipeline-executions?action=stats&date_from=${encodeURIComponent(today.toISOString())}`, { signal })
+      if (!response.ok) return { total: 0 }
+      const result = await response.json()
+      return result.data || result
+    },
+    { immediate: true }
+  )
+
+  const { data: apps } = useApi<Array<{ id: string; name: string }>>(
+    async ({ signal }: { signal?: AbortSignal }) => {
+      const response = await apiFetch('/api/apps?action=list', { signal })
+      if (!response.ok) return []
+      const result = await response.json()
+      return result.data || []
+    },
+    { immediate: true }
+  )
+
+  const appNameById = new Map((apps || []).map(a => [a.id, a.name]))
+
+  const lastExecByPipeline = new Map<string, string>()
+  const execCountByPipeline = new Map<string, number>()
+  for (const exec of executions || []) {
+    const ts = exec.started_at || exec.created_at
+    execCountByPipeline.set(exec.pipeline_id, (execCountByPipeline.get(exec.pipeline_id) || 0) + 1)
+    const prev = lastExecByPipeline.get(exec.pipeline_id)
+    if (ts && (!prev || ts > prev)) lastExecByPipeline.set(exec.pipeline_id, ts)
+  }
 
   const triggerOptions = [
     { value: 'all', label: 'All Triggers' },
@@ -192,14 +291,6 @@ export function PipelinesPage() {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'
   }
 
-  const handleTogglePipeline = (pipeline: Pipeline) => {
-    console.log('Toggle pipeline:', pipeline.id)
-  }
-
-  const handleExecutePipeline = (pipeline: Pipeline) => {
-    console.log('Execute pipeline:', pipeline.id)
-  }
-
   const handleViewExecutions = (pipeline: Pipeline) => {
     navigate(`/spine-framework/admin/configs/pipelines/${pipeline.id}/executions`)
   }
@@ -242,7 +333,7 @@ export function PipelinesPage() {
         },
         {
           title: "Runs Today",
-          value: "32",
+          value: execStats?.total ?? 0,
           icon: Clock,
           iconColor: "text-orange-600"
         }
@@ -310,8 +401,8 @@ export function PipelinesPage() {
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Executions"
-                sortKey="execution_count"
+                title="App"
+                sortKey="app_id"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -357,10 +448,10 @@ export function PipelinesPage() {
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                  {pipeline.execution_count}
+                  {(pipeline.app_id && appNameById.get(pipeline.app_id)) || '—'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {pipeline.last_execution ? formatDateTime(pipeline.last_execution) : 'Never'}
+                  {lastExecByPipeline.get(pipeline.id) ? formatDateTime(lastExecByPipeline.get(pipeline.id)!) : 'Never'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
@@ -388,3 +479,10 @@ export function PipelinesPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelinesPage.tsx:PipelinesPage:component"]
+
+
+
+
+
+

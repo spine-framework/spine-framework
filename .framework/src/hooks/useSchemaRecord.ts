@@ -1,39 +1,38 @@
-/**
- * @module src/hooks/useSchemaRecord
- * @audience installer
- * @layer frontend-hook
- * @stability stable
- *
- * Schema-record data management hooks. Two complementary hooks:
- *
- * - **`useSchemaRecord`** — given an already-fetched record and its schema
- *   type, returns structured `FieldDefinition[]`, a managed `data` state
- *   seeded from `record.data` with schema defaults, and field setters.
- *   Used on detail/edit pages where the record is fetched by a parent hook.
- *
- * - **`useTypeSelection`** — fetches all types of a given `kind` and exposes
- *   a `selectedTypeId` state. Used on create pages for the type-first flow
- *   where the user picks a type before filling in fields.
- *
- * **Data seeding invariant:** `useSchemaRecord` re-seeds `data` state only
- * when `record.id` or `schemaType.id` changes, not on every render. This
- * prevents losing unsaved edits during re-renders.
- *
- * @seeAlso src/hooks/useEntityRecord.ts (fetches the record passed here)
- * @seeAlso src/hooks/useForm.ts (consumes FieldDefinition[] from this hook)
- * @seeAlso src/types/types.ts (FieldDefinition, ItemType)
- */
-
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:module_header:module_header"]
+// CIL[DOC-MACRO purpose="Provides React hooks and TypeScript interfaces for managing schema records and type selection in the Spine framework UI."]
+// CIL[DOC-RESPONSIBILITY responsibility="Define shared data shapes and reusable hooks for schema record editing and type selection."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="N/A" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Module-level header; no runtime logic." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="framework-ui"]
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../lib/api'
 import { FieldDefinition, ItemType } from '../types/types'
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+// CIL[DOC-VECTOR type="context" content="purpose='Provides React hooks and TypeScript interfaces for managing schema records and type selection in the Spine framework UI.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:module_header:module_header"]
 
-/**
- * A record from the `types` table as loaded for schema resolution.
- * @prop design_schema - Full design schema including fields and views
- */
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:schematype:interface"]
+// CIL[DOC-MACRO purpose="Describe the shape of a schema type definition."]
+// CIL[DOC-RESPONSIBILITY responsibility="Strongly type schema type metadata including design schema fields."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="SchemaType interface" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Interface with optional and required fields for a type definition." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface SchemaType {
   id: string
   name: string
@@ -44,11 +43,22 @@ export interface SchemaType {
   app_id?: string
   design_schema: ItemType['design_schema']
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Describe the shape of a schema type definition.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:schematype:interface"]
 
-/**
- * A generic record that may carry its resolved type in a nested `type` join.
- * @prop data - The JSONB `data` column; all custom field values live here
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:schemarecord:interface"]
+// CIL[DOC-MACRO purpose="Describe a runtime record of a schema type."]
+// CIL[DOC-RESPONSIBILITY responsibility="Type the data container that holds record values and optional resolved type."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="SchemaRecord interface" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Interface includes dynamic key index for legacy field access." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface SchemaRecord {
   id: string
   type_id?: string
@@ -56,23 +66,41 @@ export interface SchemaRecord {
   data: Record<string, any>
   [key: string]: any
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Describe a runtime record of a schema type.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:schemarecord:interface"]
 
-/** Options for `useSchemaRecord`. */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecordoptions:interface"]
+// CIL[DOC-MACRO purpose="Configure the useSchemaRecord hook."]
+// CIL[DOC-RESPONSIBILITY responsibility="Type the required kind argument for type resolution."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="UseSchemaRecordOptions interface" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Single-property options interface." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface UseSchemaRecordOptions {
-  typeApiKind: string // e.g. 'account', 'person', 'item'
+  typeApiKind: string
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Configure the useSchemaRecord hook.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecordoptions:interface"]
 
-/**
- * Return value of `useSchemaRecord`.
- *
- * @prop fields - Ordered `FieldDefinition[]` from schema; empty if no schema
- * @prop data - Managed field values (seeded from `record.data` + defaults)
- * @prop setData - Replace the entire data map
- * @prop setField - Update a single field by name
- * @prop schemaType - The resolved schema type (passed through)
- * @prop loading - Always false (data is derived, not fetched here)
- * @prop error - Always null
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecordresult:interface"]
+// CIL[DOC-MACRO purpose="Return value shape of the useSchemaRecord hook."]
+// CIL[DOC-RESPONSIBILITY responsibility="Expose record data, field definitions, setters, and metadata to consumers."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="UseSchemaRecordResult interface" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Return object for useSchemaRecord." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface UseSchemaRecordResult {
   fields: FieldDefinition[]
   data: Record<string, any>
@@ -82,38 +110,28 @@ export interface UseSchemaRecordResult {
   loading: boolean
   error: string | null
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Return value shape of the useSchemaRecord hook.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecordresult:interface"]
 
-// ─── useSchemaRecord ─────────────────────────────────────────────────────────
-
-/**
- * Given an already-fetched record and its resolved schema type, returns
- * structured field definitions and a managed data state for the record's
- * `.data` JSONB column, with schema defaults seeded on load.
- *
- * Does NOT fetch anything — this is a pure derived-state hook.
- *
- * @param record - Fetched record (or null while loading)
- * @param schemaType - Resolved schema type (or null while loading)
- * @returns `UseSchemaRecordResult`
- *
- * @inputSpec record.data: Record<string, any> | undefined — custom field values
- * @inputSpec schemaType.design_schema.fields: FieldDefinition map
- * @outputSpec fields: FieldDefinition[] — ordered array with `.name` injected
- * @sideEffects React state mutations (data re-seed on record/type change only)
- * @calledBy DataDetailPage.tsx, create pages
- *
- * @example
- * ```tsx
- * const { fields, data, setField } = useSchemaRecord(record, schemaType)
- * ```
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecord:function"]
+// CIL[DOC-MACRO purpose="Manage local record data state and default values from a schema type."]
+// CIL[DOC-RESPONSIBILITY responsibility="Synchronize record data with schema defaults and expose field setters."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="record: SchemaRecord | null, schemaType: SchemaType | null" outputs="UseSchemaRecordResult" errors="Returns null schemaType and empty data on missing inputs" side_effects="Calls React setState during initial sync and field updates"]
+// CIL[DOC-MICRO logic_summary="Initializes data from record and applies per-field defaults from schemaType.design_schema.fields; exposes setData and setField callbacks." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function useSchemaRecord(
   record: SchemaRecord | null,
   schemaType: SchemaType | null
 ): UseSchemaRecordResult {
   const [data, setDataState] = useState<Record<string, any>>({})
 
-  // Re-seed data state only when the record id or schema type id changes
   const recordId = record?.id ?? null
   const schemaTypeId = schemaType?.id ?? null
 
@@ -122,7 +140,6 @@ export function useSchemaRecord(
 
     const base = record.data ? { ...record.data } : {}
 
-    // Seed defaults for fields that have no value
     if (schemaType?.design_schema?.fields) {
       for (const [name, field] of Object.entries(schemaType.design_schema.fields)) {
         if (base[name] === undefined && (field as any).defaultValue !== undefined) {
@@ -132,7 +149,6 @@ export function useSchemaRecord(
     }
 
     setDataState(base)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordId, schemaTypeId])
 
   const setData = useCallback((newData: Record<string, any>) => {
@@ -157,19 +173,22 @@ export function useSchemaRecord(
     error: null
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Manage local record data state and default values from a schema type.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:useschemarecord:function"]
 
-// ─── useTypeSelection ─────────────────────────────────────────────────────────
-
-/**
- * Return value of `useTypeSelection`.
- *
- * @prop types - All active types of the requested kind
- * @prop selectedType - The full `SchemaType` for `selectedTypeId`, or null
- * @prop selectedTypeId - Controlled string state for the `<select>` value
- * @prop setSelectedTypeId - Setter for `selectedTypeId`
- * @prop loading - True while fetching types
- * @prop error - Error message or null
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:usetypeselectionresult:interface"]
+// CIL[DOC-MACRO purpose="Return value shape of the useTypeSelection hook."]
+// CIL[DOC-RESPONSIBILITY responsibility="Expose loaded types, selected type, and selection controls."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="N/A" outputs="UseTypeSelectionResult interface" errors="N/A" side_effects="N/A"]
+// CIL[DOC-MICRO logic_summary="Return object for useTypeSelection." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export interface UseTypeSelectionResult {
   types: SchemaType[]
   selectedType: SchemaType | null
@@ -178,19 +197,22 @@ export interface UseTypeSelectionResult {
   loading: boolean
   error: string | null
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Return value shape of the useTypeSelection hook.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:usetypeselectionresult:interface"]
 
-/**
- * Fetches all active types of a given `kind` and exposes a controlled
- * `selectedTypeId` state for the type-first create flow.
- *
- * @param kind - Type kind: `'account'`, `'person'`, `'item'`, etc.
- * @returns `UseTypeSelectionResult`
- *
- * @inputSpec kind: string — passed as `?kind=<kind>&is_active=true` to `/api/types`
- * @outputSpec types: SchemaType[] — active types; empty while loading
- * @sideEffects Network request via apiFetch on mount and kind change
- * @calledBy Create pages (e.g. AccountCreatePage, ItemCreatePage)
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useSchemaRecord.ts:usetypeselection:function"]
+// CIL[DOC-MACRO purpose="Load and select a schema type by kind for the current context."]
+// CIL[DOC-RESPONSIBILITY responsibility="Fetch active types from the API and maintain selection state."]
+// CIL[DOC-CONTEXT module="framework hooks" layer="ui" related_files=".framework/src/hooks/useSchemaRecord.ts,.framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="kind: string" outputs="UseTypeSelectionResult" errors="Sets error state on API failures" side_effects="Fetches /api/types on mount and kind changes; uses React state"]
+// CIL[DOC-MICRO logic_summary="Fetches active types for a kind, tracks selected type ID, and memoizes the selected type." notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.85" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 export function useTypeSelection(kind: string): UseTypeSelectionResult {
   const [types, setTypes] = useState<SchemaType[]>([])
   const [selectedTypeId, setSelectedTypeId] = useState('')
@@ -221,3 +243,10 @@ export function useTypeSelection(kind: string): UseTypeSelectionResult {
 
   return { types, selectedType, selectedTypeId, setSelectedTypeId, loading, error }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Load and select a schema type by kind for the current context.'; No verified external callers; imports: .framework/src/lib/api.ts,.framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useSchemaRecord.ts:usetypeselection:function"]

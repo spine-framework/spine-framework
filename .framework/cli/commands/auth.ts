@@ -1,39 +1,65 @@
 /**
- * @module cli/commands/auth
- * @audience installer
- * @layer cli
+ * @module   auth
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * `spine auth` command group. Exposes two subcommands for verifying and
- * inspecting the currently configured CLI credentials without performing
- * any data operations.
+ * This module handles authentication commands for the CLI, providing the necessary context and error handling for user authentication processes. It serves as an entry point for command execution related to user authentication, ensuring that commands are processed correctly and errors are managed effectively.
+ * 
+ * INVARIANT: The CLI must be invoked with valid authentication parameters to function correctly.
  *
- * **Commands:**
- * | Subcommand        | Description                                           |
- * |-------------------|-------------------------------------------------------|
- * | `auth whoami`     | Print the resolved principal for the current env      |
- * | `auth check`      | Validate credentials; exit 0 on success, 1 on failure |
+ * @seeAlso context.js (provides context management and error handling functionality.)
+ * @seeAlso commander (used for command parsing and execution.)
  *
- * **Usage:**
- * ```bash
- * spine auth whoami
- * spine auth whoami --json
- * spine auth check
- * ```
- *
- * @seeAlso cli/context.ts (buildCliContext — principal resolution)
- * @seeAlso functions/auth.ts (API equivalent)
+ * @cil-generated
  */
 
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/commands/auth.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/cli/commands/auth.ts"]
+// CIL[DOC-MACRO purpose="Module setup and imports for auth.ts"]
+// CIL[DOC-RESPONSIBILITY responsibility="Establish the public surface and dependencies of auth.ts"]
+// CIL[DOC-CONTEXT module=".framework/cli/commands/auth.ts" layer="cli" related_files=".framework/cli/context.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="none" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports required modules for auth.ts" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-AUDIENCE audience="cli"]
+// CIL[DOC-STABILITY stability="stable"]
 import type { Command } from 'commander'
 import { buildCliContext, handleError } from '../context.js'
 
+// CIL[DOC-VECTOR type="context" content="purpose='Module setup and imports for auth.ts'; No verified external callers; imports: .framework/cli/context.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/cli/commands/auth.ts:module_header:module_header"]
+// CIL[BEGIN stable_id="~/.framework/cli/commands/auth.ts:registerAuthCommands:function" type="function" identity="registerAuthCommands" parent="~/.framework/cli/commands/auth.ts"]
+// CIL[DOC-MACRO purpose="Implement registerAuthCommands"]
+// CIL[DOC-RESPONSIBILITY responsibility="Execute the core logic for registerAuthCommands"]
+// CIL[DOC-CONTEXT module=".framework/cli/commands/auth.ts" layer="cli" related_files=".framework/cli/commands/auth.ts,.framework/cli/context.ts"]
+// CIL[DOC-CONTRACT inputs="program: Command" outputs="result of the operation" errors="propagates dependency errors" side_effects="writes to stdout/stderr; calls process.exit"]
+// CIL[DOC-MICRO logic_summary="Processes inputs, performs work, and returns output for registerAuthCommands" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 /**
- * Registers the `auth` subcommand group on the root Commander program.
+ * Registers authentication-related commands for the CLI, enabling users to manage their identity and validate credentials. This module provides commands for displaying the current user's identity and checking credential validity.
  *
- * @param program - The root `spine` Commander instance
- * @sideEffects Adds `auth whoami` and `auth check` subcommands to `program`
- * @calledBy cli/index.ts
+ * @macro       Command registration handler for authentication operations.
+ * @micro       Defines subcommands under the 'auth' command with specific actions for each.
+ * @inputSpec
+ *   program: Command (required) — the CLI program instance to register commands with.
+ * @outputSpec  none
+ * @sideEffects none
+ * @stability   internal
+ * @calls       buildCliContext, handleError
+ * @errorHandling none
+ * @cil-generated
  */
 export function registerAuthCommands(program: Command) {
   const auth = program
@@ -92,3 +118,10 @@ export function registerAuthCommands(program: Command) {
       }
     })
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Implement registerAuthCommands'; No verified external callers; imports: .framework/cli/context.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/cli/commands/auth.ts:registerAuthCommands:function"]

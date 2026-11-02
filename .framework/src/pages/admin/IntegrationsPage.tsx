@@ -1,26 +1,65 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/IntegrationsPage.tsx"]
 /**
- * @module src/pages/admin/IntegrationsPage
- * @audience installer
- * @layer frontend-page
+ * @module   IntegrationsPage
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Admin list page for third-party integrations (integration instances).
- * Fetches all integration instances via `/api/integrations?action=list`,
- * applies client-side search, status filter, and sort. Renders inside
- * `AdminListPage`. Row clicks navigate to
- * `/spine-framework/admin/configs/integrations/:id`.
+ * The IntegrationsPage module provides an interface for managing integrations within the admin panel of the application. It allows users to view, sort, and interact with a list of integrations, leveraging various UI components for enhanced user experience.
+ * INVARIANT: The user must have admin privileges to access this page.
  *
- * @seeAlso src/pages/admin/IntegrationDetailPage.tsx
+ * @seeAlso AdminListPage (provides the list view for integrations).
+ * @seeAlso SortableTableHeader (enables sorting functionality for the integration list).
+ * @seeAlso useApi (custom hook for API interactions).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
+
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Link, CheckCircle, AlertTriangle, Settings, Cog } from 'lucide-react';
 import { formatDateTime } from '../../lib/utils'
 import { apiFetch } from '../../lib/api'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 import { useApi } from '../../hooks/useApi'
+// CIL[END stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:Integration:interface" type="interface" identity="Integration" parent="~/.framework/src/pages/admin/IntegrationsPage.tsx"]
+/**
+ * The Integration interface defines the structure for integration objects used in the admin panel, encapsulating essential details about each integration, including its status and configuration.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface Integration {
   id: string
   name: string
@@ -46,15 +85,45 @@ interface Integration {
     email: string
   }
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:Integration:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:IntegrationsPage:component" type="component" identity="IntegrationsPage" parent="~/.framework/src/pages/admin/IntegrationsPage.tsx"]
+/**
+ * The IntegrationsPage component manages the display and filtering of integrations within an admin interface. It allows users to search, sort, and navigate to detailed views of integrations.
+ *
+ * @macro       Admin interface component for managing integrations.
+ * @micro       Utilizes state management for search, filtering, and sorting of integration data fetched from an external API.
+ * @outputSpec  JSX.Element
+ * @throws      Error — if the API response is not ok
+ * @sideEffects Fetches integration data from an external API.
+ * @stability   internal
+ * @calls       useApi, apiFetch, useNavigate
+ * @errorHandling throws an error if the API response is not ok
+ * @cil-generated
+ */
 export function IntegrationsPage() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
   const [sortKey, setSortKey] = useState('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // Fetch integrations from API
   const { data: integrations, loading, error } = useApi<Integration[]>(
     async ({ signal }: { signal?: AbortSignal }) => {
       const response = await apiFetch('/api/integrations?action=list', { signal })
@@ -78,7 +147,6 @@ export function IntegrationsPage() {
 
   const types = Array.from(new Set((integrations || []).map(i => i.integration_type)))
 
-  // Helper functions
   const getStatusBadge = (integration: Integration) => {
     if (!integration.is_active) {
       return <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-800">Inactive</span>
@@ -102,10 +170,9 @@ export function IntegrationsPage() {
   }
 
   const handleRowClick = (integration: Integration) => {
-    window.location.href = `/spine-framework/admin/configs/integrations/${integration.id}`
+    navigate(`/spine-framework/admin/configs/integrations/${integration.id}`)
   }
 
-  // Sort integrations
   const sortedIntegrations = [...(filteredIntegrations || [])].sort((a, b) => {
     let aValue: any = a[sortKey as keyof Integration]
     let bValue: any = b[sortKey as keyof Integration]
@@ -299,3 +366,10 @@ export function IntegrationsPage() {
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/IntegrationsPage.tsx:IntegrationsPage:component"]
+
+
+
+
+
+

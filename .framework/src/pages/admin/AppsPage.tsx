@@ -1,9 +1,40 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AppsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/AppsPage.tsx"]
+/**
+ * @module   AppsPage
+ * @audience both
+ * @layer    shared-core
+ * @stability stable
+ *
+ * This module represents the AppsPage component in the admin section of the application, providing a user interface for managing applications. It integrates with various UI components and hooks to fetch and display application data in a structured format.
+ * INVARIANT: The user must have admin privileges to access this page.
+ *
+ * @seeAlso useApi (provides API interaction capabilities).
+ * @seeAlso apiFetch (handles API requests).
+ * @seeAlso AdminListPage (base component for admin list views).
+ * @seeAlso SortableTableHeader (for managing sortable table headers).
+ *
+ * @cil-generated
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
 import { formatDateTime } from '../../lib/utils'
 import { 
+// CIL[END stable_id="~/.framework/src/pages/admin/AppsPage.tsx:module_header:module_header"]
   Plus,
   Box,
   FileText,
@@ -26,6 +57,30 @@ import {
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AppsPage.tsx:App:interface" type="interface" identity="App" parent="~/.framework/src/pages/admin/AppsPage.tsx"]
+/**
+ * The App interface defines the structure of an application object used within the admin module. It encapsulates essential properties related to an application, such as its identification, configuration, and status.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface App {
   id: string
   slug: string
@@ -36,15 +91,44 @@ interface App {
   config: Record<string, any>
   is_active: boolean
   is_public: boolean
+  is_system?: boolean
+  source?: string
   created_at: string
-  updated_at: string
-  created_by: string
-  account_id: string
-  account_name: string
-  item_count: number
-  user_count: number
+  updated_at?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AppsPage.tsx:App:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/AppsPage.tsx:AppsPage:component" type="component" identity="AppsPage" parent="~/.framework/src/pages/admin/AppsPage.tsx"]
+/**
+ * The AppsPage component displays a list of applications with filtering, sorting, and navigation capabilities. It fetches app data from an API and allows users to search and filter based on type and status.
+ *
+ * @macro       User interface component for managing and displaying applications.
+ * @micro       Utilizes a custom hook to fetch app data from an external API and manages local state for search and filters.
+ * @outputSpec  JSX.Element — renders the application management interface.
+ * @throws      Error — failed to fetch apps
+ * @sideEffects Fetches data from the external API endpoint '/api/apps?action=list'.
+ * @stability   internal
+ * @calls       useApi, apiFetch, navigate
+ * @errorHandling none
+ * @cil-generated
+ */
 export function AppsPage() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
@@ -65,9 +149,8 @@ export function AppsPage() {
 
   const appTypes = [
     { value: 'all', label: 'All Types' },
-    { value: 'core', label: 'Core Apps' },
-    { value: 'custom', label: 'Custom Apps' },
-    { value: 'marketplace', label: 'Marketplace' }
+    ...Array.from(new Set((apps || []).map(a => a.app_type).filter(Boolean)))
+      .map(type => ({ value: type, label: type.charAt(0).toUpperCase() + type.slice(1) }))
   ]
 
   const filteredApps = (apps || []).filter(app => {
@@ -184,14 +267,14 @@ export function AppsPage() {
       iconColor: 'text-green-500'
     },
     {
-      title: 'Total Items',
-      value: (apps || []).reduce((sum, app) => sum + (app.item_count || 0), 0),
+      title: 'System Apps',
+      value: (apps || []).filter(a => a.is_system).length,
       icon: FileText,
       iconColor: 'text-purple-500'
     },
     {
-      title: 'Total Users',
-      value: (apps || []).reduce((sum, app) => sum + (app.user_count || 0), 0),
+      title: 'Custom Apps',
+      value: (apps || []).filter(a => a.app_type === 'custom').length,
       icon: Calendar,
       iconColor: 'text-orange-500'
     }
@@ -277,8 +360,8 @@ export function AppsPage() {
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Resources"
-                sortKey="item_count"
+                title="Source"
+                sortKey="source"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -334,10 +417,7 @@ export function AppsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  <div className="flex flex-col">
-                    <span>{app.item_count} items</span>
-                    <span>{app.user_count} users</span>
-                  </div>
+                  {app.source || '—'}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDateTime(app.created_at)}
@@ -347,9 +427,17 @@ export function AppsPage() {
                 </TableCell>
               </TableRow>
             ))}
+
           </TableBody>
         </Table>
       )}
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/AppsPage.tsx:AppsPage:component"]
+
+
+
+
+
+

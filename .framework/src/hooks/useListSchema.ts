@@ -1,57 +1,87 @@
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useListSchema.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/hooks/useListSchema.ts"]
 /**
- * @module src/hooks/useListSchema
- * @audience installer
- * @layer frontend-hook
+ * @module   useListSchema
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Resolves the `DesignSchema` and target `View` for a list page. Because
- * the `design_schema` is stamp-copied onto records, this hook uses a
- * two-stage resolution strategy to handle stale or missing stamps:
+ * This module provides hooks for managing and interacting with list schemas in the application. It utilizes React's state and effect hooks to fetch and update schema data from an API. INVARIANT: The component using this hook must be wrapped in a provider that supplies the necessary context for API calls.
  *
- * **Resolution order:**
- * 1. Fetch one sample record via `admin-data?action=list&limit=1`
- * 2. If the sample record's `design_schema` has the requested view, use it
- * 3. Otherwise, fall back to the canonical `types` table entry for the entity kind
- * 4. If no records exist, return a minimal fallback schema so the page renders
+ * @seeAlso apiFetch (handles API requests).
+ * @seeAlso DesignSchema (defines the structure of the schema data).
+ * @seeAlso View (represents the UI components that utilize the schema).
  *
- * **Auth retry:** Auth errors (JWT not ready) trigger a 300 ms retry instead
- * of silently falling back to an empty schema (which would render a blank list).
- *
- * **Entity → kind mapping** (used for the types fallback):
- * `accounts→account`, `people→person`, `items→item`, `threads→thread`,
- * `messages→message`, `links→link`, `attachments→attachment`, `watchers→watcher`
- *
- * @seeAlso src/lib/api.ts (apiFetch)
- * @seeAlso src/types/types.ts (DesignSchema, View)
- * @seeAlso src/components/runtime/DataListPage.tsx (primary consumer)
- * @seeAlso functions/admin-data.ts (list action endpoint)
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
 
 import { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/api'
 import { DesignSchema, View } from '../types/types'
+// CIL[END stable_id="~/.framework/src/hooks/useListSchema.ts:module_header:module_header"]
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useListSchema.ts:UseListSchemaOptions:interface" type="interface" identity="UseListSchemaOptions" parent="~/.framework/src/hooks/useListSchema.ts"]
 /**
- * Options for `useListSchema`.
+ * The UseListSchemaOptions interface defines the options for using a list schema in the framework, allowing for the specification of an entity and an optional view slug for enhanced flexibility in list management.
  *
- * @prop entity - Entity table name (e.g. `'accounts'`, `'items'`)
- * @prop viewSlug - View key in `design_schema.views`; defaults to `'default_list'`
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
  */
 interface UseListSchemaOptions {
   entity: string
   viewSlug?: string
 }
+// CIL[END stable_id="~/.framework/src/hooks/useListSchema.ts:UseListSchemaOptions:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useListSchema.ts:UseListSchemaResult:interface" type="interface" identity="UseListSchemaResult" parent="~/.framework/src/hooks/useListSchema.ts"]
 /**
- * Return value of `useListSchema`.
+ * The UseListSchemaResult interface defines the structure of the result returned by the useListSchema hook, which is used to manage and retrieve schema data in a React application. It provides information about the loading state, any errors, and a method to refetch the data.
  *
- * @prop schema - Resolved `DesignSchema` or null while loading
- * @prop view - The specific `View` for `viewSlug`, or null while loading
- * @prop loading - True during initial fetch and auth retry
- * @prop error - Error message if schema resolution fails
- * @prop refetch - Manually re-run schema resolution
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
  */
 interface UseListSchemaResult {
   schema: DesignSchema | null
@@ -60,28 +90,38 @@ interface UseListSchemaResult {
   error: string | null
   refetch: () => void
 }
+// CIL[END stable_id="~/.framework/src/hooks/useListSchema.ts:UseListSchemaResult:interface"]
 
-// ─── HOOK ────────────────────────────────────────────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useListSchema.ts:useListSchema:hook" type="hook" identity="useListSchema" parent="~/.framework/src/hooks/useListSchema.ts"]
 /**
- * Resolves the `DesignSchema` and target `View` for a list page, using a
- * two-stage fallback strategy (stamped record → canonical type → minimal fallback).
+ * The useListSchema hook fetches and manages the schema and view for a specified entity in a list format, handling loading states and errors while providing a fallback schema if no data is available.
  *
- * @param options.entity - Entity name, e.g. `'accounts'`
- * @param options.viewSlug - View key; defaults to `'default_list'`
- * @returns `UseListSchemaResult` — schema, view, loading, error, refetch
- *
- * @inputSpec options.entity: string — must be non-empty or an error is set
- * @outputSpec schema: DesignSchema — minimal fallback if no records exist
- * @outputSpec view: View — matches `viewSlug` from the resolved schema
- * @throws never (all errors are caught and stored in `error` state)
- * @sideEffects Network requests (1–2 calls); React state mutations; 300ms setTimeout on auth retry
- * @calledBy DataListPage.tsx
- *
- * @example
- * ```tsx
- * const { schema, view, loading } = useListSchema({ entity: 'accounts' })
- * ```
+ * @macro       Custom React hook for managing entity list schemas.
+ * @micro       Utilizes asynchronous API calls to fetch data and updates state based on the response.
+ * @inputSpec
+ *   - options: UseListSchemaOptions (required) — configuration options including entity and optional viewSlug.
+ * @outputSpec  UseListSchemaResult — an object containing schema, view, loading state, and error message.
+ * @throws      Error — failed to fetch sample record or invalid authentication.
+ * @sideEffects API calls to /api/admin-data and /api/types for fetching schema data.
+ * @stability   internal
+ * @calls       apiFetch
+ * @errorHandling Retries fetching schema on specific authentication errors.
+ * @cil-generated
  */
 export function useListSchema(options: UseListSchemaOptions): UseListSchemaResult {
   const { entity, viewSlug = 'default_list' } = options
@@ -98,7 +138,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
       setLoading(true)
       setError(null)
 
-      // Fetch a sample record to get its design_schema
       const response = await apiFetch(`/api/admin-data?action=list&entity=${entity}&limit=1`)
       
       if (!response.ok) {
@@ -108,9 +147,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
       const data = await response.json()
       
       if (data.error) {
-        // Auth errors (session not yet ready) should not silently fall back to
-        // an empty schema — that causes the list to render with no columns.
-        // Retry once after a short delay to allow the session to hydrate.
         if (
           data.error.includes('Invalid authentication') ||
           data.error.includes('Unauthorized') ||
@@ -124,7 +160,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
         throw new Error(data.error || 'Failed to fetch records')
       }
 
-      // No records yet — use a minimal fallback schema so the list page still renders
       if (!data.data || data.data.length === 0) {
         if (cancelled) return
         const fallback: DesignSchema = {
@@ -151,7 +186,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
 
       const sampleRecord = data.data[0]
       
-      // If the sample record has a design_schema with the requested view, use it directly
       const stampedSchema = sampleRecord.design_schema as DesignSchema | undefined
       const stampedView = stampedSchema?.views?.[viewSlug]
 
@@ -160,18 +194,17 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
         setSchema(stampedSchema)
         setView(stampedView)
       } else {
-        // Schema missing or stale — fetch current design_schema from the types table
         const kindMap: Record<string, string> = { accounts: 'account', people: 'person', items: 'item', threads: 'thread', messages: 'message', links: 'link', attachments: 'attachment', watchers: 'watcher', item_progress: 'progress' }
         const kind = kindMap[entity]
         let resolvedSchema: DesignSchema | null = null
 
         if (kind) {
-          const typeResp = await apiFetch(`/api/types?kind=${kind}&limit=1`)
+          const typeResp = await apiFetch(`/api/types?action=list&kind=${kind}`)
           if (typeResp.ok) {
             const typeData = await typeResp.json()
-            const typeRecord = typeData.data?.[0]
-            if (typeRecord?.design_schema) {
-              resolvedSchema = typeRecord.design_schema as DesignSchema
+            const typeRecords = Array.isArray(typeData.data) ? typeData.data : []
+            if (typeRecords.length === 1 && typeRecords[0]?.design_schema) {
+              resolvedSchema = typeRecords[0].design_schema as DesignSchema
             }
           }
         }
@@ -183,7 +216,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
             setSchema(resolvedSchema)
             setView(resolvedView)
           } else {
-            // Schema found but view key missing — use minimal fallback
             const fallback: DesignSchema = {
               fields: {},
               record_permissions: {},
@@ -205,7 +237,6 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
             setView(fallback.views![viewSlug]!)
           }
         } else {
-          // No type found in registry — use minimal fallback
           const fallback: DesignSchema = {
             fields: {},
             record_permissions: {},
@@ -262,3 +293,10 @@ export function useListSchema(options: UseListSchemaOptions): UseListSchemaResul
     refetch: fetchSchema
   }
 }
+// CIL[END stable_id="~/.framework/src/hooks/useListSchema.ts:useListSchema:hook"]
+
+
+
+
+
+

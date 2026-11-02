@@ -1,21 +1,37 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
 /**
- * @module src/pages/admin/ObservabilityDashboard
- * @audience installer
- * @layer frontend-page
+ * @module   ObservabilityDashboard
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * System observability dashboard. Fetches aggregated metrics from
- * `/api/admin-data?action=metrics` and renders time-series line charts,
- * bar charts, and pie charts using `recharts`. Covers request rates,
- * error rates, pipeline execution counts, and resource utilisation.
- * Data is re-fetched on a configurable auto-refresh interval.
+ * This module renders the Observability Dashboard, providing visualizations for monitoring system performance and health. It utilizes various chart components to display data fetched from APIs, allowing users to gain insights into application metrics.
+ * INVARIANT: The dashboard requires valid API endpoints to function correctly.
  *
- * @seeAlso src/pages/admin/LogsPage.tsx
- * @seeAlso src/pages/admin/AlertsConfigPage.tsx
+ * @seeAlso useApi (for API interaction).
+ * @seeAlso LoadingSpinner (for loading states).
+ * @seeAlso PageInstructions (for user guidance).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import React, { useState, useEffect, useMemo } from 'react'
 import {
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:module_header:module_header"]
   LineChart,
   Line,
   BarChart,
@@ -37,36 +53,184 @@ import { apiFetch } from '../../lib/api'
 import { formatDateTime } from '../../lib/utils'
 import { Link } from 'react-router-dom'
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:MetricData:interface" type="interface" identity="MetricData" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The MetricData interface defines the structure for metric data used in the observability dashboard. It encapsulates the essential properties needed to represent a metric's bucket and its count.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface MetricData {
   bucket: string
   count: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:MetricData:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:ErrorRateData:interface" type="interface" identity="ErrorRateData" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The ErrorRateData interface defines the structure for representing error rate metrics in the observability dashboard. It provides essential data points for monitoring application performance and reliability.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface ErrorRateData {
   total: number
   errors: number
   rate: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:ErrorRateData:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:LatencyData:interface" type="interface" identity="LatencyData" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The LatencyData interface defines a structure for capturing latency metrics at various percentiles. It provides a standardized way to represent and access latency statistics in the observability dashboard.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface LatencyData {
   p50: number
   p90: number
   p95: number
   p99: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:LatencyData:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:PipelineStats:interface" type="interface" identity="PipelineStats" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The PipelineStats interface defines the structure for tracking the statistics of a data processing pipeline, including its success and failure counts as well as average duration. It exists to provide a standardized way to represent and access these metrics within the observability dashboard.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface PipelineStats {
   pipeline_id: string
   success_count: number
   failure_count: number
   avg_duration_ms: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:PipelineStats:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:TopActor:interface" type="interface" identity="TopActor" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The TopActor interface defines the structure for representing an actor in the observability dashboard, including their unique identifier and the count of events associated with them. It facilitates the management and display of actor-related data within the application.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface TopActor {
   principal_id: string
   event_count: number
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:TopActor:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:AlertEvent:interface" type="interface" identity="AlertEvent" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The AlertEvent interface defines the structure of an alert event object used in the observability dashboard. It captures key details about the alert, including its identifier, metric, threshold, actual value, and creation timestamp.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 interface AlertEvent {
   id: string
   metric: string
@@ -74,9 +238,69 @@ interface AlertEvent {
   actual_value: number
   created_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:AlertEvent:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:COLORS:constant" type="constant" identity="COLORS" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * COLORS is an array of hex color codes used for visual representation in the Observability Dashboard. It provides a consistent color scheme for various UI elements.
+ *
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
+ */
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:COLORS:constant"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:ObservabilityDashboard:component" type="component" identity="ObservabilityDashboard" parent="~/.framework/src/pages/admin/ObservabilityDashboard.tsx"]
+/**
+ * The ObservabilityDashboard component provides a user interface for monitoring various metrics related to system observability, such as event volume, error rates, and latency. It allows users to select time ranges and refresh intervals for the displayed data.
+ *
+ * @macro       UI component for displaying observability metrics.
+ * @micro       Utilizes multiple asynchronous API calls to fetch and display observability data based on user-selected parameters.
+ * @outputSpec  JSX.Element — renders the observability dashboard UI.
+ * @sideEffects Makes external API calls to fetch observability data.
+ * @stability   internal
+ * @calls       useApi, apiFetch
+ * @errorHandling returns default values on API call failures.
+ * @cil-generated
+ */
 export function ObservabilityDashboard() {
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h')
   const [refreshInterval, setRefreshInterval] = useState(30)
@@ -95,13 +319,14 @@ export function ObservabilityDashboard() {
         from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         break
     }
+
     return {
       from: from.toISOString(),
       to: now.toISOString(),
     }
   }, [timeRange])
 
-  // Event volume data
+  
   const { data: eventVolume, loading: loadingVolume, refetch: refetchVolume } = useApi<MetricData[]>(
     async () => {
       const bucket = timeRange === '1h' ? 'minute' : timeRange === '24h' ? 'hour' : 'day'
@@ -123,7 +348,7 @@ export function ObservabilityDashboard() {
     { immediate: true, deps: [timeRange] }
   )
 
-  // Error rate data
+  
   const { data: errorRate, loading: loadingError, refetch: refetchError } = useApi<ErrorRateData>(
     async () => {
       const response = await apiFetch(
@@ -136,7 +361,7 @@ export function ObservabilityDashboard() {
     { immediate: true, deps: [timeRange] }
   )
 
-  // Latency percentiles
+  
   const { data: latency, loading: loadingLatency, refetch: refetchLatency } = useApi<LatencyData>(
     async () => {
       const response = await apiFetch(
@@ -149,7 +374,7 @@ export function ObservabilityDashboard() {
     { immediate: true, deps: [timeRange] }
   )
 
-  // Pipeline stats
+  
   const { data: pipelineStats, loading: loadingPipelines, refetch: refetchPipelines } = useApi<PipelineStats[]>(
     async () => {
       const response = await apiFetch(
@@ -162,7 +387,7 @@ export function ObservabilityDashboard() {
     { immediate: true, deps: [timeRange] }
   )
 
-  // Top actors
+  
   const { data: topActors, loading: loadingActors, refetch: refetchActors } = useApi<TopActor[]>(
     async () => {
       const response = await apiFetch(
@@ -175,18 +400,20 @@ export function ObservabilityDashboard() {
     { immediate: true, deps: [timeRange] }
   )
 
-  // Recent alerts
+  
   const { data: recentAlerts } = useApi<AlertEvent[]>(
     async () => {
-      const response = await apiFetch('/api/logs?action=account&event=threshold.breached&limit=5')
+      const response = await apiFetch(
+        `/api/logs?action=account&event=threshold.breached&date_from=${encodeURIComponent(timeParams.from)}&date_to=${encodeURIComponent(timeParams.to)}&limit=5`
+      )
       if (!response.ok) return []
       const result = await response.json()
       return (result.data || result || []).slice(0, 5)
     },
-    { immediate: true }
+    { immediate: true, deps: [timeRange] }
   )
 
-  // Auto refresh
+  
   useEffect(() => {
     const interval = setInterval(() => {
       refetchVolume()
@@ -230,7 +457,7 @@ export function ObservabilityDashboard() {
       bgColor: latency && latency.p95 > 2000 ? 'bg-red-50' : 'bg-green-50',
     },
     {
-      title: 'Active Pipelines',
+      title: 'Pipelines with runs',
       value: pipelineStats?.length || 0,
       icon: RefreshCw,
       iconColor: 'text-purple-500',
@@ -280,7 +507,6 @@ export function ObservabilityDashboard() {
           </Button>
         </div>
       </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((card) => (
@@ -310,7 +536,7 @@ export function ObservabilityDashboard() {
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Event Volume</h3>
               <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" debounce={50}>
                   <LineChart data={eventVolume || []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="bucket" tick={{ fontSize: 12 }} />
@@ -371,7 +597,7 @@ export function ObservabilityDashboard() {
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Pipeline Health</h3>
               <div className="h-64">
                 {pipelineChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                     <BarChart data={pipelineChartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -468,3 +694,10 @@ export function ObservabilityDashboard() {
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/ObservabilityDashboard.tsx:ObservabilityDashboard:component"]
+
+
+
+
+
+

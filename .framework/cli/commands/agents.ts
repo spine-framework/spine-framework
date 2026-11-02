@@ -1,44 +1,63 @@
-/// <reference types="node" />
 /**
- * @module cli/commands/agents
- * @audience installer
- * @layer cli
+ * @module   agents
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * `spine agents` command group. Sends messages to AI agent threads and
- * inspects thread state from the terminal or an agentic IDE. `agents run`
- * calls `runAgent` — the same function used by API handlers — so responses
- * are recorded in the `messages` table like any other agent turn.
+ * This module provides command-line interface (CLI) commands for managing agents within the system. It serves as a bridge between user input and the underlying agent functionalities, facilitating operations such as running agents and interacting with the admin database. INVARIANT: The commands must be executed within a valid CLI context to ensure proper functionality.
  *
- * **Commands:**
- * | Subcommand                                       | Description                           |
- * |--------------------------------------------------|---------------------------------------|
- * | `agents run <threadId> --message <text>`         | Send a message and print the response |
- * | `agents threads list [--account <id>]`           | List agent threads                    |
- * | `agents threads get <id> [--limit <n>]`          | Show thread + recent messages         |
+ * @seeAlso context.ts (provides CLI context management).
+ * @seeAlso _shared/index.ts (contains shared functions for agent operations).
  *
- * **Usage:**
- * ```bash
- * spine agents run <uuid> --message "Summarize the last 10 tickets" --json
- * spine agents threads list --account <id> --limit 10
- * spine agents threads get <uuid>
- * ```
- *
- * @seeAlso cli/context.ts (buildCliContext)
- * @seeAlso functions/_shared/agent-runner.ts (runAgent)
- * @seeAlso functions/ai-agents.ts (agent configuration CRUD)
+ * @cil-generated
  */
 
+
+
+
+// CIL[BEGIN stable_id="~/.framework/cli/commands/agents.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/cli/commands/agents.ts"]
+// CIL[DOC-AUDIENCE audience="both"]
+// CIL[DOC-MACRO purpose="Top-level module imports for the agents CLI command set."]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare the external dependencies used by the agents CLI commands."]
+// CIL[DOC-CONTEXT module="agents" layer="shared-core" related_files=".framework/cli/context.ts,.framework/functions/_shared/index.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="Command type and shared helper functions for the agents command module" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Imports the Commander Command type, CLI context utilities, and shared agent functions." notable_decisions="Uses explicit .ts extensions on relative imports."]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stable]
 import type { Command } from 'commander'
 import { buildCliContext, printResult, handleError } from '../context.ts'
 import { runAgent, adminDb } from '../../functions/_shared/index.ts'
 
+
+
+// CIL[DOC-VECTOR type="context" content="purpose='Top-level module imports for the agents CLI command set.'; No verified external callers; imports: .framework/cli/context.ts,.framework/functions/_shared/index.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/cli/commands/agents.ts:module_header:module_header"]
+// CIL[BEGIN stable_id="~/.framework/cli/commands/agents.ts:registerAgentCommands:function" type="function" identity="registerAgentCommands" parent="~/.framework/cli/commands/agents.ts"]
+// CIL[DOC-MACRO purpose="Register agent and thread subcommands with a Commander program."]
+// CIL[DOC-RESPONSIBILITY responsibility="Attach 'agents run', 'threads list', and 'threads get' command handlers to the program."]
+// CIL[DOC-CONTEXT module="agents" layer="shared-core" related_files=".framework/cli/commands/agents.ts,.framework/cli/context.ts,.framework/functions/_shared/index.ts"]
+// CIL[DOC-CONTRACT inputs="program: Commander Command" outputs="none (mutates the program)" errors="throws Error for database or runtime failures, handled by handleError" side_effects="registers CLI commands, queries the admin database, prints to stdout"]
+// CIL[DOC-MICRO logic_summary="Creates the 'agents' command group and attaches run/list/get actions, builds CLI context, calls runAgent and adminDb queries, and prints results." notable_decisions="Uses async action handlers; supports optional account scoping and JSON output."]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY internal]
 /**
- * Registers the `agents` subcommand group on the root Commander program.
+ * Registers commands for interacting with AI agents, including sending messages and managing agent threads. This module facilitates user interaction with agent functionalities through a command-line interface.
  *
- * @param program - The root `spine` Commander instance
- * @sideEffects Adds `agents run`, `agents threads list/get` subcommands to `program`
- * @calledBy cli/index.ts
+ * @macro       Command registration handler for AI agent operations.
+ * @micro       Defines nested commands for running agents and managing threads, utilizing asynchronous actions to handle user input.
+ * @inputSpec
+ *   program: Command (required) — The command program instance to register agent commands with.
+ * @outputSpec  none
+ * @sideEffects none
+ * @stability   internal
+ * @calls       buildCliContext, runAgent, adminDb.from, printResult, handleError
+ * @errorHandling catches and handles errors during command execution.
+ * @cil-generated
  */
 export function registerAgentCommands(program: Command) {
   const agents = program
@@ -151,3 +170,10 @@ export function registerAgentCommands(program: Command) {
       }
     })
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Register agent and thread subcommands with a Commander program.'; No verified external callers; imports: .framework/cli/context.ts,.framework/functions/_shared/index.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/cli/commands/agents.ts:registerAgentCommands:function"]

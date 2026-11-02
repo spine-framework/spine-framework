@@ -1,238 +1,94 @@
-/**
- * @module src/pages/admin/EmbeddingsPage
- * @audience installer
- * @layer frontend-page
- * @stability stable
- *
- * Admin list page for embedding model configurations. Fetches all models
- * via `/api/embeddings?action=list`, applies client-side search, provider
- * filter (`openai` | `anthropic` | `local` | `custom`), and sort. Renders
- * inside `AdminListPage`. Row clicks navigate to
- * `/spine-framework/admin/configs/embeddings/:id`.
- *
- * @seeAlso src/pages/admin/EmbeddingDetailPage.tsx
- */
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/EmbeddingsPage.tsx"]
+// CIL[DOC-MACRO purpose="Admin page for inspecting public.embeddings records"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declares this file as an admin list page for public.embeddings vector records"]
+// CIL[DOC-CONTEXT module="admin" layer="page" related_files=".framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/PageInstructions.tsx,.framework/src/components/admin/SortableTableHeader.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="module scope" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Top-level file scope for the Embeddings admin page" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="developers, admin ui maintainers"]
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, FileText, CheckCircle, BarChart3 } from 'lucide-react';
-import { formatDateTime, formatFileSize } from '../../lib/utils'
+import { FileText, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { formatDateTime } from '../../lib/utils'
 import { AdminListPage } from '../../components/admin/AdminListPage'
 import { SortableTableHeader } from '../../components/admin/SortableTableHeader'
-import { Badge } from '../../components/ui/badge'
 import { useApi } from '../../hooks/useApi'
 import { apiFetch } from '../../lib/api'
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:module_header:module_header"]
 
-interface EmbeddingModel {
+
+// CIL[DOC-VECTOR type="context" content="purpose='Admin page for inspecting public.embeddings records'; No verified external callers; imports: .framework/src/lib/utils.ts,.framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/SortableTableHeader.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[DOC-MACRO purpose="TypeScript type for a public.embeddings row"]
+// CIL[DOC-RESPONSIBILITY responsibility="Define the typed shape of an embedding record"]
+// CIL[DOC-CONTEXT module="admin" layer="types" related_files=".framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/PageInstructions.tsx,.framework/src/components/admin/SortableTableHeader.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts,.framework/src/pages/admin/EmbeddingsPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="EmbeddingRecord interface" errors="none" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Structured contract describing an embedding vector row" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:EmbeddingRecord:interface" type="interface" identity="EmbeddingRecord" parent="~/.framework/src/pages/admin/EmbeddingsPage.tsx"]
+interface EmbeddingRecord {
   id: string
-  name: string
-  description?: string
-  model_name: string
-  provider: 'openai' | 'anthropic' | 'local' | 'custom'
-  config: {
-    dimension: number
-    chunk_size: number
-    overlap: number
-    batch_size: number
-  }
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  created_by: string
   account_id: string
-  document_count: number
-  embedding_count: number
-  storage_size: number
-}
-
-interface EmbeddingDocument {
-  id: string
   model_id: string
-  title: string
-  content_type: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  chunk_count: number
-  embedding_count: number
+  document_id: string
+  chunk_index: number
+  content: string
+  embedding: number[]
+  metadata: Record<string, any> | null
+  approved_at: string | null
+  revoked_at: string | null
+  content_hash: string
   created_at: string
   updated_at: string
-  created_by: string
-  error?: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:EmbeddingRecord:interface"]
+// CIL[DOC-VECTOR type="context" content="purpose='TypeScript type for a public.embeddings row'; No verified external callers; imports: .framework/src/lib/utils.ts,.framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/SortableTableHeader.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
 
-interface EmbeddingSearch {
-  query: string
-  results: Array<{
-    document_id: string
-    document_title: string
-    chunk_content: string
-    similarity_score: number
-    chunk_index: number
-  }>
-  search_time: number
-  total_results: number
-}
 
+// CIL[DOC-MACRO purpose="Render the admin embeddings list page with search, sorting, and status indicators"]
+// CIL[DOC-RESPONSIBILITY responsibility="Fetch and display public.embeddings records; handle search, sort, and navigation to the detail view"]
+// CIL[DOC-CONTEXT module="admin" layer="component" related_files=".framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/PageInstructions.tsx,.framework/src/components/admin/SortableTableHeader.tsx,.framework/src/hooks/useApi.ts,.framework/src/lib/api.ts,.framework/src/lib/utils.ts,.framework/src/pages/admin/EmbeddingsPage.tsx"]
+// CIL[DOC-CONTRACT inputs="none" outputs="JSX admin list" errors="throws on fetch failure" side_effects="navigates to /spine-framework/admin/kb/embeddings/:id on row click; calls /api/embeddings?method=GET&action=list over the network"]
+// CIL[DOC-MICRO logic_summary="Fetch records, filter by content/document/model, sort by selected key/direction, compute status badges, and render a table with PageInstructions" notable_decisions="['Searches content, document_id, and model_id via lowercase substring', 'Sort supports string and number fields', 'Status derived from revoked_at and approved_at', 'Row click navigates to the detail view']"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:EmbeddingsPage:component" type="component" identity="EmbeddingsPage" parent="~/.framework/src/pages/admin/EmbeddingsPage.tsx"]
 export function EmbeddingsPage() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProvider, setSelectedProvider] = useState('all')
-  const [selectedStatus, setSelectedStatus] = useState('all')
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [sortKey, setSortKey] = useState<string>('created_at')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  // Fetch embeddings from API
-  const { data: embeddings, loading, error, refetch } = useApi<any[]>(
+  const { data: records, loading, error, refetch } = useApi<EmbeddingRecord[]>(
     async () => {
-      try {
-        console.log('Fetching embeddings...')
-        const response = await apiFetch('/api/embeddings?action=list')
-        console.log('Response status:', response.status)
-        
-        if (!response.ok) {
-          console.error('Response not ok:', response.statusText)
-          throw new Error(`Failed to fetch embeddings: ${response.statusText}`)
-        }
-        
-        const result = await response.json()
-        console.log('Raw API result:', result)
-        
-        // Handle both nested and direct responses
-        const embeddings = result.data || result
-        console.log('Embeddings after processing:', embeddings)
-        
-        return embeddings
-      } catch (error) {
-        console.error('Error in EmbeddingsPage:', error)
-        throw error
-      }
+      const response = await apiFetch('/api/embeddings?method=GET&action=list')
+      if (!response.ok) throw new Error('Failed to fetch embeddings')
+      const result = await response.json()
+      return (result.data || result) as EmbeddingRecord[]
     },
     { immediate: true }
   )
 
-  const mockDocuments: EmbeddingDocument[] = [
-    {
-      id: '1',
-      model_id: '1',
-      title: 'User Guide - Getting Started',
-      content_type: 'pdf',
-      status: 'completed',
-      chunk_count: 45,
-      embedding_count: 45,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-      updated_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      created_by: 'Jane Smith'
-    },
-    {
-      id: '2',
-      model_id: '1',
-      title: 'API Documentation',
-      content_type: 'markdown',
-      status: 'processing',
-      chunk_count: 67,
-      embedding_count: 0,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      updated_at: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
-      created_by: 'John Doe'
-    },
-    {
-      id: '3',
-      model_id: '2',
-      title: 'React Components Library',
-      content_type: 'code',
-      status: 'completed',
-      chunk_count: 234,
-      embedding_count: 234,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      updated_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      created_by: 'Mike Johnson'
-    },
-    {
-      id: '4',
-      model_id: '1',
-      title: 'Company Policies',
-      content_type: 'docx',
-      status: 'failed',
-      chunk_count: 0,
-      embedding_count: 0,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      updated_at: new Date(Date.now() - 1000 * 60 * 60 * 23).toISOString(),
-      created_by: 'Admin',
-      error: 'Document format not supported'
-    }
-  ]
-
-  const mockSearchResults: EmbeddingSearch = {
-    query: 'how to reset password',
-    results: [
-      {
-        document_id: '1',
-        document_title: 'User Guide - Getting Started',
-        chunk_content: 'To reset your password, go to the settings page and click on "Reset Password"...',
-        similarity_score: 0.95,
-        chunk_index: 12
-      },
-      {
-        document_id: '1',
-        document_title: 'User Guide - Getting Started',
-        chunk_content: 'Password reset emails are sent to your registered email address...',
-        similarity_score: 0.87,
-        chunk_index: 13
-      },
-      {
-        document_id: '3',
-        document_title: 'React Components Library',
-        chunk_content: 'The PasswordReset component handles user password reset functionality...',
-        similarity_score: 0.72,
-        chunk_index: 45
-      }
-    ],
-    search_time: 0.234,
-    total_results: 3
-  }
-
-  const providers = [
-    { value: 'all', label: 'All Providers' },
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'anthropic', label: 'Anthropic' },
-    { value: 'local', label: 'Local' },
-    { value: 'custom', label: 'Custom' }
-  ]
-
-  const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' }
-  ]
-
-  const filteredModels = (embeddings || []).filter(embedding => {
-    const matchesSearch = embedding.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (embedding.metadata?.source && embedding.metadata.source.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesProvider = selectedProvider === 'all' || embedding.metadata?.source === selectedProvider
-    const matchesStatus = selectedStatus === 'all' || 
-                         (selectedStatus === 'active' && true) || // All embeddings are considered active
-                         (selectedStatus === 'inactive' && false)
-    return matchesSearch && matchesProvider && matchesStatus
+  const filteredRecords = (records || []).filter((record) => {
+    const term = searchTerm.toLowerCase()
+    return (
+      (record.content?.toLowerCase().includes(term) || false) ||
+      (record.document_id?.toLowerCase().includes(term) || false) ||
+      (record.model_id?.toLowerCase().includes(term) || false)
+    )
   })
-
-  // Helper functions
-  const getProviderBadgeColor = (provider: string) => {
-    switch (provider) {
-      case 'openai':
-        return 'bg-green-100 text-green-800'
-      case 'anthropic':
-        return 'bg-blue-100 text-blue-800'
-      case 'local':
-        return 'bg-purple-100 text-purple-800'
-      case 'custom':
-        return 'bg-orange-100 text-orange-800'
-      default:
-        return 'bg-slate-100 text-slate-800'
-    }
-  }
-
-  const getStatusBadgeColor = (isActive: boolean) => {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'
-  }
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -243,121 +99,101 @@ export function EmbeddingsPage() {
     }
   }
 
-  const handleRowClick = (model: EmbeddingModel) => {
-    navigate(`/spine-framework/admin/configs/embeddings/${model.id}`)
-  }
+  const sortedRecords = [...filteredRecords].sort((a, b) => {
+    const aValue: any = a[sortKey as keyof EmbeddingRecord]
+    const bValue: any = b[sortKey as keyof EmbeddingRecord]
 
-  // Sort models
-  const sortedModels = [...filteredModels].sort((a, b) => {
-    let aValue: any = a[sortKey as keyof EmbeddingModel]
-    let bValue: any = b[sortKey as keyof EmbeddingModel]
-    
+    if (aValue == null || bValue == null) return 0
     if (typeof aValue === 'string') {
-      return sortDirection === 'asc' 
+      return sortDirection === 'asc'
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue)
     }
-    
     if (typeof aValue === 'number') {
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
+      return sortDirection === 'asc'
+        ? aValue - bValue
+        : bValue - aValue
     }
-    
     return 0
   })
 
+  const getStatus = (record: EmbeddingRecord) => {
+    if (record.revoked_at) return { label: 'Revoked', color: 'bg-red-100 text-red-700' }
+    if (record.approved_at) return { label: 'Approved', color: 'bg-green-100 text-green-700' }
+    return { label: 'Pending', color: 'bg-slate-100 text-slate-600' }
+  }
+
   const statsCards = [
     {
-      title: 'Total Embeddings',
-      value: (embeddings || []).length,
+      title: 'Total Records',
+      value: (records || []).length,
       icon: FileText,
-      iconColor: 'text-blue-500'
+      iconColor: 'text-blue-600'
     },
     {
-      title: 'Active',
-      value: (embeddings || []).filter(m => m.is_active).length,
+      title: 'Approved',
+      value: (records || []).filter(r => r.approved_at && !r.revoked_at).length,
       icon: CheckCircle,
-      iconColor: 'text-green-500'
+      iconColor: 'text-green-600'
     },
     {
-      title: 'Documents Processed',
-      value: (embeddings || []).length, // Simplified count since embeddings table structure is different
-      icon: BarChart3,
-      iconColor: 'text-orange-500'
-    },
-    {
-      title: 'Last Updated',
-      value: (embeddings || []).length > 0 ? 'Just now' : 'Never',
-      icon: Box,
-      iconColor: 'text-purple-500'
-    }
-  ]
-
-  const filters = [
-    {
-      label: 'Provider',
-      value: selectedProvider,
-      options: providers,
-      onChange: setSelectedProvider
-    },
-    {
-      label: 'Status',
-      value: selectedStatus,
-      options: statusOptions,
-      onChange: setSelectedStatus
+      title: 'Revoked',
+      value: (records || []).filter(r => r.revoked_at).length,
+      icon: XCircle,
+      iconColor: 'text-red-600'
     }
   ]
 
   return (
     <AdminListPage
       title="Embeddings"
-      description="Manage embedding models and document indexes"
-      newButtonText="New Model"
-      newButtonHref="/spine-framework/admin/configs/embeddings/new"
+      description="Inspect runtime vector records from the public.embeddings table"
       statsCards={statsCards}
-      searchPlaceholder="Search models..."
+      searchPlaceholder="Search by content, document, or model..."
       searchValue={searchTerm}
       onSearchChange={setSearchTerm}
-      filters={filters}
-      loading={false}
-      emptyMessage="No embedding models found"
-      emptyIcon={FileText}
+      loading={loading}
+      error={error}
+      onRetry={refetch}
+      emptyMessage="No embedding records found"
+      emptyIcon={AlertCircle}
     >
-      {sortedModels.length === 0 ? (
+      {sortedRecords.length === 0 ? (
         <div className="p-8 text-center">
-          <FileText className="mx-auto h-12 w-12 text-slate-400" />
-          <h3 className="mt-2 text-sm font-medium text-slate-900">No models found</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Try adjusting your search or filters
-          </p>
+          <AlertCircle className="mx-auto h-12 w-12 text-slate-400" />
+          <h3 className="mt-2 text-sm font-medium text-slate-900">No embedding records found</h3>
+          <p className="mt-1 text-sm text-slate-500">Try adjusting your search</p>
         </div>
       ) : (
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
             <tr>
               <SortableTableHeader
-                title="Content"
-                sortKey="content"
+                title="Model ID"
+                sortKey="model_id"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Source/Type"
-                sortKey="metadata.source"
+                title="Document ID"
+                sortKey="document_id"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
               />
               <SortableTableHeader
-                title="Status"
-                sortKey="status"
+                title="Chunk Index"
+                sortKey="chunk_index"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
               />
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Content</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
               <SortableTableHeader
-                title="Dimensions"
-                sortKey="embedding"
+                title="Content Hash"
+                sortKey="content_hash"
                 currentSortKey={sortKey}
                 currentSortDirection={sortDirection}
                 onSort={handleSort}
@@ -372,53 +208,42 @@ export function EmbeddingsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
-            {sortedModels.map((model) => (
-              <tr 
-                key={model.id} 
-                className="hover:bg-slate-50 cursor-pointer transition-colors"
-                onClick={() => handleRowClick(model)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="font-medium text-slate-900">
-                      <span className="text-accent-blue hover:text-navy">
-                        {model.content?.substring(0, 60)}...
-                      </span>
+            {sortedRecords.map((record) => {
+              const status = getStatus(record)
+              return (
+                <tr
+                  key={record.id}
+                  className="hover:bg-slate-50 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/spine-framework/admin/kb/embeddings/${record.id}`)}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{record.model_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{record.document_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{record.chunk_index}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600 max-w-md">
+                    <div className="truncate">
+                      {record.content?.slice(0, 80)}{record.content && record.content.length > 80 ? '...' : ''}
                     </div>
-                    <div className="text-sm text-slate-500">
-                      Chunk {model.chunk_index} • {model.metadata?.type}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="space-y-1">
-                    <Badge variant={getProviderBadgeColor(model.metadata?.source) as any}>
-                      {model.metadata?.source}
-                    </Badge>
-                    <div className="text-sm text-slate-900 font-mono">{model.metadata?.language}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <Badge variant="success">
-                    Active
-                  </Badge>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm text-slate-900">1 chunk</div>
-                    <div className="text-xs text-slate-500">
-                      {model.embedding?.length} dimensions
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                  {formatDateTime(model.created_at)}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${status.color}`}>
+                      {status.label}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 font-mono">{record.content_hash}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{formatDateTime(record.created_at)}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}
     </AdminListPage>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/EmbeddingsPage.tsx:EmbeddingsPage:component"]
+// CIL[DOC-VECTOR type="context" content="purpose='Render the admin embeddings list page with search, sorting, and status indicators'; No verified external callers; imports: .framework/src/lib/utils.ts,.framework/src/components/admin/AdminListPage.tsx,.framework/src/components/admin/SortableTableHeader.tsx"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]

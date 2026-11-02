@@ -1,28 +1,62 @@
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/DataHeader.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/components/runtime/DataHeader.tsx"]
 /**
- * @module src/components/runtime/DataHeader
- * @audience installer
- * @layer frontend-component
+ * @module   DataHeader
+ * @audience both
+ * @layer    shared-core
  * @stability stable
  *
- * Title bar for entity list pages. Renders an entity icon, title,
- * description, and a "New" button that navigates to the create route.
- * The icon name is resolved dynamically from `@heroicons/react`; falls
- * back to `CubeIcon` if the name is unrecognised.
+ * This module defines the DataHeader component, which is responsible for rendering the header section of the data display interface in the application. It leverages React for UI rendering and integrates with React Router for navigation. INVARIANT: The component must always receive valid data props to render correctly.
  *
- * @seeAlso src/components/runtime/DataListPage.tsx (mounts this component)
+ * @seeAlso button.tsx (provides UI button functionality).
+ * @seeAlso react-router-dom (enables navigation within the app).
+ * @seeAlso lucide-react (provides iconography used in the component).
+ *
+ * @cil-generated
  */
 
+
+
+
+
+
+
+
+
+
+
+
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import * as Icons from 'lucide-react'
+// CIL[END stable_id="~/.framework/src/components/runtime/DataHeader.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/DataHeader.tsx:DataHeaderProps:interface" type="interface" identity="DataHeaderProps" parent="~/.framework/src/components/runtime/DataHeader.tsx"]
 /**
- * Props for `DataHeader`.
+ * DataHeaderProps defines the properties required for rendering a data header component, providing essential metadata such as title, icon, description, and a link for a new button.
  *
- * @prop title - Entity name (displayed capitalised)
- * @prop icon - Heroicon name string (e.g. `'UserIcon'`)
- * @prop description - Short subtitle text
- * @prop newButtonHref - URL to navigate to when "New" is clicked
+ * @sideEffects none
+ * @stability   internal
+ * @cil-generated
  */
 interface DataHeaderProps {
   title: string
@@ -30,18 +64,48 @@ interface DataHeaderProps {
   description: string
   newButtonHref: string
 }
+// CIL[END stable_id="~/.framework/src/components/runtime/DataHeader.tsx:DataHeaderProps:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/components/runtime/DataHeader.tsx:DataHeader:component" type="component" identity="DataHeader" parent="~/.framework/src/components/runtime/DataHeader.tsx"]
 /**
- * Entity list page header with title, description, and new-record button.
+ * DataHeader is a React component that displays a header with a title, icon, and description, along with a button to create a new item. It facilitates navigation to a specified URL when the button is clicked.
  *
- * @param props - `DataHeaderProps`
- * @returns Header bar JSX
- * @sideEffects Navigates via `window.location.href` on button click
+ * @macro       Header component for displaying metadata and navigation options.
+ * @micro       Dynamically selects an icon component based on the provided icon name.
+ * @inputSpec
+ *   title: string (required) — the title to display in the header.
+ *   icon: string (required) — the name of the icon to display.
+ *   description: string (optional) — a brief description displayed under the title.
+ *   newButtonHref: string (required) — the URL to navigate to when the button is clicked.
+ * @outputSpec  JSX.Element — renders a header with title, icon, description, and a button.
+ * @sideEffects navigates to a new URL when the button is clicked.
+ * @stability   internal
+ * @calls       useNavigate
+ * @cil-generated
  */
 export function DataHeader({ title, icon, description, newButtonHref }: DataHeaderProps) {
+  const navigate = useNavigate()
   // Dynamically get the icon component
   const IconComponent = (Icons as Record<string, React.ComponentType<{ className?: string }>>)[icon] || Icons.Box
-  
+
   return (
     <div className="flex justify-between items-center">
       <div className="flex items-center gap-3">
@@ -55,9 +119,11 @@ export function DataHeader({ title, icon, description, newButtonHref }: DataHead
           <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
         </div>
       </div>
-      
-      <Button 
-        onClick={() => window.location.href = newButtonHref}
+
+      <Button
+        onClick={() => navigate(newButtonHref)}
+// CIL[END stable_id="~/.framework/src/components/runtime/DataHeader.tsx:DataHeader:component"]
+
         className="flex items-center gap-2"
       >
         <Icons.Plus className="h-4 w-4" />
@@ -66,3 +132,9 @@ export function DataHeader({ title, icon, description, newButtonHref }: DataHead
     </div>
   )
 }
+
+
+
+
+
+

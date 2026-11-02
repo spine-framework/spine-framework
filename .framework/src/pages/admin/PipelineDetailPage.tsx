@@ -1,6 +1,29 @@
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/pages/admin/PipelineDetailPage.tsx"]
 /**
- * @module src/pages/admin/PipelineDetailPage
+ * @module   PipelineDetailPage
+ * @audience internal
+ * @layer    app-specific
+ * @stability stable
+ *
+ * This module represents the Pipeline Detail Page in the admin section of the application, allowing users to view and manage pipeline details. It integrates various UI components for user interaction and data display, relying on API calls to fetch relevant information.
+ * INVARIANT: The user must have appropriate permissions to access this page.
+ *
+ * @seeAlso apiFetch (handles API requests).
+ * @seeAlso PageInstructions (provides guidance on page usage).
+ * @seeAlso EntitySelect (for selecting entities related to the pipeline).
+ *
+ * @cil-generated
  */
+
+
+
+
+
+
+
+
+
+
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
@@ -10,43 +33,144 @@ import { Textarea } from '../../components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Checkbox } from '../../components/ui/checkbox'
 import { Label } from '../../components/ui/label'
+import { AppSelect } from '../../components/admin/EntitySelect'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { ArrowLeft, Play, Pause, AlertCircle } from 'lucide-react'
 import { formatDateTime } from '../../lib/utils'
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:module_header:module_header"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:Pipeline:interface" type="interface" identity="Pipeline" parent="~/.framework/src/pages/admin/PipelineDetailPage.tsx"]
+/**
+ * The Pipeline interface defines the structure for a pipeline object, which represents a sequence of processing stages in a data workflow. It includes properties for identification, configuration, and metadata related to the pipeline's execution.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 interface Pipeline {
   id: string
   name: string
   description?: string
-  status: 'draft' | 'active' | 'paused' | 'archived'
-  steps: Array<{ id: string; name: string; type: string; config: Record<string, any> }>
+  app_id?: string
   trigger_type: 'manual' | 'scheduled' | 'webhook' | 'event'
-  schedule?: string
+  stages?: Array<{ id: string; name: string; type: string; config: Record<string, any> }>
+  config?: Record<string, any>
+  metadata?: Record<string, any>
   is_active: boolean
-  last_run?: string
-  last_run_status?: 'success' | 'failed' | 'running'
-  run_count: number
+  is_system?: boolean
   created_at: string
   updated_at: string
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:Pipeline:interface"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:STATUSES:constant" type="constant" identity="STATUSES" parent="~/.framework/src/pages/admin/PipelineDetailPage.tsx"]
+/**
+ * STATUSES is a constant array that defines the various states a pipeline can be in within the admin interface. It provides a structured way to reference these states throughout the application.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 const STATUSES = [
   { value: 'draft', label: 'Draft' },
   { value: 'active', label: 'Active' },
   { value: 'paused', label: 'Paused' },
   { value: 'archived', label: 'Archived' }
 ]
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:STATUSES:constant"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:TRIGGER_TYPES:constant" type="constant" identity="TRIGGER_TYPES" parent="~/.framework/src/pages/admin/PipelineDetailPage.tsx"]
+/**
+ * TRIGGER_TYPES defines a set of available trigger types for a pipeline, providing a structured way to categorize different triggering mechanisms. This constant is used to facilitate the selection of trigger types in the admin interface.
+ *
+ * @sideEffects none
+ * @stability   stable
+ * @cil-generated
+ */
 const TRIGGER_TYPES = [
   { value: 'manual', label: 'Manual' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'webhook', label: 'Webhook' },
   { value: 'event', label: 'Event' }
 ]
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:TRIGGER_TYPES:constant"]
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// CIL[BEGIN stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:PipelineDetailPage:component" type="component" identity="PipelineDetailPage" parent="~/.framework/src/pages/admin/PipelineDetailPage.tsx"]
+/**
+ * The PipelineDetailPage component manages the creation and editing of pipeline configurations in an admin interface. It fetches existing pipeline data or initializes a new pipeline form based on the provided ID.
+ *
+ * @macro       Component responsible for displaying and managing pipeline details.
+ * @micro       Uses React hooks to manage state and side effects for fetching and saving pipeline data.
+ * @outputSpec  JSX.Element
+ * @sideEffects Fetches data from an external API and navigates to a different route upon saving.
+ * @stability   stable
+ * @calls       apiFetch, useParams, useNavigate
+ * @errorHandling Sets error state on fetch failure.
+ * @cil-generated
+ */
 export function PipelineDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -55,13 +179,24 @@ export function PipelineDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(isCreateMode)
-  const [formData, setFormData] = useState({ name: '', description: '', status: 'draft' as const, trigger_type: 'manual' as const, schedule: '', is_active: true, steps: [] as any[] })
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    app_id: '',
+    trigger_type: 'manual' as const,
+    config: '{}',
+    stages: '[]',
+    metadata: '{}',
+    is_active: true
+  })
 
   useEffect(() => {
     if (isCreateMode) {
       setLoading(false)
       return
     }
+
+
     setLoading(true)
     const fetchPipeline = async () => {
       try {
@@ -71,8 +206,14 @@ export function PipelineDetailPage() {
         const data = result.data
         setPipeline(data)
         setFormData({
-          name: data.name, description: data.description || '', status: data.status, trigger_type: data.trigger_type,
-          schedule: data.schedule || '', is_active: data.is_active, steps: data.steps || []
+          name: data.name,
+          description: data.description || '',
+          app_id: data.app_id || '',
+          trigger_type: data.trigger_type,
+          config: JSON.stringify(data.config || {}, null, 2),
+          stages: JSON.stringify(data.stages || [], null, 2),
+          metadata: JSON.stringify(data.metadata || {}, null, 2),
+          is_active: data.is_active ?? true
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load pipeline')
@@ -85,9 +226,27 @@ export function PipelineDetailPage() {
 
   const handleSave = async () => {
     try {
+      let parsedConfig = {}
+      let parsedStages: any[] = []
+      let parsedMetadata = {}
+      try { parsedConfig = JSON.parse(formData.config) } catch (error) { console.warn('Invalid JSON in config:', error) }
+      try { parsedStages = JSON.parse(formData.stages) } catch (error) { console.warn('Invalid JSON in stages:', error) }
+      try { parsedMetadata = JSON.parse(formData.metadata) } catch (error) { console.warn('Invalid JSON in metadata:', error) }
+
+      const saveData = {
+        name: formData.name,
+        description: formData.description,
+        app_id: formData.app_id || null,
+        trigger_type: formData.trigger_type,
+        is_active: formData.is_active,
+        config: parsedConfig,
+        stages: parsedStages,
+        metadata: parsedMetadata
+      }
+
       const url = isCreateMode ? '/api/pipelines?action=create' : `/api/pipelines?action=update&id=${id}`
       const method = isCreateMode ? 'POST' : 'PATCH'
-      const response = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+      const response = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(saveData) })
       if (!response.ok) throw new Error('Failed to save')
       if (isCreateMode) {
         const result = await response.json()
@@ -100,11 +259,11 @@ export function PipelineDetailPage() {
 
   const toggleStatus = async () => {
     if (!pipeline) return
-    const newStatus = pipeline.status === 'active' ? 'paused' : 'active'
+    const newActive = !pipeline.is_active
     try {
-      const response = await apiFetch(`/api/pipelines?action=update&id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) })
+      const response = await apiFetch(`/api/pipelines?action=update&id=${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: newActive }) })
       if (!response.ok) throw new Error('Failed to update status')
-      setPipeline({ ...pipeline, status: newStatus })
+      setPipeline({ ...pipeline, is_active: newActive })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status')
     }
@@ -128,51 +287,50 @@ export function PipelineDetailPage() {
           <Button variant="ghost" onClick={() => isCreateMode ? navigate('/spine-framework/admin/configs/pipelines') : navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
           <div>
             <h1 className="text-2xl font-bold">{isCreateMode ? 'Create Pipeline' : pipeline?.name}</h1>
-            {pipeline && <Badge variant={pipeline.status === 'active' ? 'default' : pipeline.status === 'paused' ? 'secondary' : 'outline'}>{pipeline.status}</Badge>}
+            {pipeline && <Badge variant={pipeline.is_active ? 'default' : 'secondary'}>{pipeline.is_active ? 'Active' : 'Inactive'}</Badge>}
           </div>
         </div>
         <div className="flex gap-2">
-          {!isCreateMode && pipeline?.status !== 'archived' && (
-            <Button variant="outline" onClick={toggleStatus}>{pipeline?.status === 'active' ? <><Pause className="h-4 w-4 mr-2" />Pause</> : <><Play className="h-4 w-4 mr-2" />Activate</>}</Button>
+          {!isCreateMode && (
+            <Button variant="outline" onClick={toggleStatus}>{pipeline?.is_active ? <><Pause className="h-4 w-4 mr-2" />Pause</> : <><Play className="h-4 w-4 mr-2" />Activate</>}</Button>
           )}
           {isEditing ? (
             <><Button variant="outline" onClick={() => isCreateMode ? navigate(-1) : setIsEditing(false)}>Cancel</Button><Button onClick={handleSave}>{isCreateMode ? 'Create' : 'Save'}</Button></>
           ) : !isCreateMode && <Button onClick={() => setIsEditing(true)}>Edit</Button>}
         </div>
       </div>
-
-      <Card><CardContent className="p-6">
+      <Card><CardContent className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Configuration</h3>
             <div className="space-y-2"><Label>Name</Label>{isEditing ? <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /> : <div className="text-sm">{pipeline?.name}</div>}</div>
-            <div className="space-y-2"><Label>Status</Label>{isEditing ? <Select value={formData.status} onValueChange={v => setFormData({...formData, status: v as any})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select> : <Badge>{pipeline?.status}</Badge>}</div>
+            <div className="space-y-2"><Label>App</Label>{isEditing ? <AppSelect value={formData.app_id} onChange={v => setFormData({...formData, app_id: v})} /> : <div className="text-sm font-mono">{pipeline?.app_id || '—'}</div>}</div>
             <div className="space-y-2"><Label>Trigger Type</Label>{isEditing ? <Select value={formData.trigger_type} onValueChange={v => setFormData({...formData, trigger_type: v as any})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{TRIGGER_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select> : <div className="text-sm">{pipeline?.trigger_type}</div>}</div>
-            {formData.trigger_type === 'scheduled' && <div className="space-y-2"><Label>Schedule (cron)</Label>{isEditing ? <Input value={formData.schedule} onChange={e => setFormData({...formData, schedule: e.target.value})} placeholder="0 0 * * *" /> : <div className="text-sm font-mono">{pipeline?.schedule || '—'}</div>}</div>}
             <div className="space-y-2"><Label>Active</Label>{isEditing ? <div className="flex items-center gap-2"><Checkbox id="active" checked={formData.is_active} onCheckedChange={c => setFormData({...formData, is_active: c === true})} /><Label htmlFor="active">Enabled</Label></div> : <div className="text-sm">{pipeline?.is_active ? 'Yes' : 'No'}</div>}</div>
           </div>
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Execution Info</h3>
             {!isCreateMode && (
               <>
-                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Last Run</span><span className="text-sm">{pipeline?.last_run ? formatDateTime(pipeline.last_run) : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Last Status</span><Badge variant={pipeline?.last_run_status === 'success' ? 'default' : pipeline?.last_run_status === 'failed' ? 'destructive' : 'outline'}>{pipeline?.last_run_status || '—'}</Badge></div>
-                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Total Runs</span><span className="text-sm">{pipeline?.run_count || 0}</span></div>
-                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Steps</span><span className="text-sm">{pipeline?.steps?.length || 0}</span></div>
+                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Active</span><Badge variant={pipeline?.is_active ? 'default' : 'secondary'}>{pipeline?.is_active ? 'Active' : 'Inactive'}</Badge></div>
+                <div className="flex justify-between"><span className="text-sm text-muted-foreground">Stages</span><span className="text-sm">{pipeline?.stages?.length || 0}</span></div>
               </>
             )}
           </div>
         </div>
         <div className="mt-6 space-y-2"><Label>Description</Label>{isEditing ? <Textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} /> : <div className="text-sm">{pipeline?.description || '—'}</div>}</div>
+        <div className="space-y-2"><Label>Config (JSON)</Label>{isEditing ? <Textarea value={formData.config} onChange={e => setFormData({...formData, config: e.target.value})} className="font-mono text-sm" rows={4} placeholder="{}" /> : <pre className="text-xs bg-muted p-3 rounded border overflow-auto max-h-48">{JSON.stringify(pipeline?.config || {}, null, 2)}</pre>}</div>
+        <div className="space-y-2"><Label>Stages (JSON)</Label>{isEditing ? <Textarea value={formData.stages} onChange={e => setFormData({...formData, stages: e.target.value})} className="font-mono text-sm" rows={6} placeholder="[]" /> : <pre className="text-xs bg-muted p-3 rounded border overflow-auto max-h-48">{JSON.stringify(pipeline?.stages || [], null, 2)}</pre>}</div>
+        <div className="space-y-2"><Label>Metadata (JSON)</Label>{isEditing ? <Textarea value={formData.metadata} onChange={e => setFormData({...formData, metadata: e.target.value})} className="font-mono text-sm" rows={4} placeholder="{}" /> : <pre className="text-xs bg-muted p-3 rounded border overflow-auto max-h-48">{JSON.stringify(pipeline?.metadata || {}, null, 2)}</pre>}</div>
       </CardContent></Card>
 
-      {!isCreateMode && pipeline?.steps && (
-        <Card><CardHeader><CardTitle>Steps ({pipeline.steps.length})</CardTitle></CardHeader><CardContent>
+      {!isCreateMode && pipeline?.stages && (
+        <Card><CardHeader><CardTitle>Stages ({pipeline.stages.length})</CardTitle></CardHeader><CardContent>
           <div className="space-y-2">
-            {pipeline.steps.map((step, idx) => (
-              <div key={step.id} className="flex items-center gap-4 p-3 bg-muted rounded">
+            {pipeline.stages.map((stage, idx) => (
+              <div key={stage.id || idx} className="flex items-center gap-4 p-3 bg-muted rounded">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">{idx + 1}</div>
-                <div className="flex-1"><div className="font-medium">{step.name}</div><div className="text-sm text-muted-foreground">{step.type}</div></div>
+                <div className="flex-1"><div className="font-medium">{stage.name}</div><div className="text-sm text-muted-foreground">{stage.type}</div></div>
               </div>
             ))}
           </div>
@@ -181,3 +339,11 @@ export function PipelineDetailPage() {
     </div>
   )
 }
+// CIL[END stable_id="~/.framework/src/pages/admin/PipelineDetailPage.tsx:PipelineDetailPage:component"]
+
+
+
+
+
+
+

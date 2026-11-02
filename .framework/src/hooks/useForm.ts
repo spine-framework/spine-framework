@@ -1,31 +1,32 @@
-/**
- * @module src/hooks/useForm
- * @audience installer
- * @layer frontend-hook
- * @stability stable
- *
- * Schema-aware form state hook. Manages field values, touched state,
- * per-field validation (required, email, url, number range, text
- * length/pattern), and form submission with async support.
- *
- * Designed to work directly with `FieldDefinition[]` arrays produced
- * by `useSchemaRecord` or static field arrays in admin forms.
- *
- * **Validation order per field:**
- * 1. Required check
- * 2. Type-specific rule (email regex, URL parse, number range, text length/pattern)
- * 3. Custom `validate` function (whole-form)
- *
- * @seeAlso src/types/types.ts (FieldDefinition — field schema shape)
- * @seeAlso src/hooks/useSchemaRecord.ts (produces FieldDefinition[] for this hook)
- * @seeAlso src/components/shared/SchemaFields.tsx (renders fields from FieldDefinition[])
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useForm.ts:module_header:module_header" type="module_header" identity="module_header" parent="~/.framework/src/hooks/useForm.ts"]
+// CIL[DOC-MACRO purpose="Import React hooks and shared form types for useForm"]
+// CIL[DOC-RESPONSIBILITY responsibility="Set up module dependencies and type imports for the useForm hook"]
+// CIL[DOC-CONTEXT module=".framework/src/hooks" layer="hooks" related_files=".framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="" outputs="" errors="" side_effects=""]
+// CIL[DOC-MICRO logic_summary="Imports useState, useCallback, useEffect from react and FieldDefinition, FormState, ValidationError from ../types/types" notable_decisions=""]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stable]
+// CIL[DOC-AUDIENCE audience="Developers using the useForm form-state hook"]
 
 import { useState, useCallback, useEffect } from 'react'
 import { FieldDefinition, FormState, ValidationError } from '../types/types'
+// CIL[DOC-VECTOR type="context" content="purpose='Import React hooks and shared form types for useForm'; No verified external callers; imports: .framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useForm.ts:module_header:module_header"]
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
 
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useForm.ts:UseFormOptions:interface" type="interface" identity="UseFormOptions" parent="~/.framework/src/hooks/useForm.ts"]
+// CIL[DOC-MACRO purpose="Define configuration options for the useForm hook"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare the shape of options accepted by useForm"]
+// CIL[DOC-CONTEXT module=".framework/src/hooks" layer="hooks" related_files=".framework/src/hooks/useForm.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="UseFormOptions interface" errors="" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Describes initial values, an array of FieldDefinition objects, and optional onSubmit, validate, and onChange callbacks" notable_decisions="Validation and change callbacks are optional"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stable]
 interface UseFormOptions {
   initialValues: Record<string, any>
   fields: FieldDefinition[]
@@ -33,24 +34,23 @@ interface UseFormOptions {
   validate?: (values: Record<string, any>) => Record<string, string>
   onChange?: (values: Record<string, any>) => void
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Define configuration options for the useForm hook'; No verified external callers; imports: .framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useForm.ts:UseFormOptions:interface"]
 
-/**
- * Return value of `useForm`.
- *
- * @prop data - Current field values keyed by field name
- * @prop errors - Per-field error messages (empty string = cleared, absent = untouched)
- * @prop touched - Fields the user has interacted with
- * @prop isSubmitting - True while `onSubmit` promise is pending
- * @prop isValid - True when `errors` is empty
- * @prop isDirty - True when any touched field differs from `initialValues`
- * @prop handleChange - Update a field value (clears error, marks touched)
- * @prop handleBlur - Mark a field touched and run field-level validation
- * @prop handleSubmit - Validate all fields, then call `onSubmit` if valid
- * @prop resetForm - Restore all state to `initialValues`
- * @prop setFieldValue - Programmatic field update (same as handleChange)
- * @prop setFieldError - Inject a server-side error for a field
- * @prop clearErrors - Clear all errors (e.g. after navigation)
- */
+
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useForm.ts:UseFormReturn:interface" type="interface" identity="UseFormReturn" parent="~/.framework/src/hooks/useForm.ts"]
+// CIL[DOC-MACRO purpose="Define the return shape of the useForm hook"]
+// CIL[DOC-RESPONSIBILITY responsibility="Declare the exposed form state and imperative callbacks available to consumers"]
+// CIL[DOC-CONTEXT module=".framework/src/hooks" layer="hooks" related_files=".framework/src/hooks/useForm.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="UseFormReturn interface" errors="" side_effects="none"]
+// CIL[DOC-MICRO logic_summary="Exposes data, errors, touched, isSubmitting, isValid, isDirty, and change/blur/submit/reset helper callbacks" notable_decisions=""]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stable]
 interface UseFormReturn {
   data: Record<string, any>
   errors: Record<string, string>
@@ -66,36 +66,22 @@ interface UseFormReturn {
   setFieldError: (field: string, error: string) => void
   clearErrors: () => void
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Define the return shape of the useForm hook'; No verified external callers; imports: .framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useForm.ts:UseFormReturn:interface"]
 
-// ─── HOOK ────────────────────────────────────────────────────────────────────
-
-/**
- * Schema-driven form state and validation hook.
- *
- * @param options.initialValues - Seed values for all fields
- * @param options.fields - `FieldDefinition[]` from schema or static config
- * @param options.onSubmit - Async submit handler; called only if validation passes
- * @param options.validate - Optional whole-form custom validator returning
- *   `Record<fieldName, errorMessage>`
- * @param options.onChange - Called on every field change with the full values map
- *
- * @returns `UseFormReturn` — see interface for full description
- *
- * @inputSpec fields[].data_type: 'email'|'url'|'number'|'text'|'textarea'
- *   drives built-in validation rules
- * @inputSpec fields[].validation.minLength/maxLength/pattern: text constraints
- * @sideEffects React state mutations only
- * @calledBy SchemaDetailForm.tsx, all admin detail pages
- *
- * @example
- * ```tsx
- * const form = useForm({
- *   initialValues: { name: '', email: '' },
- *   fields: [{ name: 'email', data_type: 'email', required: true, label: 'Email' }],
- *   onSubmit: async (values) => await save(values)
- * })
- * ```
- */
+// CIL[BEGIN stable_id="~/.framework/src/hooks/useForm.ts:useForm:hook" type="hook" identity="useForm" parent="~/.framework/src/hooks/useForm.ts"]
+// CIL[DOC-MACRO purpose="Manage React form state, validation, and submission for typed field definitions"]
+// CIL[DOC-RESPONSIBILITY responsibility="Track form data, validate fields and full form, expose change/blur/submit handlers and reset helpers"]
+// CIL[DOC-CONTEXT module=".framework/src/hooks" layer="hooks" related_files=".framework/src/hooks/useForm.ts,.framework/src/types/types.ts"]
+// CIL[DOC-CONTRACT inputs="{initialValues,fields,onSubmit,validate,onChange}:UseFormOptions" outputs="UseFormReturn (data, errors, touched, isSubmitting, isValid, isDirty, handlers)" errors="Field validation messages and uncaught submission errors logged to console" side_effects="Updates React state, invokes onSubmit and onChange callbacks, logs submission errors to console"]
+// CIL[DOC-MICRO logic_summary="Validates individual fields by data_type and custom validator, aggregates form errors, manages dirty and touched state, and handles async submission with an isSubmitting flag" notable_decisions="Validation clears the error for a changed field before blur; setFieldError and clearErrors allow manual error control"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stable]
 export function useForm({
   initialValues,
   fields,
@@ -109,22 +95,18 @@ export function useForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitCount, setSubmitCount] = useState(0)
 
-  // Validate a single field
   const validateField = useCallback((field: string, value: any): string | null => {
     const fieldDef = fields.find(f => f.name === field)
     if (!fieldDef) return null
 
-    // Required validation
     if (fieldDef.required && (!value || value === '')) {
       return `${fieldDef.label || field} is required`
     }
 
-    // Skip validation for empty optional fields
     if (!fieldDef.required && (!value || value === '')) {
       return null
     }
 
-    // Type-specific validation
     switch (fieldDef.data_type) {
       case 'email':
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -171,11 +153,9 @@ export function useForm({
     return null
   }, [fields])
 
-  // Validate all fields
   const validateForm = useCallback((values: Record<string, any>): Record<string, string> => {
     const newErrors: Record<string, string> = {}
 
-    // Run field-level validation
     fields.forEach(field => {
       if (!field.name) return
       const fieldErr = validateField(field.name, values[field.name])
@@ -184,7 +164,6 @@ export function useForm({
       }
     })
 
-    // Run custom validation
     if (validate) {
       const customErrors = validate(values)
       Object.assign(newErrors, customErrors)
@@ -193,12 +172,10 @@ export function useForm({
     return newErrors
   }, [fields, validate, validateField])
 
-  // Handle field change
   const handleChange = useCallback((field: string, value: any) => {
     const newData = { ...data, [field]: value }
     setData(newData)
     
-    // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => {
         const newErrors = { ...prev }
@@ -207,18 +184,14 @@ export function useForm({
       })
     }
 
-    // Mark field as touched
     setTouched(prev => ({ ...prev, [field]: true }))
 
-    // Call onChange callback
     onChange?.(newData)
   }, [data, errors, onChange])
 
-  // Handle field blur
   const handleBlur = useCallback((field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }))
     
-    // Validate field on blur
     const error = validateField(field, data[field])
     setErrors(prev => ({
       ...prev,
@@ -226,18 +199,15 @@ export function useForm({
     }))
   }, [data, validateField])
 
-  // Handle form submission
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault()
     
-    // Mark all fields as touched
     const allTouched = fields.reduce((acc, field) => {
       if (field.name) acc[field.name] = true
       return acc
     }, {} as Record<string, boolean>)
     setTouched(allTouched)
 
-    // Validate form
     const newErrors = validateForm(data)
     setErrors(newErrors)
 
@@ -258,7 +228,6 @@ export function useForm({
     }
   }, [data, fields, validateForm, onSubmit])
 
-  // Reset form
   const resetForm = useCallback(() => {
     setData(initialValues)
     setErrors({})
@@ -267,12 +236,10 @@ export function useForm({
     setSubmitCount(0)
   }, [initialValues])
 
-  // Set field value
   const setFieldValue = useCallback((field: string, value: any) => {
     handleChange(field, value)
   }, [handleChange])
 
-  // Set field error
   const setFieldError = useCallback((field: string, error: string) => {
     setErrors(prev => ({
       ...prev,
@@ -280,12 +247,10 @@ export function useForm({
     }))
   }, [])
 
-  // Clear all errors
   const clearErrors = useCallback(() => {
     setErrors({})
   }, [])
 
-  // Calculate derived state
   const isValid = Object.keys(errors).length === 0
   const isDirty = Object.keys(touched).some(field => data[field] !== initialValues[field])
 
@@ -305,3 +270,10 @@ export function useForm({
     clearErrors
   }
 }
+// CIL[DOC-VECTOR type="context" content="purpose='Manage React form state, validation, and submission for typed field definitions'; No verified external callers; imports: .framework/src/types/types.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/src/hooks/useForm.ts:useForm:hook"]
