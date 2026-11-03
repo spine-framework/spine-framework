@@ -13,6 +13,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { TurnstileWidget, turnstileEnabled } from '../../components/auth/TurnstileWidget'
+import { resolvePostAuthPath } from '../../lib/app-mount'
 import { useBranding } from '../../hooks/useBranding'
 
 // CIL[DOC-VECTOR type="context" content="purpose='Module header for the LoginPage component: imports, dependencies, and module-level context.'; No verified external callers; imports: .framework/src/contexts/AuthContext.tsx,.framework/src/components/ui/LoadingSpinner.tsx"]
@@ -63,7 +64,7 @@ export function LoginPage() {
       const reg = (await res.json()).registration ?? {}
       const app = reg.default_app_by_role?.[role] ?? reg.default_app
       const path = reg.apps?.[app]?.path ?? '/'
-      navigate(path, { replace: true })
+      navigate(await resolvePostAuthPath(app, path), { replace: true })
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
@@ -79,7 +80,7 @@ export function LoginPage() {
             <img src={branding.logo_url} alt={branding.app_name} className="h-14 w-auto" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900">
-            Sign in to {branding.app_name}
+            Login
           </h2>
           <p className="mt-2 text-center text-sm text-slate-600">
             Or{' '}

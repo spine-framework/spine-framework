@@ -8,18 +8,25 @@ const fs = require('fs')
 const pkgRoot = resolve(__dirname, '..')
 const projectRoot = resolve(pkgRoot, '../..')
 
-// Handle no-args case here — before spawning tsx or loading db.ts
+// Handle no-args case — show welcome before spawning tsx
 if (process.argv.length === 2) {
-  require(resolve(__dirname, 'welcome.cjs'))
+  console.log('\nSpine Framework CLI')
+  console.log('Usage: spine-framework <command>\n')
+  console.log('Commands:')
+  console.log('  init          Scaffold a new Spine Framework project')
+  console.log('  upgrade       Sync framework files to the installed spine-framework version')
+  console.log('  migrate       Apply database migrations')
+  console.log('  install-app   Install a Spine Framework app from npm')
+  console.log('  status        Show installed apps and framework version')
+  console.log('\nRun spine-framework --help for full command list\n')
   process.exit(0)
 }
 
-// Pre-parse credential flags and load .env so db.ts sees env vars at module load time.
-// tsx evaluates db.ts before Commander parses args, so we must inject here.
+// Pre-load .env from the consumer project root so db.ts sees env vars at module load time.
+// tsx evaluates imports before Commander parses args, so we must inject here.
 const args = process.argv.slice(2)
 const childEnv = { ...process.env }
 
-// Load .env from the consumer project root (process.cwd())
 const dotenvPath = resolve(process.cwd(), '.env')
 if (fs.existsSync(dotenvPath)) {
   const lines = fs.readFileSync(dotenvPath, 'utf8').split('\n')
@@ -41,7 +48,7 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === '--service-role-key' && args[i + 1])  childEnv.SUPABASE_SERVICE_ROLE_KEY = args[++i]
 }
 
-const entry = resolve(pkgRoot, 'bin/ws-shim.ts')
+const entry = resolve(pkgRoot, 'bin/ws-shim.mts')
 
 // Find tsx: prefer consuming project's copy, fall back to our own
 const tsxPaths = [

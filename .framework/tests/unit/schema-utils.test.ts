@@ -1,29 +1,30 @@
-/// <reference types="node" />
-/**
- * @module tests/unit/schema-utils
- * @audience core-contributor
- * @layer test-unit
- * @stability stable
- *
- * Unit tests for `schema-utils.ts → generateValidationSchema`.
- *
- * **Invariants guarded:**
- * - Empty `design_schema` produces `{ fields: {} }`.
- * - Each field's `data_type` and `required` are preserved.
- * - `validation.min`/`max` are promoted to the field level.
- * - `validation.reference_kind`/`reference_type` are promoted for
- *   `reference` fields.
- * - Display-only keys (`display_type`, `permissions`) are stripped from
- *   the validation schema.
- * - Multiple fields are all processed independently.
- *
- * No mocks needed — pure function, no IO.
- *
- * @seeAlso functions/_shared/schema-utils.ts
- */
+// CIL[BEGIN stable_id="~/.framework/tests/unit/schema-utils.test.ts:module_header:module_header" type="module_header" identity="module_header" parent="none"]
+// CIL[DOC-MACRO purpose="Test setup and imports for schema validation"]
+// CIL[DOC-RESPONSIBILITY responsibility="Configure test environment for schema utils"]
+// CIL[DOC-CONTEXT module="tests/unit/schema-utils" layer="test-unit" related_files=".framework/functions/_shared/schema-utils.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="test imports" errors="none" side_effects="Imports vitest and schema-utils"]
+// CIL[DOC-MICRO logic_summary="Imports vitest and generateValidationSchema function" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
+// CIL[DOC-AUDIENCE audience="maintainer"]
 import { describe, it, expect } from 'vitest'
-import { generateValidationSchema } from '../../functions/_shared/schema-utils.ts'
+import { generateValidationSchema, sanitizeFieldData } from '../../functions/_shared/schema-utils.ts'
+// CIL[DOC-VECTOR type="context" content="purpose='Test setup and imports for schema validation'; No verified external callers; imports: .framework/functions/_shared/schema-utils.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/tests/unit/schema-utils.test.ts:module_header:module_header"]
 
+// CIL[BEGIN stable_id="~/.framework/tests/unit/schema-utils.test.ts:describe_generateValidationSchema:block" type="block" identity="describe_generateValidationSchema" parent="none"]
+// CIL[DOC-MACRO purpose="Test generateValidationSchema function behavior"]
+// CIL[DOC-RESPONSIBILITY responsibility="Verify schema transformation logic"]
+// CIL[DOC-CONTEXT module="tests/unit/schema-utils" layer="test-unit" related_files=".framework/functions/_shared/schema-utils.ts,.framework/tests/unit/schema-utils.test.ts"]
+// CIL[DOC-CONTRACT inputs="none" outputs="test assertions" errors="none" side_effects="Tests schema-utils.ts module"]
+// CIL[DOC-MICRO logic_summary="Tests field extraction, validation constraints, and edge cases" notable_decisions="[]"]
+// CIL[DOC-CONFIDENCE pass="second" score="0.90" flags="none"]
+// CIL[DOC-STABILITY stability="stable"]
 describe('generateValidationSchema', () => {
   it('returns empty fields for schema with no fields', () => {
     const result = generateValidationSchema({})
@@ -154,3 +155,71 @@ describe('generateValidationSchema', () => {
     expect(result.fields).toEqual({})
   })
 })
+
+describe('sanitizeFieldData: json', () => {
+  it('accepts natural-language JSON containing words like "functionality" and "description"', () => {
+    const value = [
+      'Provided an explanation of fields, views, record permissions, and functionality.',
+      'Reviewed the transcript and description of the incident.',
+    ]
+    expect(sanitizeFieldData(value, 'json')).toEqual(value)
+  })
+
+  it('accepts JSON containing "evaluate", "retrieval", and "subscription" substrings', () => {
+    const value = { note: 'Evaluate the retrieval path before updating the subscription.' }
+    expect(sanitizeFieldData(value, 'json')).toEqual(value)
+  })
+
+  it('accepts keys named "script" and "function" — only dangerous values are rejected', () => {
+    const value = { script: 'the onboarding video script', function: 'checkout flow' }
+    expect(sanitizeFieldData(value, 'json')).toEqual(value)
+  })
+
+  it('rejects string values containing a script tag', () => {
+    expect(() =>
+      sanitizeFieldData({ steps: ['safe', '<script>alert(1)</script>'] }, 'json')
+    ).toThrow('dangerous content')
+  })
+
+  it('rejects string values containing javascript: URLs', () => {
+    expect(() =>
+      sanitizeFieldData({ link: 'javascript:alert(1)' }, 'json')
+    ).toThrow('dangerous content')
+  })
+
+  it('rejects string values containing eval() or Function() calls', () => {
+    expect(() => sanitizeFieldData({ x: 'eval(payload)' }, 'json')).toThrow('dangerous content')
+    expect(() => sanitizeFieldData({ x: 'new Function("return 1")' }, 'json')).toThrow(
+      'dangerous content'
+    )
+  })
+
+  it('rejects string values containing inline event handlers', () => {
+    expect(() =>
+      sanitizeFieldData({ html: 'div onclick=steal()' }, 'json')
+    ).toThrow('dangerous content')
+  })
+
+  it('rejects __proto__ keys at any depth', () => {
+    // JSON.parse materializes __proto__ as an own property — the prototype-
+    // pollution vector — unlike an object literal, where it sets the prototype.
+    const parsed = JSON.parse('{"nested": {"__proto__": {"admin": true}}}')
+    expect(() => sanitizeFieldData(parsed, 'json')).toThrow('dangerous content')
+    expect(() =>
+      sanitizeFieldData('{"__proto__": {"admin": true}}', 'json')
+    ).toThrow('dangerous content')
+  })
+
+  it('parses JSON strings and validates the parsed value', () => {
+    expect(sanitizeFieldData('{"a": 1}', 'json')).toEqual({ a: 1 })
+    expect(() => sanitizeFieldData('{"x": "<script>"}', 'json')).toThrow('dangerous content')
+    expect(() => sanitizeFieldData('not json', 'json')).toThrow('Invalid JSON format')
+  })
+})
+// CIL[DOC-VECTOR type="context" content="purpose='Test generateValidationSchema function behavior'; No verified external callers; imports: .framework/functions/_shared/schema-utils.ts"]
+// CIL[DOC-VECTOR type="blast_radius" content="No direct caller data from CIL graph; local impact only"]
+// CIL[DOC-VECTOR type="configuration" content="No environment or build configuration dependencies identified"]
+// CIL[DOC-VECTOR type="constraint" content="Standard runtime; no special invariants documented"]
+// CIL[DOC-VECTOR type="implementation_pattern" content="" status="pending_human_input"]
+// CIL[DOC-VECTOR type="user_journey" content="" status="pending_human_input"]
+// CIL[END stable_id="~/.framework/tests/unit/schema-utils.test.ts:describe_generateValidationSchema:block"]

@@ -70,7 +70,7 @@ You may not do any of the following without a Commercial License:
 
 1. Sell, resell, sublicense, rent, lease, lend, transfer, assign, publish, or distribute the Software.
 2. Offer the Software, or any modified version of the Software, to Third Parties as software, infrastructure, a framework, a platform, a service, or a hosted product.
-3. Offer the Software as SaaS, PaaS, IaaS, framework-as-a-service, backend-as-a-service, workflow-as-a-service, automation-as-a-service, AI-agent platform, managed service, or similar commercial service.
+3. Offer the Software as SaaS, PaaS, IaaS, framework-as-a-service, backend-as-a-service, workflow-as-a-service, automation-as-a-service, AI-agent platform, managed service, support service, or similar commercial service.
 4. White-label, private-label, rebrand, or remove Spine Framework identity from the Software in order to provide it to Third Parties.
 5. Embed, bundle, package, or include the Software in any product, service, appliance, marketplace offering, application pack, starter kit, template library, SDK, CLI, distribution, or managed implementation made available to Third Parties.
 6. Use the Software to operate, power, support, or provide a product or service for Third Parties where those Third Parties receive access to the Software or to functionality substantially provided by the Software.

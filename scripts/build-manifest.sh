@@ -1,80 +1,36 @@
 #!/usr/bin/env bash
-
-/**
- * @module scripts/build-manifest
- * @audience installer
- * @layer build
- * @stability orphaned
- *
- * Build Manifest Generator - Generate a signed manifest of core file hashes.
- * **ORPHANED**: References non-existent `core/` directory (should be `v2-core/`).
- * 
- * **Intended Purpose**: Used for build-time integrity verification.
- * - In dev mode (SPINE_INTEGRITY=warn), mismatches log warnings
- * - In production (SPINE_INTEGRITY=enforce), mismatches fail the build
- * 
- * **Current State**: Cannot function - references wrong directory paths.
- * 
- * **Dependencies**: shasum, standard bash utilities
- * 
- * @tags orphaned, build, integrity, manifest, verification
- */
+# CIL[BEGIN stable_id="~/scripts/build-manifest.sh:module:script" type="script" identity="build-manifest" parent="~/scripts/build-manifest.sh"]
+# CIL[DOC-MACRO purpose="Thin wrapper that regenerates .spine-manifest.json via scripts/checksum-manifest.mts"]
+# CIL[DOC-RESPONSIBILITY responsibility="Resolve the repo-local tsx binary and invoke the Node manifest generator against this repo root"]
+# CIL[DOC-CONTEXT module="spine-integrity" layer="build" related_files="scripts/checksum-manifest.mts,scripts/verify-integrity.sh,package.json"]
+# CIL[DOC-CONTRACT inputs="optional passthrough args (e.g. --include-dir)" outputs=".spine-manifest.json at repo root" errors="exit 1 when tsx is missing or the generator fails" side_effects="rewrites .spine-manifest.json, echoes SPINE_INTEGRITY mode for compatibility"]
+# CIL[DOC-MICRO logic_summary="Replaces the legacy inline-bash implementation that used GNU-only sort -z and a broken JSDoc header" notable_decisions="hashing lives in Node — BSD/GNU portability and deterministic ordering come free"]
+# CIL[DOC-CONFIDENCE pass="first" score="0.9" flags="none"]
+# CIL[DOC-STABILITY stability="stable"]
+# CIL[DOC-AUDIENCE audience="system-admin"]
+# CIL[DOC-VECTOR type="context" content="Invoked by npm run manifest"]
+# CIL[DOC-VECTOR type="implementation_pattern" content="Sibling thin wrapper of verify-integrity.sh; real logic in scripts/checksum-manifest.mts" status="ready"]
+# CIL[END stable_id="~/scripts/build-manifest.sh:module:script"]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-CORE_DIR="$PROJECT_ROOT/.framework"
-CORE_SRC_DIR="$PROJECT_ROOT/.framework/src"
-MANIFEST_FILE="$PROJECT_ROOT/.spine-manifest.json"
-
 INTEGRITY_MODE="${SPINE_INTEGRITY:-warn}"
+echo "🔒 Generating spine integrity manifest (mode: $INTEGRITY_MODE)"
 
-echo "🔒 Generating core integrity manifest (mode: $INTEGRITY_MODE)"
+if [ -f "$PROJECT_ROOT/.spine-export-manifest.json" ]; then
+  echo "❌ Frozen standalone export — .spine-manifest.json regeneration is only allowed in the monorepo (.spine-export-manifest.json present)" >&2
+  exit 1
+fi
 
-# Collect hashes of all core files
-HASHES="{"
-FIRST=true
+TSX="$PROJECT_ROOT/node_modules/.bin/tsx"
+if [ ! -x "$TSX" ]; then
+  echo "❌ tsx not found at $TSX — run 'npm install' first" >&2
+  exit 1
+fi
 
-# Core functions
-while IFS= read -r -d '' file; do
-  REL_PATH="${file#$PROJECT_ROOT/}"
-  HASH=$(shasum -a 256 "$file" | cut -d' ' -f1)
-  if [ "$FIRST" = true ]; then
-    FIRST=false
-  else
-    HASHES="$HASHES,"
-  fi
-  HASHES="$HASHES\"$REL_PATH\":\"$HASH\""
-done < <(find "$CORE_DIR" -type f -name '*.ts' -print0 | sort -z)
+"$TSX" "$SCRIPT_DIR/checksum-manifest.mts" "$PROJECT_ROOT" "$PROJECT_ROOT/.spine-manifest.json" "$@"
 
-# Core src components (shared, layout, hooks, lib)
-for SUBDIR in components/shared components/layout hooks lib; do
-  DIR="$CORE_SRC_DIR/$SUBDIR"
-  if [ -d "$DIR" ]; then
-    while IFS= read -r -d '' file; do
-      REL_PATH="${file#$PROJECT_ROOT/}"
-      HASH=$(shasum -a 256 "$file" | cut -d' ' -f1)
-      HASHES="$HASHES,\"$REL_PATH\":\"$HASH\""
-    done < <(find "$DIR" -type f \( -name '*.ts' -o -name '*.tsx' \) -print0 | sort -z)
-  fi
-done
-
-HASHES="$HASHES}"
-
-# Write manifest
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-cat > "$MANIFEST_FILE" <<EOF
-{
-  "version": "1",
-  "generated_at": "$TIMESTAMP",
-  "integrity_mode": "$INTEGRITY_MODE",
-  "file_count": $(echo "$HASHES" | tr ',' '\n' | wc -l | tr -d ' '),
-  "hashes": $HASHES
-}
-EOF
-
-echo "  ✓ Manifest written to $MANIFEST_FILE"
-echo "  ✓ $(echo "$HASHES" | tr ',' '\n' | wc -l | tr -d ' ') files hashed"
-echo "✅ Done"
+echo "✅ Manifest written"

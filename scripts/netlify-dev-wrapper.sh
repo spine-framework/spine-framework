@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+ulimit -n 10240 2>/dev/null || true
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 

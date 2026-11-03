@@ -93,12 +93,25 @@ export const list = createHandler(async (ctx, body) => {
     throw new Error('Account context required')
   }
 
-  const db = isSystemAdmin(ctx.principal) ? adminDb : ctx.db
-
   const userRoles = ctx.principal?.roles || []
   const isSysAdmin = userRoles.includes('system_admin')
+  const isSystem = isSysAdmin || (ctx.principal?.isInternal === true && !ctx.accountId)
 
-  const { data, error: err } = await db
+  // get_account_apps is service-role-only — the account boundary is enforced
+  // here. A scoped caller may only resolve apps inside its access set
+  // (own account plus descendants); the query param alone never widened that.
+  if (!isSystem && targetAccountId !== ctx.accountId) {
+    const { data: accessible, error: accessErr } = await adminDb
+      .rpc('get_accessible_accounts', { actor_id: ctx.principal?.id })
+    const ids = (accessible || []).map((r: any) => r.account_id ?? r)
+    if (accessErr || !ids.includes(targetAccountId)) {
+      const e: any = new Error('Account not accessible')
+      e.statusCode = 403
+      throw e
+    }
+  }
+
+  const { data, error: err } = await adminDb
     .rpc('get_account_apps', {
       account_id: targetAccountId,
       include_system: include_system !== 'false',
@@ -204,7 +217,7 @@ export const getSchema = createHandler(async (ctx, body) => {
 // CIL[DOC-STABILITY stability="stable"]
 // CIL[BEGIN stable_id="~/.framework/functions/apps.ts:create:constant" type="constant" identity="create" parent="~/.framework/functions/apps.ts"]
 export const create = createHandler(async (ctx, body) => {
-  const { slug, name, description, icon, color, version, app_type, source, owner_account_id, config, nav_items, min_role, required_roles, integration_deps, metadata, route_prefix, renderer } = body
+  const { slug, name, description, icon, color, version, app_type, source, owner_account_id, config, nav_items, min_role, required_roles, integration_deps, metadata, route_prefix, renderer, preview_domain, prod_domain, preview_route_prefix, prod_route_prefix } = body
 
   if (!slug || !name) {
     throw new Error('slug and name are required')
@@ -259,6 +272,10 @@ export const create = createHandler(async (ctx, body) => {
       metadata: metadata || {},
       route_prefix: route_prefix !== undefined ? route_prefix : ('/' + slug),
       renderer: renderer || 'generic',
+      preview_domain: preview_domain ?? null,
+      prod_domain: prod_domain ?? null,
+      preview_route_prefix: preview_route_prefix ?? null,
+      prod_route_prefix: prod_route_prefix ?? null,
       is_active: true,
       is_system: false
     })

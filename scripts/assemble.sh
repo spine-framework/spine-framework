@@ -19,12 +19,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Detect if running inside node_modules (consumer project install)
-# If so, output to actual project root (3 levels up from scripts/)
-if [[ "$SCRIPT_DIR" == *"/node_modules/spine-framework/"* ]]; then
-  PROJECT_ROOT="$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")"
-fi
-
 echo "Assembling Spine..."
 
 # Remove stale dist/ so Netlify CLI never reads its _redirects during dev
@@ -32,10 +26,10 @@ rm -rf "$PROJECT_ROOT/dist"
 
 # Step 1: Assemble functions
 echo "Assembling functions..."
-PROJECT_ROOT="$PROJECT_ROOT" bash "$SCRIPT_DIR/assemble-functions.sh"
+bash "$SCRIPT_DIR/assemble-functions.sh"
 
 # Step 2: Assemble frontend
 echo "Assembling frontend..."
-PROJECT_ROOT="$PROJECT_ROOT" bash "$SCRIPT_DIR/assemble-frontend.sh"
+bash "$SCRIPT_DIR/assemble-frontend.sh"
 
 echo "Spine assembly complete"

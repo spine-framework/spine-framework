@@ -4,7 +4,7 @@ import { resolve } from 'path'
 
 // Load .xenv.test so integration tests get real DB credentials before any
 // worker module graph (db.ts, principal.ts) evaluates createClient() calls.
-const xenvTest = resolve(__dirname, '.framework/.xenv.test')
+const xenvTest = resolve(__dirname, '.env.test')
 if (existsSync(xenvTest)) {
   for (const line of readFileSync(xenvTest, 'utf8').split('\n')) {
     const t = line.trim()
@@ -29,14 +29,15 @@ export default defineConfig({
     include: [
       '.framework/tests/unit/**/*.test.ts',
       '.framework/tests/integration/**/*.test.ts',
-      '.framework/tests/api/**/*.test.ts'
+      '.framework/tests/api/**/*.test.ts',
+      'custom/tests/**/*.test.ts'
     ],
     // Global test timeout — integration + API tests may hit Supabase / local server
     testTimeout: 20000,
     // Don't fail the suite on integration tests if env isn't configured
     passWithNoTests: true,
     // Persist results to public.test_runs after every run
-    reporters: ['default', './.framework/tests/reporter.ts']
+    reporters: ['default']
   },
   resolve: {
     // Allow bare .ts imports (the CLI + shared code uses these)

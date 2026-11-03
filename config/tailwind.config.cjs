@@ -63,6 +63,12 @@ module.exports = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        brand: {
+          navy: '#0B1F44',
+          DEFAULT: '#0066FF',
+          light: '#33A1FF',
+          gray: '#F4F7FB',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -73,6 +79,7 @@ module.exports = {
   },
   plugins: [
     require('tailwindcss-animate'),
+    require('@tailwindcss/typography'),
   ],
 }
 

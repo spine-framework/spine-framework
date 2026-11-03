@@ -1,344 +1,182 @@
 # Spine Framework
 
-A complete enterprise application framework built on Supabase + Netlify + React for building scalable multi-tenant applications with extensible app ecosystems.
+Spine Framework is a multi-tenant application platform that gives you the
+boring 80% of a SaaS product — auth and tenancy, RBAC, typed runtime records,
+pipelines/triggers/timers, integrations, a schema-driven admin UI, and
+observability — so you and your AI coding agent build only the 20% that makes
+your app unique. It is designed to be developed on with agentic IDEs: `init`
+writes an `AGENTS.md` rules file, a set of `.devin/skills/spine-*` procedures,
+and ships a complete instruction book that your agent reads while it works.
 
-## Overview
+The stack is deliberately conventional: React + Vite frontend, Netlify
+Functions as the API layer, Supabase (Postgres + Auth) as the database.
 
-Spine Framework is a **complete, runnable framework** that provides everything you need to build enterprise applications:
-
-- **Multi-tenant Architecture**: Support for tenant hierarchies and isolated deployments
-- **Role-Based Access Control**: Fine-grained permissions and authorization  
-- **App Ecosystem**: Install and manage custom applications
-- **Real-time Features**: Built-in support for real-time collaboration and notifications
-- **AI Integration**: Native support for AI agents and intelligent workflows
-- **Developer Tools**: Comprehensive tooling for development, testing, and deployment
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database (via Supabase recommended)
-- Netlify account (for deployment)
-
-### Installation
+## Quick start
 
 ```bash
-# Clone the framework
-git clone https://github.com/spine-framework/spine-framework.git
-cd spine-framework
+mkdir my-app && cd my-app
+npm install spine-framework
+npx spine-framework init
+```
 
-# Install dependencies
-npm install
+Installing a local tarball or pre-release? `npm i ./spine-framework-<ver>.tgz`
+works too — `init` preserves the `file:` spec in `package.json` instead of
+stamping a registry version.
 
-# Set up environment
+`init` copies the framework file set (`.framework/`, `config/`, `scripts/`,
+`bin/`), writes `package.json` / `netlify.toml` / `spine.config.json` /
+`.env.example`, creates an empty `custom/` workspace for your code, and
+freezes a `.spine-manifest.json` integrity manifest. It does **not** run
+`npm install`, write `.env`, or touch your database.
+
+### 1. Configure `.env`
+
+```bash
 cp .env.example .env
-# Edit .env with your Supabase and Netlify credentials
-
-# Start development
-npm run dev
 ```
 
-### Install Custom Apps
+Required for a working install (full list:
+[`.framework/src/instructions/reference/env-vars.md`](.framework/src/instructions/reference/env-vars.md)):
+
+| Variable | Used by |
+|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | the browser app |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Netlify functions + CLI |
+| `SUPABASE_DB_PASSWORD` | `npx spine-framework migrate` (direct Postgres) |
+| `APP_BASE_URL` | invite links and auth redirects (`http://localhost:8888` in dev) |
+
+The Supabase URL and both keys are under **Project Settings → API Keys**
+(dashboard "Publishable key" = anon, "Secret key" = service-role);
+`SUPABASE_DB_PASSWORD` is under **Project Settings → Database**.
+
+Worth setting early: `INTERNAL_INVOKE_SECRET` — required for
+trigger-dispatched pipelines (`openssl rand -hex 32`).
+
+### 2. Install, verify, migrate
 
 ```bash
-# Install Cortex (CRM, Support, Community, Knowledge Base)
-npm run app-install cortex
-
-# Install Customer Portal
-npm run app-install customer-portal
-
-# List available apps
-npm run spine-framework list-apps
-```
-
-## Architecture
-
-### Core Components
-
-- **Framework Core**: Base functionality, authentication, and data models
-- **App Registry**: System for managing and distributing applications
-- **Multi-tenant Engine**: Tenant isolation and hierarchy management
-- **Authorization Layer**: Role-based permissions and access control
-- **Real-time Infrastructure**: WebSocket support and live updates
-- **AI Agent System**: Integration with AI services and workflows
-
-### App Ecosystem
-
-Spine Framework supports a growing ecosystem of applications:
-
-- **Cortex**: CRM, Support, Community, and Knowledge Base
-- **Customer Portal**: Self-service customer portal
-- **Custom Apps**: Build your own applications using the framework
-
-### Database Schema
-
-The framework uses a clean, normalized schema with:
-
-- **Accounts & Tenants**: Multi-tenant hierarchy support
-- **People & Roles**: User management and permissions
-- **Items & Threads**: Flexible data modeling system
-- **Apps & Integrations**: Extensible app registry
-- **AI Agents**: Intelligent workflow automation
-
-## Development
-
-### Project Structure
-
-```
-my-spine-project/
-├── src/
-│   ├── components/         # Reusable UI components
-│   ├── pages/             # Application pages
-│   ├── hooks/             # Custom React hooks
-│   ├── contexts/          # React contexts
-│   └── utils/             # Utility functions
-├── functions/             # Serverless functions
-├── migrations/            # Database migrations
-├── custom/                # Custom app extensions
-└── docs/                  # Documentation
-```
-
-### Building Apps
-
-Create custom applications using the Spine Framework:
-
-```typescript
-// src/apps/my-app/index.tsx
-import { AppLayout, useCurrentApp } from '@spine-framework/core'
-
-export default function MyApp() {
-  const app = useCurrentApp()
-  
-  return (
-    <AppLayout>
-      <h1>{app.name}</h1>
-      {/* Your app content */}
-    </AppLayout>
-  )
-}
-```
-
-### Database Extensions
-
-Add custom database schema:
-
-```sql
--- migrations/001_my_app.sql
-CREATE TABLE my_app_data (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  account_id UUID REFERENCES accounts(id),
-  title TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE my_app_data ENABLE ROW LEVEL SECURITY;
-```
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# Database
-DATABASE_URL=postgresql://...
-
-# Supabase
-SUPABASE_URL=your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-key
-
-# Framework
-SPINE_ENV=development
-SPINE_LOG_LEVEL=info
-```
-
-### Framework Configuration
-
-```typescript
-// spine.config.ts
-export default {
-  database: {
-    url: process.env.DATABASE_URL,
-    poolSize: 10,
-  },
-  auth: {
-    providers: ['email', 'github', 'google'],
-    sessionTimeout: '24h',
-  },
-  apps: {
-    registry: 'https://registry.spine-framework.com',
-    autoUpdate: true,
-  },
-  ai: {
-    provider: 'openai',
-    model: 'gpt-4',
-  }
-}
-```
-
-## Deployment
-
-### Development
-
-```bash
-# Start development server
-npm run dev
-
-# Run tests
-npm test
-
-# Type checking
-npm run type-check
-```
-
-### Production
-
-```bash
-# Build for production
-npm run build
-
-# Deploy to Netlify
-netlify deploy --prod
-
-# Or deploy to your preferred platform
-```
-
-### Database Migrations
-
-```bash
-# Run migrations
-npx spine migrate up
-
-# Create new migration
-npx spine migrate create add_new_feature
-
-# Rollback migration
-npx spine migrate down
-```
-
-## Available Apps
-
-### Official Apps
-
-- **[spine-framework-cortex](https://github.com/spine-framework/spine-framework-cortex)**
-  - CRM, Support, Community, Knowledge Base
-  - `npm install spine-framework-cortex`
-
-- **[spine-framework-portal](https://github.com/spine-framework/spine-framework-portal)**
-  - Customer self-service portal
-  - `npm install spine-framework-portal`
-
-### Installing Apps
-
-```bash
-# Install an app
-npx spine install-app cortex
-
-# List available apps
-npx spine list-apps
-
-# Update an app
-npx spine update-app cortex
-```
-
-## API Reference
-
-### Core Hooks
-
-```typescript
-// Authentication
-import { useAuth, useUser } from '@spine-framework/core'
-
-// App Management
-import { useApps, useCurrentApp } from '@spine-framework/core'
-
-// Data Management
-import { useItems, useThreads } from '@spine-framework/core'
-
-// Real-time
-import { useWebSocket } from '@spine-framework/core'
-```
-
-### Database Functions
-
-```sql
--- Get account apps
-SELECT * FROM get_account_apps(account_id, true, false);
-
--- Get accessible accounts
-SELECT * FROM get_accessible_accounts(user_id);
-
--- Check permissions
-SELECT * FROM has_permission(user_id, 'action', 'resource');
-```
-
-## Contributing
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/spine-framework/spine-framework.git
-cd spine-framework
-
-# Install dependencies
 npm install
-
-# Start development
-npm run dev
+npm run verify                  # integrity-checks the tree against .spine-manifest.json
+npx spine-framework migrate     # creates tables, RLS, seeds system data (idempotent)
 ```
 
-### Submitting Changes
+### 3. Run it
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+```bash
+npm run dev:netlify             # Netlify dev server on http://localhost:8888 (functions + UI)
+```
 
-### Building Apps for Distribution
+`npm run dev` starts only the Vite dev server on port 3001 — fine for
+frontend work, but `/api/*` calls still proxy to 8888, so functions need
+`netlify dev` running.
 
-If you want to contribute an app to the ecosystem:
+### 4. First login
 
-1. Create your app using the framework
-2. Follow the app structure guidelines
-3. Include comprehensive documentation
-4. Submit for review
+Browser path: open `http://localhost:8888`, go to `/register`, and create an
+account — **the first registrant becomes `system_admin`** via a database
+trigger, and lands on `/spine-framework/admin`, the schema-driven admin app.
+Later signups get no account or role until an invite or an admin places
+them. Requires **Supabase email confirmation OFF** (Auth → Providers) or a
+real inbox for the confirm link.
+
+Headless path (scriptable): `npx spine-framework bootstrap --email
+you@example.com --password '<pick-one>'` creates the first `system_admin`,
+a confirmed auth user, and a `sk_` API key — no browser or email
+confirmation needed. See
+[`guide/01-install-and-first-run.md`](.framework/src/instructions/guide/01-install-and-first-run.md).
+
+## Where's the documentation
+
+The package ships a complete instruction book at
+[`.framework/src/instructions/README.md`](.framework/src/instructions/README.md):
+
+- **`guide/`** — install, project map, domain model, build your first app.
+- **`concepts/`** — tenancy, permissions, design schema, automation,
+  observability.
+- **`tasks/`** — single-goal procedures (add a type, a pipeline, a trigger,
+  an AI agent; package and install an app; write a function or migration).
+- **`reference/`** — env vars, CLI, API endpoints, design-schema spec.
+- **`operations/`** — deployment, migrations, security checklist,
+  troubleshooting playbook.
+- **Root entity files** — one per entity (`types`, `apps`, `roles`,
+  `pipelines`, `triggers`, `ai-agents`, …), all in the same 7-section format.
+
+The same files render inside the admin UI: every admin page has an
+**Instructions** button that opens the relevant doc as a sheet.
+
+## For AI agents
+
+After `init`, your repo contains everything an agent needs:
+
+- **`AGENTS.md`** — the standing rules for working in a Spine project.
+- **`.devin/skills/spine-*`** — 13 procedures (`spine-new-type`,
+  `spine-new-app`, `spine-add-automation`, `spine-troubleshoot`, …).
+- **`.framework/src/instructions/`** — the instruction book above.
+
+Useful CLI for agents:
+
+```bash
+npx spine-framework validate-schema <file.json>   # check a design_schema file
+npx spine-framework validate-app custom/apps/<slug>   # check an app package
+```
+
+Point your agent at `guide/03-domain-model.md` and `concepts/` first — it
+explains the primitives and how they compose.
+
+## CLI quick reference
+
+All commands run as `npx spine-framework <command>`. Full reference:
+[`.framework/src/instructions/reference/cli.md`](.framework/src/instructions/reference/cli.md).
+
+| Command | What it does |
+|---|---|
+| `init [dir]` | Scaffold a project (refuses to run over an existing `.framework/`) |
+| `migrate` | Apply pending SQL migrations; `--dry-run`, `--framework-only` |
+| `status` | Show installed apps and framework version |
+| `install-app <pkg>` | Install an app package into `custom/apps/` + register/seed it |
+| `validate-schema <file>` | Validate a `design_schema` JSON file |
+| `validate-app [path]` | Validate an app package's structure and manifest |
+| `doctor` | Check installation health (env, files, DB reachability) |
+| `bootstrap` | Create the first `system_admin` + confirmed auth user + `sk_` key, no browser |
+| `upgrade` | Sync framework files to the installed package version; `--dry-run`, `--force` |
+
+## Requirements
+
+- Node.js ≥ 22.13, npm ≥ 10
+- A [Supabase](https://supabase.com) project (URL + anon/service keys + DB password)
+- Netlify CLI for local dev — pinned as a devDependency, so `npm install`
+  provides it. A Netlify account/site is only needed to deploy to production.
+
+## Upgrading
+
+`.framework/`, `config/`, `scripts/`, and `bin/` are a managed copy — do not
+edit them (`.spine-manifest.json` will flag it). To move to a newer release:
+
+```bash
+npm install spine-framework@latest
+npx spine-framework upgrade --dry-run   # review what would change
+npx spine-framework upgrade
+npx spine-framework migrate             # apply any new migrations
+```
+
+Your code in `custom/` is never touched.
+
+## Known issues
+
+- **`npx spine-framework generate` was removed** — it wrote stubs to a dead
+  `v2-custom/` tree and emitted a legacy `design_schema` shape. It now prints
+  migration guidance and exits 1: use `npx spine-framework create-app` for
+  apps, and author types in the admin UI or via `POST /api/types` (check the
+  schema with `npx spine-framework validate-schema`). See "Removed commands"
+  in [`reference/cli.md`](.framework/src/instructions/reference/cli.md).
+- `npx spine-framework dev` runs the real dev flow: `scripts/assemble.sh`,
+  integrity check, then Vite (`--netlify` for the full `netlify dev` stack on
+  :8888). `npm run dev` / `npm run dev:netlify` remain equivalent.
+- There is no MCP server — agent integration is via `AGENTS.md`, skills, and
+  the instruction book.
 
 ## License
 
-This framework is licensed under the [Spine Framework Internal Use License](LICENSE.md).
-
-- ✅ Free for internal business use
-- ❌ Commercial redistribution requires separate license
-- 📞 Contact: spine-framework.com for commercial licensing
-
-## Support
-
-- **Documentation**: [docs.spine-framework.com](https://docs.spine-framework.com)
-- **Issues**: [GitHub Issues](https://github.com/spine-framework/spine-framework/issues)
-- **Community**: [Discord Server](https://discord.gg/spine-framework)
-- **Commercial**: [Contact Us](mailto:commercial@spine-framework.com)
-
-## Version History
-
-### v1.0.0
-- Initial release
-- Multi-tenant architecture
-- App registry system
-- Role-based access control
-- Real-time features
-- AI integration
-
-### Roadmap
-
-- **v1.1**: Enhanced AI capabilities
-- **v1.2**: Advanced analytics and reporting
-- **v1.3**: Mobile app support
-- **v2.0**: Microservices architecture
-
----
-
-**Spine Framework** - Build enterprise applications with confidence.
+Licensed under the [Spine Framework Internal Use License](LICENSE.md) — free
+for internal business use; commercial redistribution requires a separate
+license.
