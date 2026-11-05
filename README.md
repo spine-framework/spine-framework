@@ -14,6 +14,13 @@ Functions as the API layer, Supabase (Postgres + Auth) as the database.
 ## Quick start
 
 ```bash
+npm create spine-framework@latest my-app
+cd my-app
+```
+
+That runs `spine-framework init` for you. The manual equivalent:
+
+```bash
 mkdir my-app && cd my-app
 npm install spine-framework
 npx spine-framework init
@@ -142,7 +149,7 @@ All commands run as `npx spine-framework <command>`. Full reference:
 
 ## Requirements
 
-- Node.js ≥ 22.13, npm ≥ 10
+- Node.js ≥ 22, npm ≥ 10
 - A [Supabase](https://supabase.com) project (URL + anon/service keys + DB password)
 - Netlify CLI for local dev — pinned as a devDependency, so `npm install`
   provides it. A Netlify account/site is only needed to deploy to production.
@@ -161,6 +168,22 @@ npx spine-framework migrate             # apply any new migrations
 
 Your code in `custom/` is never touched.
 
+## Packages and repositories
+
+| Package | Install | What it is |
+|---|---|---|
+| [`spine-framework`](https://www.npmjs.com/package/spine-framework) | `npm i spine-framework` | The framework itself — this repository. |
+| [`create-spine-framework`](https://www.npmjs.com/package/create-spine-framework) | `npm create spine-framework@latest my-app` | Bare-project scaffolder (thin wrapper over `init`). |
+| [`@spine-framework/answer-once`](https://www.npmjs.com/package/@spine-framework/answer-once) | `npm i @spine-framework/answer-once` | Answer Once customer-support app; installs into any Spine project. |
+| [`@spine-framework/create-answer-once`](https://www.npmjs.com/package/@spine-framework/create-answer-once) | `npm create @spine-framework/answer-once@latest my-support` | One-step scaffold: framework + Answer Once. |
+
+Repositories: [spine-framework/spine](https://github.com/spine-framework/spine)
+(this repo — framework source and npm tooling) ·
+[spine-framework/spine-framework](https://github.com/spine-framework/spine-framework)
+(exact mirror of the published `spine-framework` package) ·
+[spine-framework/answer-once](https://github.com/spine-framework/answer-once)
+(standalone Answer Once deployment).
+
 ## Known issues
 
 - **`npx spine-framework generate` was removed** — it wrote stubs to a dead
@@ -177,6 +200,7 @@ Your code in `custom/` is never touched.
 
 ## License
 
-Licensed under the [Spine Framework Internal Use License](LICENSE.md) — free
-for internal business use; commercial redistribution requires a separate
-license.
+Licensed under the
+[Spine Framework / Answer Once Internal Use License](LICENSE.md) — free for
+internal business use; commercial redistribution requires a separate license
+(see spine-framework.com).
