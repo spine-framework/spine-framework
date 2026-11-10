@@ -1,223 +1,55 @@
-# Spine Framework / Answer Once Internal Use License 1.0.0
+# Spine Framework Business Use License 2.0
 
-**Source-available. Free for internal use. Commercial rights reserved.**
+**Use Spine Framework to run your business for free. If you sell a Spine-powered software product, obtain a commercial agreement first.**
 
-This license is based on the structure and intent of the PolyForm Internal Use License 1.0.0, but it has been modified for Spine Framework and Answer Once. This is not the unmodified PolyForm Internal Use License.
-
-## Required Notice
+Version 2.0 — Effective Date: November 9, 2026
 
 Required Notice: Copyright © 2026 Dahl Ventures Inc. All rights reserved.
 
-## 1. Acceptance
+This license supersedes the Business Use License 1.0 and the Spine Framework / Answer Once Internal Use License 1.0.0 for new releases. Releases supplied under an earlier license remain governed by that license. The current license text and the historical license archive are maintained at https://spine-framework.com/software-license.html.
 
-In order to receive any license under these terms, you must agree to these terms as both strict obligations and conditions to all licenses granted to you.
+## 1. Who and what this covers
 
-If you do not agree to these terms, you do not have permission to use, copy, modify, run, install, access, or create works based on the Software.
+This license is between Dahl Ventures Inc. and the person or organization using the Spine Framework release supplied under it. "Software" means that release and the components supplied under this license. Third-party components keep their own licenses. Your use is subject to these terms; a separate signed agreement controls where it expressly provides different rights.
 
-## 2. Definitions
+A "Spine-Powered Application" is software created using, incorporating, modifying, or depending materially upon the Software. A "Spine-Powered Software Product" is a Spine-Powered Application offered to third parties as a software product or software service for direct or indirect commercial consideration — including software-as-a-service, subscription software, commercially licensed software, hosted software products, standardized managed software platforms, and software for which customers pay primarily for access to the software itself. An application is not a Spine-Powered Software Product merely because customers or other third parties interact with it as part of your underlying non-software business.
 
-**Software** means Spine Framework and Answer Once, including their source code, object code, packages, modules, templates, schemas, migrations, configuration files, documentation, examples, command-line tools, SDKs, application packs, apps, scaffolders, and related materials provided by the licensor, in any distribution (npm package, repository, tarball, or otherwise).
+## 2. Free business use
 
-**Licensor** means the legal owner of the Software.
+We grant you a worldwide, royalty-free, non-exclusive license to install, run, copy as reasonably needed, modify, and build applications with the Software for your organization and its affiliates. Affiliates are organizations controlling, controlled by, or under common control with your organization. Employees, contractors, customers, suppliers, and partners may use those applications to support your underlying business. An online store, customer portal, internal CRM, or support application qualifies. Charging for your underlying goods or services does not itself make the application a software product.
 
-**You** means the individual or legal entity receiving the Software.
+## 3. Agencies and consultants
 
-**Your Company** means the legal entity on whose behalf you use the Software, including that entity's employees and authorized contractors.
+You may charge a client for bespoke development, configuration, installation, hosting, maintenance, and related services when that client's use qualifies under section 2. You may supply the copies needed for that use if the client accepts the applicable license and you preserve its notices. The client receives rights from us under that license, not a sublicense from you. You may reuse your own know-how and independently created components, subject to client rights and our intellectual property.
 
-**Internal Business Use** means use of the Software solely inside Your Company for Your Company's own internal business operations, internal workflows, internal applications, internal data, internal users, and internal customers or accounts.
+## 4. Selling software
 
-**Third Party** means any person or legal entity other than You or Your Company.
+Obtain a separate written commercial agreement before commercially offering a Spine-Powered Software Product to third parties. You may develop, prototype, and test such a product before commercial launch. Calling a software subscription a consulting, hosting, or membership fee does not change its substance. Legitimate bespoke client services remain permitted under section 3.
 
-**Commercial License** means a separate written agreement signed by the Licensor that grants rights beyond this license.
+## 5. Protecting the foundation
 
-## 3. Copyright License
+Without an explicit written commercial agreement, you may not sell, sublicense, rebrand, white-label, or redistribute Spine Framework itself as your own framework, platform, or hosted service; distribute included applications as generally available products; or create a competing distribution whose primary value is the supplied framework or applications. Distribution is otherwise limited to the permitted affiliates, contractors, service providers, and clients described above. Preserve copyright, license, and attribution notices. No other commercial or distribution rights are granted.
 
-The Licensor grants You a copyright license to do everything with the Software that would otherwise infringe the Licensor's copyright, but only for Internal Business Use and only as permitted by these terms.
+## 6. Ownership and patents
 
-You may install, run, access, evaluate, test, configure, and use the Software for Internal Business Use.
+You retain your data, content, branding, and independently created application code. You retain any ownership the law gives you in your original modifications, but that does not expand your rights to distribute our Software. We retain our Software and intellectual property. You may truthfully identify your application as built with Spine; you may not imply our endorsement. We grant a non-exclusive license to our patent claims necessarily infringed by the permitted use of the Software. That patent license ends if you or your affiliate bring a patent claim alleging that the Software infringes a patent.
 
-You may copy the Software only as reasonably necessary for Internal Business Use, including backup, deployment, development, testing, staging, disaster recovery, and internal security review.
+## 7. Versions and services
 
-You may not distribute the Software except as expressly allowed in these terms.
+This license applies to the release supplied under it. Later licenses do not retroactively change your rights to an earlier release. Updates and professional services may have separate terms. Ending optional services does not itself end your software rights. You are responsible for your infrastructure, security configuration, third-party costs, and legal use, except for work we expressly undertake in a separate service agreement.
 
-## 4. Changes and New Works
+## 8. Compliance and termination
 
-The Licensor grants You a copyright license to modify the Software and create new works based on the Software, but only for Internal Business Use.
+Use the Software lawfully, including applicable export and sanctions requirements. If we reasonably suspect unlicensed commercial distribution, we may request information limited to checking that use, not unrelated confidential records. For an ordinary material breach, we will give written notice and 30 days to cure before terminating the affected license. Deliberate unauthorized resale, redistribution, or circumvention may result in immediate termination on written notice. On termination, stop uses requiring the terminated permission; you need not delete your own data or independently owned code. Ownership, payment obligations already incurred, warranty limitations, liability limits, and obligations concerning third-party claims survive as applicable.
 
-You may create internal applications, extensions, workflows, integrations, automations, schemas, roles, agents, triggers, pipelines, dashboards, reports, and other internal business systems using the Software.
+## 9. Warranty and liability
 
-You may not distribute, sell, sublicense, transfer, lease, rent, host for others, white-label, resell, or commercially exploit any modified version, derivative work, extension, application pack, template, or implementation of the Software except under a Commercial License.
+TO THE EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS," WITHOUT IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, OR NON-INFRINGEMENT. YOU ARE RESPONSIBLE FOR EVALUATING ITS SUITABILITY. WE ARE NOT LIABLE FOR INDIRECT, CONSEQUENTIAL, SPECIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR LOST PROFITS, REVENUE, GOODWILL, OR DATA. OUR TOTAL LIABILITY UNDER THIS LICENSE WILL NOT EXCEED US $100. These limitations do not exclude liability or rights that the law does not allow us to exclude, or override express obligations in a separate signed agreement.
 
-## 5. Internal Contractors
+## 10. Third-party claims
 
-Your Company may allow employees and contractors to access and use the Software solely on behalf of Your Company and solely for Your Company's Internal Business Use.
+You will defend and indemnify Dahl Ventures Inc. against third-party claims to the extent caused by your unlawful use, material license violation, or content or code you add that infringes another person's rights. This does not cover claims caused by our unmodified Software or our own misconduct. We must promptly notify you, reasonably cooperate, and allow you to control the defense. You may not settle a claim by imposing an admission or nonmonetary obligation on us without our consent.
 
-Contractors do not receive any independent right to use the Software for themselves, their other clients, their own products, or any Third Party.
+## 11. General
 
-Your Company is responsible for all use of the Software by its employees, contractors, agents, and representatives.
-
-## 6. Your Data and Application-Specific Work
-
-As between You and the Licensor, You own Your Company's data, records, content, prompts, business logic, customer records, internal workflows, and application-specific code that You independently create using the Software.
-
-These terms do not give the Licensor ownership of Your Company's data or independently created application-specific business content.
-
-However, ownership of Your Company's data or application-specific work does not give You the right to distribute, resell, white-label, host, or commercially exploit the Software or any portion of the Software except as allowed by these terms or a Commercial License.
-
-## 7. Prohibited Uses
-
-You may not do any of the following without a Commercial License:
-
-1. Sell, resell, sublicense, rent, lease, lend, transfer, assign, publish, or distribute the Software.
-2. Offer the Software, or any modified version of the Software, to Third Parties as software, infrastructure, a framework, a platform, a service, or a hosted product.
-3. Offer the Software as SaaS, PaaS, IaaS, framework-as-a-service, backend-as-a-service, workflow-as-a-service, automation-as-a-service, AI-agent platform, managed service, support service, or similar commercial service.
-4. White-label, private-label, rebrand, or remove Spine Framework or Answer Once identity from the Software in order to provide it to Third Parties.
-5. Embed, bundle, package, or include the Software in any product, service, appliance, marketplace offering, application pack, starter kit, template library, SDK, CLI, distribution, or managed implementation made available to Third Parties.
-6. Use the Software to operate, power, support, or provide a product or service for Third Parties where those Third Parties receive access to the Software or to functionality substantially provided by the Software.
-7. Use the Software to build, operate, or improve a competing framework, platform, marketplace, application generator, agentic software infrastructure product, or commercial development infrastructure product.
-8. Provide implementation, consulting, hosting, support, customization, training, migration, or managed services for the Software to Third Parties as a paid or commercial offering, except as expressly authorized by the Licensor.
-9. Remove, alter, obscure, or bypass copyright notices, license notices, attribution, trademarks, branding, license keys, license checks, usage limits, or technical protection measures included in the Software.
-10. Use the Software in violation of law, regulation, third-party rights, or these terms.
-
-## 8. Examples of Permitted Use
-
-The following are permitted under this license, provided they are solely for Internal Business Use:
-
-1. A company installs Spine Framework to build its own internal CRM.
-2. A company uses Answer Once to operate an internal customer support portal for its own support team and its own customers.
-3. A company modifies the Software for its internal workflows, roles, permissions, automations, pipelines, and integrations.
-4. A company lets its employees and authorized contractors configure, maintain, and support its internal installation of the Software.
-5. A company creates internal dashboards, agents, knowledge bases, audit trails, and operational tools on top of the Software.
-
-## 9. Examples Requiring a Commercial License
-
-The following are not permitted under this license and require a Commercial License:
-
-1. Selling the Software or a modified version of the Software.
-2. Offering the Software as a hosted SaaS product.
-3. Offering a white-labeled application built on the Software to customers.
-4. Packaging the Software into a commercial starter kit, template, marketplace app, agency offering, or developer platform.
-5. Running the Software for multiple clients as a managed service provider, agency, consultant, systems integrator, or outsourcing firm.
-6. Embedding the Software into a product sold to customers.
-7. Forking the Software to launch a competing framework, backend, app platform, AI-agent platform, or development infrastructure product.
-8. Publishing modified source code of the Software to a public repository.
-9. Giving a customer, client, partner, reseller, or affiliate a copy of the Software.
-
-## 10. Distribution
-
-You may not distribute the Software, modified versions of the Software, or works based on the Software to any Third Party except as expressly permitted by these terms or a Commercial License.
-
-You may share copies of the Software with employees and contractors of Your Company only as necessary for Internal Business Use and only if they are bound by obligations consistent with these terms.
-
-Any copy of the Software must include this license and all Required Notices.
-
-## 11. Trademarks
-
-This license does not grant You any right to use the Licensor's names, trademarks, service marks, logos, product names, domain names, or branding except as necessary to identify the Software for Internal Business Use.
-
-You may not use Spine Framework or Answer Once branding in a way that suggests sponsorship, endorsement, partnership, certification, resale authorization, or commercial authorization without written permission from the Licensor.
-
-## 12. Patent License
-
-The Licensor grants You a patent license for the Software that covers patent claims the Licensor can license, or later becomes able to license, that You would infringe by using the Software as permitted by these terms.
-
-## 13. Patent Defense
-
-If You make any written claim that the Software infringes or contributes to infringement of any patent, Your patent license for the Software ends immediately.
-
-If Your Company makes such a claim, Your Company's patent license ends immediately.
-
-## 14. Fair Use and Other Legal Rights
-
-You may have fair use, fair dealing, or other rights under applicable law. These terms do not limit rights that the law does not allow these terms to limit.
-
-## 15. No Other Rights
-
-These terms do not allow You to sublicense, transfer, assign, or delegate any license granted under these terms except as expressly allowed here.
-
-These terms do not prevent the Licensor from granting licenses to anyone else.
-
-These terms do not imply any license other than the licenses expressly granted here.
-
-All rights not expressly granted are reserved by the Licensor.
-
-## 16. Violations and Cure
-
-The first time You are notified in writing that You have violated these terms, or done anything with the Software not covered by these terms, Your licenses can continue if You:
-
-1. come into full compliance with these terms;
-2. take practical steps to correct past violations; and
-3. complete both within 32 days of receiving written notice.
-
-If You do not satisfy those requirements, all licenses granted to You under these terms end immediately.
-
-For any later violation, all licenses granted to You under these terms end immediately without any cure period.
-
-## 17. Termination
-
-When Your licenses end, You must stop all use of the Software and destroy all copies of the Software in Your possession or control, except copies You are legally required to retain for archival, compliance, or legal purposes.
-
-Sections concerning ownership, prohibited uses, trademarks, patent defense, no other rights, violations, termination, no warranty, limitation of liability, and general terms survive termination.
-
-## 18. No Warranty
-
-As far as the law allows, the Software is provided as is and as available, without any warranty or condition, express or implied.
-
-The Licensor disclaims all warranties and conditions, including warranties of merchantability, fitness for a particular purpose, title, non-infringement, availability, accuracy, security, and quiet enjoyment.
-
-## 19. Limitation of Liability
-
-As far as the law allows, the Licensor will not be liable to You for any indirect, incidental, special, consequential, exemplary, punitive, or other damages arising out of these terms or the Software.
-
-As far as the law allows, the Licensor will not be liable for lost profits, lost revenue, lost savings, lost data, business interruption, security incidents, procurement of substitute services, or loss of goodwill.
-
-The Licensor's total liability arising out of these terms or the Software will not exceed the amount You paid the Licensor for the Software during the 12 months before the event giving rise to liability, or USD $100 if You paid nothing.
-
-## 20. Commercial Licensing
-
-Rights not granted under this license may be available under a separate Commercial License from the Licensor.
-
-A Commercial License is required for resale, redistribution, SaaS, managed services, white-label use, OEM use, marketplace distribution, partner use, commercial hosting, commercial support offerings, or any use outside Internal Business Use.
-
-To request commercial rights, contact:
-
- - spine-framework.com
- - webmaster@spine-framework.com
-
-## 21. License Updates
-
-The Licensor may publish updated versions of this license from time to time.
-
-Each release, package, download, or copy of the Software is governed by the license terms included with that release, package, download, or copy, unless You and the Licensor have signed a separate written agreement.
-
-Updated license terms apply only to future releases, downloads, packages, updates, upgrades, patches, hosted access, or other versions of the Software made available after the updated terms are published.
-
-The Licensor may require acceptance of updated license terms as a condition of receiving or using future releases, updates, hosted services, commercial features, support, documentation, marketplace access, license keys, portals, application packs, or other Licensor services.
-
-Nothing in this section gives You rights to continue using future versions of the Software under earlier license terms.
-
-## 22. General Terms
-
-If any part of these terms is held unenforceable, the rest remains in effect as far as the law allows.
-
-Failure by the Licensor to enforce any term is not a waiver.
-
-Any waiver must be in writing and signed by the Licensor.
-
-These terms are the entire license terms for the Software unless You and the Licensor have signed a separate written agreement.
-
-## 23. Plain-English Summary
-
-This summary is not part of the legal license.
-
-You may use the Software inside your own company for your own internal business operations.
-
-You may modify the Software for your own internal use.
-
-You may let your employees and contractors work on your internal installation of the Software.
-
-You may not sell it, redistribute it, white-label it, host it for others, offer it as SaaS, package it into another product, use it as a managed service offering, or use it to build a competing framework without a separate commercial license.
-
-Future versions, updates, services, support, portals, packs, license keys, and commercial features may require acceptance of updated terms.
-
-Spine Framework and Answer Once are source-available. They are not open source.
+You may transfer this license with a merger, reorganization, acquisition, or sale of substantially all the relevant business assets if the successor accepts it. Other assignments require our written agreement. We may assign it with a transfer of the relevant business. If one provision cannot be enforced, the remaining provisions continue. Failure to enforce a provision is not a waiver. This license and applicable signed agreements define the granted rights. Contact us through https://support.spine-framework.com for licensing questions.

@@ -201,6 +201,7 @@ Repositories: [spine-framework/spine](https://github.com/spine-framework/spine)
 ## License
 
 Licensed under the
-[Spine Framework / Answer Once Internal Use License](LICENSE.md) — free for
-internal business use; commercial redistribution requires a separate license
-(see spine-framework.com).
+[Spine Framework Business Use License](LICENSE.md) — free to build and run
+applications for your business, including customer-facing ones; selling a
+Spine-powered software product requires a commercial agreement
+(see spine-framework.com/software-license.html).
