@@ -1,6 +1,6 @@
 {
   "name": "spine-framework",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Multi-tenant, modular application platform for modern SaaS systems",
   "type": "module",
   "bin": {
@@ -85,6 +85,7 @@
     "assemble:functions": "bash scripts/assemble-functions.sh",
     "manifest": "bash scripts/build-manifest.sh",
     "verify": "bash scripts/verify-integrity.sh",
+    "verify:exports": "tsx scripts/verify-exports.ts",
     "prebuild": "npm run assemble && npm run verify",
     "build": "vite build --config config/vite.config.ts",
     "preview": "vite preview --config config/vite.config.ts",
@@ -96,6 +97,7 @@
     "test:core": "vitest run .framework/tests/unit/core-isolation.test.ts",
     "test:integration": "vitest run .framework/tests/integration",
     "test:boundary": "bash scripts/boundary-check.sh",
+    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:exports",
     "docs": "typedoc --entryPoints .framework/functions/_shared/index.ts --out docs/generated",
     "docs:lint": "tsx scripts/docs-lint.mts",
     "prepack": "node custom/npm/scripts/prepack-framework.mjs stage",
@@ -198,6 +200,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "ajv": "^8.12.0",
     "autoprefixer": "^10.4.20",
+    "esbuild": "^0.25.12",
     "js-yaml": "^4.1.0",
     "netlify-cli": "27.8.0",
     "postcss": "^8.5.1",

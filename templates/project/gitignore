@@ -38,6 +38,10 @@ _quarantine/
 __pycache__/
 *.tmp.mjs
 *.tmp.mts
+
+# update-app guard runtime state (pristine-package cache, pre-update backups)
+.spine/cache/
+.spine/backups/
 .tmp-*.mts
 test_*.mjs
 mobile-screenshot/
