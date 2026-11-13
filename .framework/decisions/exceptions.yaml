@@ -1,0 +1,8 @@
+# Release exceptions — each entry approves ONE proposed record for ONE
+# release of the owning package. The exception goes stale (and fails
+# validation) the moment the package version moves or the record is
+# adjudicated, so every release consciously re-approves what it ships.
+# Humans approve exceptions; agents may propose records but never approve.
+exceptions: []
+  # 0009 adjudicated 2026-11-12: factual claim verified on zip-it-and-ship-it,
+  # refactor proposal rejected (stubs retained). Exception no longer needed.

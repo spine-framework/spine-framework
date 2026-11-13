@@ -20,7 +20,7 @@ enforced_by:
 evidence:
   - { kind: commit, ref: 81f7461 }
   - { kind: test, ref: scripts/verify-exports.ts, label: source }
-  - { kind: decision, ref: spine-framework:0009-loader-try-catch, label: 'disproving evidence (proposed)' }
+  - { kind: decision, ref: spine-framework:0010-esbuild-optional-import-in-try, label: 'disproving evidence (verified on zip-it-and-ship-it)' }
 provenance: reconstructed
 ---
 

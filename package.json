@@ -1,6 +1,6 @@
 {
   "name": "spine-framework",
-  "version": "0.5.5",
+  "version": "0.6.0",
   "description": "Multi-tenant, modular application platform for modern SaaS systems",
   "type": "module",
   "bin": {
@@ -86,6 +86,8 @@
     "manifest": "bash scripts/build-manifest.sh",
     "verify": "bash scripts/verify-integrity.sh",
     "verify:exports": "tsx scripts/verify-exports.ts",
+    "verify:decisions": "tsx scripts/check-decisions.ts --strict",
+    "db:fixtures": "tsx scripts/db-fixtures.ts",
     "prebuild": "npm run assemble && npm run verify",
     "build": "vite build --config config/vite.config.ts",
     "preview": "vite preview --config config/vite.config.ts",
@@ -97,12 +99,11 @@
     "test:core": "vitest run .framework/tests/unit/core-isolation.test.ts",
     "test:integration": "vitest run .framework/tests/integration",
     "test:boundary": "bash scripts/boundary-check.sh",
-    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:exports",
+    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports",
     "docs": "typedoc --entryPoints .framework/functions/_shared/index.ts --out docs/generated",
     "docs:lint": "tsx scripts/docs-lint.mts",
     "prepack": "node custom/npm/scripts/prepack-framework.mjs stage",
     "postpack": "node custom/npm/scripts/prepack-framework.mjs clean",
-    "cil:migrate-markers": "tsx .framework/scripts/cil-migrate-markers.ts",
     "typecheck": "tsc -b config/tsconfig.json",
     "typecheck:functions": "tsc --noEmit -p config/tsconfig.functions.json"
   },

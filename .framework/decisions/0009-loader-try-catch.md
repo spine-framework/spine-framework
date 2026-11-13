@@ -1,7 +1,7 @@
 ---
 id: spine-framework:0009-loader-try-catch
 title: Loader import()s are wrapped in try/catch so absent app modules never reach the bundler
-status: proposed
+status: rejected
 kind: decision
 owner: package
 since: 0.5.4
@@ -72,3 +72,22 @@ two runs). Proposes to supersede `spine-framework:0002-assembler-import-stubs`;
 the `supersedes`/`superseded_by` link is intentionally unset until human
 acceptance. Netlify's production bundler (zip-it-and-ship-it) must be verified
 to honor the same semantics before adoption.
+
+## Adjudication (2026-11-12, human-reviewed)
+
+**Factual claim: verified** against the actual production bundler —
+zip-it-and-ship-it 16.3.0 with `node_bundler = "esbuild"` bundles
+`try { await import('./missing') } catch {}` cleanly and fails
+`await import('./missing')` with `Could not resolve`. (evidence: fixture —
+local ZISI; Netlify-pinned version may differ.)
+
+**Proposal: rejected.** A working alternative is not a demonstrated
+advantage. The assembler stubs also fail *at build time* ("Stubbed missing
+import target" is printed during assembly), while the try/catch design moves
+the same failure to invocation time — no measurable gain for removing
+working machinery, and the stub path keeps `verify-exports` meaningful.
+The verified fact is preserved in
+`spine-framework:0010-esbuild-optional-import-in-try`.
+
+0002's decision (stubs) therefore remains `accepted`; only its rationale was
+invalidated.

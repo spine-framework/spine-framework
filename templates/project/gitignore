@@ -47,3 +47,6 @@ test_*.mjs
 mobile-screenshot/
 Screen Shot *.png
 
+
+# Stage 2 db-fixtures scratch (docker supabase stack, baseline archives)
+.fixtures/
