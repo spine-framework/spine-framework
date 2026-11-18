@@ -1,3 +1,14 @@
+---
+title: "Spine Framework"
+kind: index
+verified_against: ca2e02f
+verified_on: 2026-11-17
+source_files:
+  - package.json
+  - .framework/src/instructions/
+  - netlify.toml
+---
+
 # Spine Framework
 
 Spine Framework is a multi-tenant application platform that gives you the
@@ -113,12 +124,20 @@ The same files render inside the admin UI: every admin page has an
 
 ## For AI agents
 
-After `init`, your repo contains everything an agent needs:
+Spine is designed to be developed on *by* agents — the canonical statement
+lives in `docs/articles/spine-framework.md` (the section the marketing site
+pulls for `llms.txt`). After `init`, your repo contains everything an agent
+needs:
 
-- **`AGENTS.md`** — the standing rules for working in a Spine project.
-- **`.devin/skills/spine-*`** — 13 procedures (`spine-new-type`,
-  `spine-new-app`, `spine-add-automation`, `spine-troubleshoot`, …).
+- **`AGENTS.md`** — the standing rules: `.framework/` is sealed, all
+  runtime-record CRUD goes through `/api/admin-data`, migrations only for
+  schema, `record_permissions` keys match `roles.slug` verbatim.
+- **`.devin/skills/spine-*`** — task procedures (`spine-install`,
+  `spine-new-type`, `spine-new-app`, `spine-add-automation`, `spine-ship`,
+  `spine-operate`, `spine-troubleshoot`, …).
 - **`.framework/src/instructions/`** — the instruction book above.
+- **`.github/workflows/spine-ci.yml`** — a shipped CI gate (verify →
+  typecheck → test → build); add your own alongside it.
 
 Useful CLI for agents:
 
@@ -128,7 +147,8 @@ npx spine-framework validate-app custom/apps/<slug>   # check an app package
 ```
 
 Point your agent at `guide/03-domain-model.md` and `concepts/` first — it
-explains the primitives and how they compose.
+explains the primitives and how they compose. Support:
+support.spine-framework.com.
 
 ## CLI quick reference
 
@@ -146,6 +166,17 @@ All commands run as `npx spine-framework <command>`. Full reference:
 | `doctor` | Check installation health (env, files, DB reachability) |
 | `bootstrap` | Create the first `system_admin` + confirmed auth user + `sk_` key, no browser |
 | `upgrade` | Sync framework files to the installed package version; `--dry-run`, `--force` |
+| `dev` | Assemble + verify, then start Vite (`--netlify` for functions + UI on :8888) |
+| `test [suite]` | Run Vitest suites; `--watch`, `--json` |
+| `create-app <slug>` | Scaffold a custom app in `custom/apps/<slug>/` |
+| `update-app <pkg>` | Re-copy an installed app's files + re-sync registration |
+| `uninstall-app <pkg>` | Remove an app's files (never deletes seeded DB rows) |
+| `seed-app <slug>` | Run only the manifest `seed` block + registration sync |
+| `migrations list/status` | Show applied migrations / diff local files vs applied |
+
+Runtime-data command groups (`auth`, `items`, `pipelines`, `agents`,
+`system`) and full flag reference:
+[`.framework/src/instructions/reference/cli.md`](.framework/src/instructions/reference/cli.md).
 
 ## Requirements
 
@@ -195,13 +226,12 @@ Repositories: [spine-framework/spine](https://github.com/spine-framework/spine)
 - `npx spine-framework dev` runs the real dev flow: `scripts/assemble.sh`,
   integrity check, then Vite (`--netlify` for the full `netlify dev` stack on
   :8888). `npm run dev` / `npm run dev:netlify` remain equivalent.
-- There is no MCP server — agent integration is via `AGENTS.md`, skills, and
-  the instruction book.
+- No MCP server ships in the package today — agent integration is via
+  `AGENTS.md`, skills, and the instruction book. (An MCP exists repo-side
+  for framework development; whether it ships is a product decision.)
 
 ## License
 
 Licensed under the
-[Spine Framework Business Use License](LICENSE.md) — free to build and run
-applications for your business, including customer-facing ones; selling a
-Spine-powered software product requires a commercial agreement
-(see spine-framework.com/software-license.html).
+[Apache License 2.0](LICENSE.md) — free for any use, including commercial
+software products (see spine-framework.com/software-license.html).

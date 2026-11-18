@@ -11,7 +11,6 @@ superseded_by: null
 links: []
 applies_to:
   - custom/apps/demo/lib/agent-steps.ts
-  - custom/apps/cortex/hooks/useAgentSteps.ts
   - .framework/functions/_shared/agent-runner.ts
 enforced_by: []
 evidence:

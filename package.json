@@ -1,12 +1,13 @@
 {
   "name": "spine-framework",
-  "version": "0.6.1",
+  "version": "0.7.0-rc.1",
   "description": "Multi-tenant, modular application platform for modern SaaS systems",
   "type": "module",
   "bin": {
     "spine-framework": "bin/spine-framework.cjs"
   },
   "files": [
+    "docs-manifest.json",
     "bin/",
     "scripts/assemble.sh",
     "scripts/assemble-frontend.sh",
@@ -34,17 +35,6 @@
     "!.framework/functions/_quarantine/",
     "!.framework/tests/integration/",
     "!.framework/public/spine.config.json",
-    "!.framework/docs/admin-routes.md",
-    "!.framework/docs/api-docs-progress.md",
-    "!.framework/docs/api-governance.md",
-    "!.framework/docs/api-testing-results.md",
-    "!.framework/docs/assembly-launch-guide.md",
-    "!.framework/docs/audit-results.md",
-    "!.framework/docs/db-api-inventory.md",
-    "!.framework/docs/gap-remediation-backlog.md",
-    "!.framework/docs/ui-adoption-verification.md",
-    "!.framework/docs/ui-api-coverage.md",
-    "!.framework/docs/v2-compatibility-audit.md",
     "!**/*.tsbuildinfo",
     "!**/.DS_Store",
     "!**/.env",
@@ -54,6 +44,7 @@
     "!**/.env.test",
     "!**/.xenv",
     "!**/.xenv.*",
+    "docs/articles/",
     "README.md",
     "LICENSE.md"
   ],
@@ -66,7 +57,7 @@
     "react",
     "typescript"
   ],
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spine-framework/spine-framework.git"
@@ -99,9 +90,11 @@
     "test:core": "vitest run .framework/tests/unit/core-isolation.test.ts",
     "test:integration": "vitest run .framework/tests/integration",
     "test:boundary": "bash scripts/boundary-check.sh",
-    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports",
+    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports && npm run docs:lint",
     "docs": "typedoc --entryPoints .framework/functions/_shared/index.ts --out docs/generated",
     "docs:lint": "tsx scripts/docs-lint.mts",
+    "docs:release-check": "tsx scripts/docs-release-check.mts",
+    "docs:retention-check": "tsx scripts/docs-retention-check.mts",
     "prepack": "node custom/npm/scripts/prepack-framework.mjs stage",
     "postpack": "node custom/npm/scripts/prepack-framework.mjs clean",
     "typecheck": "tsc -b config/tsconfig.json",

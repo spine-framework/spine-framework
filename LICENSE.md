@@ -1,55 +1,215 @@
-# Spine Framework Business Use License 2.0
+# Apache License 2.0
 
-**Use Spine Framework to run your business for free. If you sell a Spine-powered software product, obtain a commercial agreement first.**
+Copyright 2026 Dahl Ventures Inc.
 
-Version 2.0 — Effective Date: November 9, 2026
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-Required Notice: Copyright © 2026 Dahl Ventures Inc. All rights reserved.
+    http://www.apache.org/licenses/LICENSE-2.0
 
-This license supersedes the Business Use License 1.0 and the Spine Framework / Answer Once Internal Use License 1.0.0 for new releases. Releases supplied under an earlier license remain governed by that license. The current license text and the historical license archive are maintained at https://spine-framework.com/software-license.html.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
-## 1. Who and what this covers
+---
 
-This license is between Dahl Ventures Inc. and the person or organization using the Spine Framework release supplied under it. "Software" means that release and the components supplied under this license. Third-party components keep their own licenses. Your use is subject to these terms; a separate signed agreement controls where it expressly provides different rights.
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
 
-A "Spine-Powered Application" is software created using, incorporating, modifying, or depending materially upon the Software. A "Spine-Powered Software Product" is a Spine-Powered Application offered to third parties as a software product or software service for direct or indirect commercial consideration — including software-as-a-service, subscription software, commercially licensed software, hosted software products, standardized managed software platforms, and software for which customers pay primarily for access to the software itself. An application is not a Spine-Powered Software Product merely because customers or other third parties interact with it as part of your underlying non-software business.
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
-## 2. Free business use
+   1. Definitions.
 
-We grant you a worldwide, royalty-free, non-exclusive license to install, run, copy as reasonably needed, modify, and build applications with the Software for your organization and its affiliates. Affiliates are organizations controlling, controlled by, or under common control with your organization. Employees, contractors, customers, suppliers, and partners may use those applications to support your underlying business. An online store, customer portal, internal CRM, or support application qualifies. Charging for your underlying goods or services does not itself make the application a software product.
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
 
-## 3. Agencies and consultants
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
 
-You may charge a client for bespoke development, configuration, installation, hosting, maintenance, and related services when that client's use qualifies under section 2. You may supply the copies needed for that use if the client accepts the applicable license and you preserve its notices. The client receives rights from us under that license, not a sublicense from you. You may reuse your own know-how and independently created components, subject to client rights and our intellectual property.
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with the acting entity, where control means (i) the power,
+      direct or indirect, to cause the direction or management of such
+      entity, whether by contract or otherwise, or (ii) ownership of fifty
+      percent (50%) or more of the outstanding shares, or (iii) beneficial
+      ownership of such entity.
 
-## 4. Selling software
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
 
-Obtain a separate written commercial agreement before commercially offering a Spine-Powered Software Product to third parties. You may develop, prototype, and test such a product before commercial launch. Calling a software subscription a consulting, hosting, or membership fee does not change its substance. Legitimate bespoke client services remain permitted under section 3.
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
 
-## 5. Protecting the foundation
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including, but not
+      limited to, compiled object code, generated code, or conversions to
+      other forms.
 
-Without an explicit written commercial agreement, you may not sell, sublicense, rebrand, white-label, or redistribute Spine Framework itself as your own framework, platform, or hosted service; distribute included applications as generally available products; or create a competing distribution whose primary value is the supplied framework or applications. Distribution is otherwise limited to the permitted affiliates, contractors, service providers, and clients described above. Preserve copyright, license, and attribution notices. No other commercial or distribution rights are granted.
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
 
-## 6. Ownership and patents
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
 
-You retain your data, content, branding, and independently created application code. You retain any ownership the law gives you in your original modifications, but that does not expand your rights to distribute our Software. We retain our Software and intellectual property. You may truthfully identify your application as built with Spine; you may not imply our endorsement. We grant a non-exclusive license to our patent claims necessarily infringed by the permitted use of the Software. That patent license ends if you or your affiliate bring a patent claim alleging that the Software infringes a patent.
+      "Contribution" shall mean any work of authorship, including Source
+      and Object forms, that is based on (or derived from) the Work and for
+      which the editorial revisions, annotations, elaborations, or other
+      modifications represent, as a whole, an original work of authorship,
+      and that is intentionally submitted to Licensor for inclusion in the
+      Work by the copyright owner or by an individual or entity authorized
+      to submit on behalf of the copyright owner. For the purposes of this
+      definition, "submitted" means any form of electronic, verbal, or
+      written communication sent to the Licensor or its representatives,
+      including but not limited to communication on electronic mailing
+      lists, source code control systems, and issue tracking systems that
+      are managed by, or on behalf of, the Licensor for the purpose of
+      discussing and improving the Work, but excluding communication that
+      is conspicuously marked or otherwise designated by the copyright
+      owner as "Not a Contribution."
 
-## 7. Versions and services
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated into the Work.
 
-This license applies to the release supplied under it. Later licenses do not retroactively change your rights to an earlier release. Updates and professional services may have separate terms. Ending optional services does not itself end your software rights. You are responsible for your infrastructure, security configuration, third-party costs, and legal use, except for work we expressly undertake in a separate service agreement.
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
 
-## 8. Compliance and termination
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) is/are necessarily
+      infringed. If You institute patent litigation against any entity
+      (including a cross-claim or counterclaim in a lawsuit) alleging that
+      the Work or a Contribution incorporated within the Work constitutes
+      direct or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate as of
+      the date such litigation was filed.
 
-Use the Software lawfully, including applicable export and sanctions requirements. If we reasonably suspect unlicensed commercial distribution, we may request information limited to checking that use, not unrelated confidential records. For an ordinary material breach, we will give written notice and 30 days to cure before terminating the affected license. Deliberate unauthorized resale, redistribution, or circumvention may result in immediate termination on written notice. On termination, stop uses requiring the terminated permission; you need not delete your own data or independently owned code. Ownership, payment obligations already incurred, warranty limitations, liability limits, and obligations concerning third-party claims survive as applicable.
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You meet
+      the following conditions:
 
-## 9. Warranty and liability
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
 
-TO THE EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS," WITHOUT IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, OR NON-INFRINGEMENT. YOU ARE RESPONSIBLE FOR EVALUATING ITS SUITABILITY. WE ARE NOT LIABLE FOR INDIRECT, CONSEQUENTIAL, SPECIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR LOST PROFITS, REVENUE, GOODWILL, OR DATA. OUR TOTAL LIABILITY UNDER THIS LICENSE WILL NOT EXCEED US $100. These limitations do not exclude liability or rights that the law does not allow us to exclude, or override express obligations in a separate signed agreement.
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
 
-## 10. Third-party claims
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work, excluding
+          those notices that do not pertain to any part of the Derivative
+          Works; and
 
-You will defend and indemnify Dahl Ventures Inc. against third-party claims to the extent caused by your unlawful use, material license violation, or content or code you add that infringes another person's rights. This does not cover claims caused by our unmodified Software or our own misconduct. We must promptly notify you, reasonably cooperate, and allow you to control the defense. You may not settle a claim by imposing an admission or nonmonetary obligation on us without our consent.
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute
+          must include a readable copy of the attribution notices
+          contained within such NOTICE file, excluding those notices
+          that do not pertain to any part of the Derivative Works, in at
+          least one of the following places: within a NOTICE text file
+          distributed with the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are informational only and do not modify the
+          License. You may add Your own copyright statement to Your
+          modifications and alongside or as an addendum to the Derivative
+          Works, as long as it is conspicuously marked, and the terms of
+          the license are included therein.
 
-## 11. General
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement You may have executed
+      with Licensor regarding such Contributions.
 
-You may transfer this license with a merger, reorganization, acquisition, or sale of substantially all the relevant business assets if the successor accepts it. Other assignments require our written agreement. We may assign it with a transfer of the relevant business. If one provision cannot be enforced, the remaining provisions continue. Failure to enforce a provision is not a waiver. This license and applicable signed agreements define the granted rights. Contact us through https://support.spine-framework.com for licensing questions.
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing
+      the origin of the Work and reproducing the content of the Work.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or agreed
+      to in writing, Licensor provides the Work (and each Contributor
+      provides its Contributions to You) on an "AS IS" BASIS, WITHOUT
+      WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied,
+      including, without limitation, any warranties or conditions of TITLE,
+      NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR
+      PURPOSE. You are solely responsible for determining the
+      appropriateness, conditions, and limitations of Your use of the Work,
+      and for any costs associated with Your use of the Work.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including breach of contract or otherwise),
+      or otherwise, unless required by applicable law (such as deliberate
+      and grossly negligent acts) or agreed to in writing, shall any
+      Contributor be liable to You for damages, including any direct,
+      indirect, special, incidental, or consequential damages of any
+      character arising out of the use of or inability to use the Work
+      (including but not limited to damages for loss of use, data, or
+      profits; or for business interruption), however caused and on any
+      theory of liability, whether in contract, strict liability, or tort
+      (including negligence or otherwise) arising in any way out of the
+      use of the Work, even if You have been advised of the possibility of
+      such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.

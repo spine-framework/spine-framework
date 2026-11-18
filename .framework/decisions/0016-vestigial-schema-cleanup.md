@@ -13,8 +13,8 @@ applies_to:
   - .framework/migrations/001_core_schema.sql
   - .framework/functions/system-cron.ts
   - .framework/functions/logs.ts
-  - docs/spine-framework-documentation/reference/primitives/runtime/invites.md
-  - docs/spine-framework-documentation/reference/primitives/runtime/alerts.md
+  - docs/archive/0.6.1/spine-framework-documentation/reference/primitives/runtime/invites.md
+  - docs/archive/0.6.1/spine-framework-documentation/reference/primitives/runtime/alerts.md
 enforced_by: []
 evidence:
   - { kind: doc, ref: "docs/spine-framework-documentation/reference/primitives/runtime/invites.md — public.invites has zero readers/writers; real invites are pending people rows with data.invite_token", label: observed }

@@ -50,3 +50,4 @@ Screen Shot *.png
 
 # Stage 2 db-fixtures scratch (docker supabase stack, baseline archives)
 .fixtures/
+docs-manifest.json
