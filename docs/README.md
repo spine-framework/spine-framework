@@ -1,8 +1,8 @@
 ---
 title: "Documentation"
 kind: index
-verified_against: c56baaf
-verified_on: 2026-11-17
+verified_against: 7242277
+verified_on: 2026-11-20
 source_files:
   - docs/
   - .framework/src/instructions/

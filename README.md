@@ -1,8 +1,8 @@
 ---
 title: "Spine Framework"
 kind: index
-verified_against: ca2e02f
-verified_on: 2026-11-17
+verified_against: 522a11f
+verified_on: 2026-11-20
 source_files:
   - package.json
   - .framework/src/instructions/
@@ -84,9 +84,9 @@ npx spine-framework migrate     # creates tables, RLS, seeds system data (idempo
 npm run dev:netlify             # Netlify dev server on http://localhost:8888 (functions + UI)
 ```
 
-`npm run dev` starts only the Vite dev server on port 3001 — fine for
+`npm run dev:vite` starts only the Vite dev server on port 3001 — fine for
 frontend work, but `/api/*` calls still proxy to 8888, so functions need
-`netlify dev` running.
+`netlify dev` running. (`npm run dev` is an alias for `dev:netlify`.)
 
 ### 4. First login
 
@@ -180,7 +180,7 @@ Runtime-data command groups (`auth`, `items`, `pipelines`, `agents`,
 
 ## Requirements
 
-- Node.js ≥ 22, npm ≥ 10
+- Node.js ≥ 22.13, npm ≥ 10 (init stamps this floor into `.spine-manifest.json`)
 - A [Supabase](https://supabase.com) project (URL + anon/service keys + DB password)
 - Netlify CLI for local dev — pinned as a devDependency, so `npm install`
   provides it. A Netlify account/site is only needed to deploy to production.
@@ -224,8 +224,9 @@ Repositories: [spine-framework/spine](https://github.com/spine-framework/spine)
   schema with `npx spine-framework validate-schema`). See "Removed commands"
   in [`reference/cli.md`](.framework/src/instructions/reference/cli.md).
 - `npx spine-framework dev` runs the real dev flow: `scripts/assemble.sh`,
-  integrity check, then Vite (`--netlify` for the full `netlify dev` stack on
-  :8888). `npm run dev` / `npm run dev:netlify` remain equivalent.
+  integrity check, then Vite — the Vite-only equivalent of `npm run
+  dev:vite` (`--netlify` for the full `netlify dev` stack on :8888,
+  equivalent to `npm run dev:netlify`).
 - No MCP server ships in the package today — agent integration is via
   `AGENTS.md`, skills, and the instruction book. (An MCP exists repo-side
   for framework development; whether it ships is a product decision.)
