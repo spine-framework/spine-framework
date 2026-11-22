@@ -1,10 +1,9 @@
 ---
 title: "Documentation"
 kind: index
-verified_against: 7242277
-verified_on: 2026-11-20
+verified_against: 45e1850
+verified_on: 2026-11-22
 source_files:
-  - docs/
   - .framework/src/instructions/
   - docs/archive/0.7.0/docs-skills-realignment.md
 ---

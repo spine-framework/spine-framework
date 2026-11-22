@@ -1,8 +1,8 @@
 ---
 title: "Spine Framework"
 kind: index
-verified_against: 522a11f
-verified_on: 2026-11-20
+verified_against: 45e1850
+verified_on: 2026-11-22
 source_files:
   - package.json
   - .framework/src/instructions/
