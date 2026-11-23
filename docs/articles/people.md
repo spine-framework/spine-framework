@@ -1,8 +1,8 @@
 ---
 title: "Why `people` exists"
 kind: narrative
-verified_against: 24eb144
-verified_on: 2026-11-20
+verified_against: 97bd83d
+verified_on: 2026-11-22
 extends: .framework/src/instructions/people.md
 source_files:
   - .framework/migrations/001_core_schema.sql
