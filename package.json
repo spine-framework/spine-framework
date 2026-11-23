@@ -1,6 +1,6 @@
 {
   "name": "spine-framework",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Multi-tenant, modular application platform for modern SaaS systems",
   "type": "module",
   "bin": {
@@ -91,7 +91,7 @@
     "test:core": "vitest run .framework/tests/unit/core-isolation.test.ts",
     "test:integration": "vitest run .framework/tests/integration",
     "test:boundary": "bash scripts/boundary-check.sh",
-    "gate": "npm run verify && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports && npm run docs:lint",
+    "gate": "npm run verify && npm run assemble:functions && npm run typecheck:functions && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports && npm run docs:lint",
     "docs": "typedoc --entryPoints .framework/functions/_shared/index.ts --out docs/generated",
     "docs:lint": "tsx scripts/docs-lint.mts",
     "docs:release-check": "tsx scripts/docs-release-check.mts",

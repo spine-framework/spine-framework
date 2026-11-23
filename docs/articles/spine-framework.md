@@ -1,7 +1,7 @@
 ---
 title: "Stop Rebuilding the Foundation"
 kind: narrative
-verified_against: 945dc8f
+verified_against: cdac696
 verified_on: 2026-11-22
 source_files:
   - package.json
