@@ -1,8 +1,8 @@
 ---
 title: "Stop Rebuilding the Foundation"
 kind: narrative
-verified_against: cdac696
-verified_on: 2026-11-22
+verified_against: 15faf83
+verified_on: 2026-11-23
 source_files:
   - package.json
   - .framework/mcp/index.ts

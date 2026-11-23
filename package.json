@@ -1,6 +1,6 @@
 {
   "name": "spine-framework",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Multi-tenant, modular application platform for modern SaaS systems",
   "type": "module",
   "bin": {
@@ -91,7 +91,7 @@
     "test:core": "vitest run .framework/tests/unit/core-isolation.test.ts",
     "test:integration": "vitest run .framework/tests/integration",
     "test:boundary": "bash scripts/boundary-check.sh",
-    "gate": "npm run verify && npm run assemble:functions && npm run typecheck:functions && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports && npm run docs:lint",
+    "gate": "npm run verify && npm run assemble:functions && npm run typecheck:functions && npm run typecheck:cli && npm run test:boundary && npm run test:unit && npm run verify:decisions && npm run verify:exports && npm run docs:lint",
     "docs": "typedoc --entryPoints .framework/functions/_shared/index.ts --out docs/generated",
     "docs:lint": "tsx scripts/docs-lint.mts",
     "docs:release-check": "tsx scripts/docs-release-check.mts",
@@ -99,7 +99,8 @@
     "prepack": "node custom/npm/scripts/prepack-framework.mjs stage",
     "postpack": "node custom/npm/scripts/prepack-framework.mjs clean",
     "typecheck": "tsc -b config/tsconfig.json",
-    "typecheck:functions": "tsc --noEmit -p config/tsconfig.functions.json"
+    "typecheck:functions": "tsc --noEmit -p config/tsconfig.functions.json",
+    "typecheck:cli": "tsc --noEmit -p config/tsconfig.cli.json"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

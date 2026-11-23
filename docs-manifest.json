@@ -1,12 +1,12 @@
 {
-  "version": "0.9.0",
-  "commit": "a1f21c096fac0ce5963b071011f75108695868a1",
+  "version": "0.10.0",
+  "commit": "9f4852f277f8681df541cad9c7e5f4f2f6291254",
   "generated": "2026-11-23",
   "files": [
     {
       "path": ".framework/src/instructions/accounts.md",
       "class": "living:shipped-book",
-      "verified_against": "9f90999"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/ai-agents.md",
@@ -36,7 +36,7 @@
     {
       "path": ".framework/src/instructions/concepts/apps-and-renderers.md",
       "class": "living:shipped-book",
-      "verified_against": "8a0dc59"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/concepts/auth-and-api-keys.md",
@@ -56,7 +56,7 @@
     {
       "path": ".framework/src/instructions/concepts/core-vs-custom.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/concepts/decision-records.md",
@@ -101,12 +101,12 @@
     {
       "path": ".framework/src/instructions/concepts/team-conventions.md",
       "class": "living:shipped-book",
-      "verified_against": "781dcbd"
+      "verified_against": "59afa86"
     },
     {
       "path": ".framework/src/instructions/concepts/tenancy.md",
       "class": "living:shipped-book",
-      "verified_against": "9d16176"
+      "verified_against": "e0b6dc5"
     },
     {
       "path": ".framework/src/instructions/deliveries.md",
@@ -116,17 +116,17 @@
     {
       "path": ".framework/src/instructions/guide/00-orientation.md",
       "class": "living:shipped-book",
-      "verified_against": "df5241c"
+      "verified_against": "15faf83"
     },
     {
       "path": ".framework/src/instructions/guide/01-install-and-first-run.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/guide/02-project-map.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/guide/03-domain-model.md",
@@ -136,7 +136,7 @@
     {
       "path": ".framework/src/instructions/guide/04-first-app.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/guide/05-glossary.md",
@@ -146,7 +146,7 @@
     {
       "path": ".framework/src/instructions/guide/06-join-an-existing-project.md",
       "class": "living:shipped-book",
-      "verified_against": "9d16176"
+      "verified_against": "e0b6dc5"
     },
     {
       "path": ".framework/src/instructions/integrations.md",
@@ -156,7 +156,7 @@
     {
       "path": ".framework/src/instructions/internal/docs-contract.md",
       "class": "living:shipped-book",
-      "verified_against": "df5241c"
+      "verified_against": "f41d645"
     },
     {
       "path": ".framework/src/instructions/invites.md",
@@ -176,7 +176,7 @@
     {
       "path": ".framework/src/instructions/notifications.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "7529771"
     },
     {
       "path": ".framework/src/instructions/observability.md",
@@ -191,12 +191,12 @@
     {
       "path": ".framework/src/instructions/operations/migrations.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/operations/recovery.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/operations/security-checklist.md",
@@ -211,12 +211,12 @@
     {
       "path": ".framework/src/instructions/operations/upgrade.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/operations/versioning.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "15faf83"
     },
     {
       "path": ".framework/src/instructions/people.md",
@@ -241,7 +241,7 @@
     {
       "path": ".framework/src/instructions/README.md",
       "class": "living:shipped-book",
-      "verified_against": "9d16176"
+      "verified_against": "e0b6dc5"
     },
     {
       "path": ".framework/src/instructions/reference/api/admin-data.md",
@@ -261,12 +261,12 @@
     {
       "path": ".framework/src/instructions/reference/app-manifest.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/reference/cli.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/reference/database.md",
@@ -276,12 +276,12 @@
     {
       "path": ".framework/src/instructions/reference/design-schema.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "7529771"
     },
     {
       "path": ".framework/src/instructions/reference/env-vars.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/reference/frontend-sdk.md",
@@ -476,7 +476,7 @@
     {
       "path": ".framework/src/instructions/reference/seeds.md",
       "class": "living:shipped-book",
-      "verified_against": "4196635"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/reference/shared-modules.md",
@@ -486,7 +486,7 @@
     {
       "path": ".framework/src/instructions/reference/spine-config.md",
       "class": "living:shipped-book",
-      "verified_against": "a812c8e"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/roles.md",
@@ -561,32 +561,37 @@
     {
       "path": ".framework/src/instructions/tasks/declare-your-environments.md",
       "class": "living:shipped-book",
-      "verified_against": "cdac696"
+      "verified_against": "d0b4e73"
     },
     {
       "path": ".framework/src/instructions/tasks/document-your-app.md",
       "class": "living:shipped-book",
-      "verified_against": "cdac696"
+      "verified_against": "8a578a0"
     },
     {
       "path": ".framework/src/instructions/tasks/onboard-client-staff.md",
       "class": "living:shipped-book",
-      "verified_against": "9d16176"
+      "verified_against": "e0b6dc5"
     },
     {
       "path": ".framework/src/instructions/tasks/package-and-install-an-app.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/tasks/register-an-app.md",
       "class": "living:shipped-book",
-      "verified_against": "8a0dc59"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/src/instructions/tasks/rotate-an-api-key.md",
       "class": "living:shipped-book",
       "verified_against": "1ceeac5"
+    },
+    {
+      "path": ".framework/src/instructions/tasks/serve-public-content.md",
+      "class": "living:shipped-book",
+      "verified_against": "ba58de9"
     },
     {
       "path": ".framework/src/instructions/tasks/set-up-monitoring.md",
@@ -596,12 +601,12 @@
     {
       "path": ".framework/src/instructions/tasks/test-your-code.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "15faf83"
     },
     {
       "path": ".framework/src/instructions/tasks/upgrade-many-projects.md",
       "class": "living:shipped-book",
-      "verified_against": "781dcbd"
+      "verified_against": "59afa86"
     },
     {
       "path": ".framework/src/instructions/tasks/write-a-function.md",
@@ -616,7 +621,7 @@
     {
       "path": ".framework/src/instructions/tasks/write-a-smoke-test.md",
       "class": "living:shipped-book",
-      "verified_against": "781dcbd"
+      "verified_against": "59afa86"
     },
     {
       "path": ".framework/src/instructions/testing.md",
@@ -636,22 +641,22 @@
     {
       "path": ".framework/src/instructions/types.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "a672d6b"
     },
     {
       "path": ".framework/templates/agent/AGENTS.md",
       "class": "living:shipped-template",
-      "verified_against": "dc1d7f1"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-ai-agent/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-automation/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-integration/SKILL.md",
@@ -661,7 +666,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-architect/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "3ff4b85"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-decision-capture/SKILL.md",
@@ -671,17 +676,17 @@
     {
       "path": ".framework/templates/agent/skills/spine-docs-sync/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": ".framework/templates/agent/skills/spine-install-app/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "3ff4b85"
+      "verified_against": "15faf83"
     },
     {
       "path": ".framework/templates/agent/skills/spine-install/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-migration/SKILL.md",
@@ -691,7 +696,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-new-app/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "3ff4b85"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-new-function/SKILL.md",
@@ -701,37 +706,37 @@
     {
       "path": ".framework/templates/agent/skills/spine-new-type/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-operate/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-schema/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "699d419"
     },
     {
       "path": ".framework/templates/agent/skills/spine-ship/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-test/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-troubleshoot/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": ".framework/templates/agent/skills/spine-upgrade/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "9d16176"
+      "verified_against": "699d419"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/entities/knowledge.md",
@@ -751,32 +756,32 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/can-i-browse-the-knowledge-base-without-opening-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/can-i-customize-the-ao-pages-or-add-my-own.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/can-i-follow-a-ticket-someone-else-on-my-team-opened.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/can-i-open-one-ticket-for-several-unrelated-questions.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/can-i-reopen-a-resolved-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/does-answer-once-come-with-a-pre-loaded-knowledge-base.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/does-answer-once-learn-from-my-tickets.md",
@@ -786,7 +791,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/does-answer-once-require-cil-or-any-extra-services.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-embeddings-stay-fresh-when-articles-change.md",
@@ -796,37 +801,37 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-add-teammates-to-our-account.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-install-answer-once.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-reply-to-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-set-up-support-staff.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-submit-a-support-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-i-upgrade-the-framework-vs-the-app.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-notifications-and-email-work.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-do-tickets-threads-and-messages-relate.md",
@@ -836,7 +841,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-does-an-answer-get-into-the-knowledge-base.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-does-the-ai-triage-actually-decide-to-answer-vs-escalate.md",
@@ -846,22 +851,22 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/how-fast-should-i-expect-an-answer.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/is-there-a-limit-to-how-many-tickets-i-can-open.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/README.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/the-ai-answered-my-ticket-but-it-didnt-help-what-now.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-are-the-seeded-agents-pipelines-and-triggers.md",
@@ -886,17 +891,17 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-does-verify-install-check.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-environment-variables-does-answer-once-need.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-happens-after-i-submit-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-is-a-candidate-article-and-the-kb-review-page.md",
@@ -906,7 +911,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-is-answer-once.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-is-pending-resolution-and-why-did-my-ticket-resolve-its.md",
@@ -916,7 +921,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-is-the-knowledgebase-page.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-record-types-does-answer-once-define.md",
@@ -926,7 +931,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/what-should-i-include-in-a-good-support-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/whats-the-difference-between-a-member-and-a-member-admin.md",
@@ -936,12 +941,12 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/where-can-i-see-all-my-tickets.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/who-can-see-my-tickets.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/why-can-i-see-some-knowledge-base-articles-but-not-others.md",
@@ -951,17 +956,17 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/why-did-i-get-an-answer-instantly-instead-of-waiting-for-sup.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/qa/will-i-get-an-email-when-support-replies.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/README.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/reference/functions.md",
@@ -971,7 +976,7 @@
     {
       "path": "custom/apps/answer-once/agent/instructions/tasks/install.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/tasks/ticket-lifecycle.md",
@@ -981,7 +986,7 @@
     {
       "path": "custom/apps/answer-once/agent/skills/ao_install/SKILL.md",
       "class": "living:app-shipped",
-      "verified_against": "df5241c"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/agent/skills/ao_kb-review/SKILL.md",
@@ -994,12 +999,12 @@
     {
       "path": "custom/apps/answer-once/docs/install.md",
       "class": "living:app-shipped",
-      "verified_against": "df5241c"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/docs/standalone-readme.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/entities/knowledge.md",
@@ -1019,32 +1024,32 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/can-i-browse-the-knowledge-base-without-opening-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/can-i-customize-the-ao-pages-or-add-my-own.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/can-i-follow-a-ticket-someone-else-on-my-team-opened.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/can-i-open-one-ticket-for-several-unrelated-questions.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/can-i-reopen-a-resolved-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/does-answer-once-come-with-a-pre-loaded-knowledge-base.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/does-answer-once-learn-from-my-tickets.md",
@@ -1054,7 +1059,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/does-answer-once-require-cil-or-any-extra-services.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-embeddings-stay-fresh-when-articles-change.md",
@@ -1064,37 +1069,37 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-add-teammates-to-our-account.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-install-answer-once.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-reply-to-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-set-up-support-staff.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-submit-a-support-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-i-upgrade-the-framework-vs-the-app.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-notifications-and-email-work.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-do-tickets-threads-and-messages-relate.md",
@@ -1104,7 +1109,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-does-an-answer-get-into-the-knowledge-base.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-does-the-ai-triage-actually-decide-to-answer-vs-escalate.md",
@@ -1114,22 +1119,22 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/how-fast-should-i-expect-an-answer.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/is-there-a-limit-to-how-many-tickets-i-can-open.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/README.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/the-ai-answered-my-ticket-but-it-didnt-help-what-now.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-are-the-seeded-agents-pipelines-and-triggers.md",
@@ -1154,17 +1159,17 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-does-verify-install-check.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-environment-variables-does-answer-once-need.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-happens-after-i-submit-a-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-is-a-candidate-article-and-the-kb-review-page.md",
@@ -1174,7 +1179,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-is-answer-once.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-is-pending-resolution-and-why-did-my-ticket-resolve-its.md",
@@ -1184,7 +1189,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-is-the-knowledgebase-page.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-record-types-does-answer-once-define.md",
@@ -1194,7 +1199,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/what-should-i-include-in-a-good-support-ticket.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/whats-the-difference-between-a-member-and-a-member-admin.md",
@@ -1204,12 +1209,12 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/where-can-i-see-all-my-tickets.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/who-can-see-my-tickets.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/why-can-i-see-some-knowledge-base-articles-but-not-others.md",
@@ -1219,17 +1224,17 @@
     {
       "path": "custom/apps/answer-once/src/instructions/qa/why-did-i-get-an-answer-instantly-instead-of-waiting-for-sup.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/qa/will-i-get-an-email-when-support-replies.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/README.md",
       "class": "living:app-shipped",
-      "verified_against": "9d16176"
+      "verified_against": "15faf83"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/reference/functions.md",
@@ -1239,7 +1244,7 @@
     {
       "path": "custom/apps/answer-once/src/instructions/tasks/install.md",
       "class": "living:app-shipped",
-      "verified_against": "dc1d7f1"
+      "verified_against": "a9a7b8c"
     },
     {
       "path": "custom/apps/answer-once/src/instructions/tasks/ticket-lifecycle.md",

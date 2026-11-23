@@ -1,8 +1,8 @@
 ---
 title: "Spine Framework"
 kind: index
-verified_against: 77543d7
-verified_on: 2026-11-22
+verified_against: 14204c5
+verified_on: 2026-11-23
 source_files:
   - package.json
   - .framework/src/instructions/
@@ -28,6 +28,9 @@ Functions as the API layer, Supabase (Postgres + Auth) as the database.
 npm create spine-framework@latest my-app
 cd my-app
 ```
+
+The first run can sit silent for 10–30 seconds while npx fetches the
+scaffolder package — that's a download, not a hang.
 
 That runs `spine-framework init` for you. The manual equivalent:
 
