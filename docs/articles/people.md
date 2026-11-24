@@ -1,7 +1,7 @@
 ---
 title: "Why `people` exists"
 kind: narrative
-verified_against: ba58de9
+verified_against: 1929705
 verified_on: 2026-11-23
 extends: .framework/src/instructions/people.md
 source_files:
