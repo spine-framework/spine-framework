@@ -1,8 +1,8 @@
 ---
 title: "Why Answer Once exists"
 kind: narrative
-verified_against: f3b5cef
-verified_on: 2026-11-23
+verified_against: e140eef
+verified_on: 2026-11-24
 source_files:
   - docs/articles/spine-framework.md
 ---

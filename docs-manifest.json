@@ -1,12 +1,12 @@
 {
-  "version": "0.10.1",
-  "commit": "7a1201115cc402a33fb64436a20e6e87775bdde6",
-  "generated": "2026-11-24",
+  "version": "0.10.2",
+  "commit": "daa572ad0de66ff2f01c6bb704899c06928299c5",
+  "generated": "2026-11-25",
   "files": [
     {
       "path": ".framework/src/instructions/accounts.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/ai-agents.md",
@@ -16,7 +16,7 @@
     {
       "path": ".framework/src/instructions/alerts.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/api-keys.md",
@@ -26,7 +26,7 @@
     {
       "path": ".framework/src/instructions/apps.md",
       "class": "living:shipped-book",
-      "verified_against": "9f90999"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/ai-and-prompts.md",
@@ -36,37 +36,37 @@
     {
       "path": ".framework/src/instructions/concepts/apps-and-renderers.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/auth-and-api-keys.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/automation.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/concurrency-and-idempotency.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/concepts/core-vs-custom.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/decision-records.md",
       "class": "living:shipped-book",
-      "verified_against": "main"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/concepts/design-schema.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/concepts/integrations-and-webhooks.md",
@@ -81,32 +81,37 @@
     {
       "path": ".framework/src/instructions/concepts/permissions.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/concepts/runtime-records.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/scope-and-accounts.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/concepts/spine-way.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
+    },
+    {
+      "path": ".framework/src/instructions/concepts/state-machine-records.md",
+      "class": "living:shipped-book",
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/concepts/team-conventions.md",
       "class": "living:shipped-book",
-      "verified_against": "3a67b9d"
+      "verified_against": "e140eef"
     },
     {
       "path": ".framework/src/instructions/concepts/tenancy.md",
       "class": "living:shipped-book",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/deliveries.md",
@@ -116,37 +121,37 @@
     {
       "path": ".framework/src/instructions/guide/00-orientation.md",
       "class": "living:shipped-book",
-      "verified_against": "fd571fc"
+      "verified_against": "3d78d8d"
     },
     {
       "path": ".framework/src/instructions/guide/01-install-and-first-run.md",
       "class": "living:shipped-book",
-      "verified_against": "a65afb1"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/guide/02-project-map.md",
       "class": "living:shipped-book",
-      "verified_against": "a65afb1"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/guide/03-domain-model.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/guide/04-first-app.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/guide/05-glossary.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/guide/06-join-an-existing-project.md",
       "class": "living:shipped-book",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/integrations.md",
@@ -156,27 +161,27 @@
     {
       "path": ".framework/src/instructions/internal/docs-contract.md",
       "class": "living:shipped-book",
-      "verified_against": "ae933d7"
+      "verified_against": "3d78d8d"
     },
     {
       "path": ".framework/src/instructions/invites.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/kb.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/logs.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/notifications.md",
       "class": "living:shipped-book",
-      "verified_against": "7529771"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/observability.md",
@@ -186,27 +191,27 @@
     {
       "path": ".framework/src/instructions/operations/deployment.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/operations/migrations.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/operations/recovery.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/operations/security-checklist.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/operations/troubleshooting.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/operations/upgrade.md",
@@ -216,12 +221,12 @@
     {
       "path": ".framework/src/instructions/operations/versioning.md",
       "class": "living:shipped-book",
-      "verified_against": "fd571fc"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/people.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/pipeline-executions.md",
@@ -241,12 +246,12 @@
     {
       "path": ".framework/src/instructions/README.md",
       "class": "living:shipped-book",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/reference/api/admin-data.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/reference/api/auth.md",
@@ -261,12 +266,12 @@
     {
       "path": ".framework/src/instructions/reference/app-manifest.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/cli.md",
       "class": "living:shipped-book",
-      "verified_against": "a65afb1"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/database.md",
@@ -276,17 +281,17 @@
     {
       "path": ".framework/src/instructions/reference/design-schema.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/reference/env-vars.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/frontend-sdk.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/account-nodes.md",
@@ -296,7 +301,7 @@
     {
       "path": ".framework/src/instructions/reference/functions/admin-data.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/admin-funnel.md",
@@ -331,12 +336,12 @@
     {
       "path": ".framework/src/instructions/reference/functions/apps.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/attachments.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/auth.md",
@@ -361,12 +366,12 @@
     {
       "path": ".framework/src/instructions/reference/functions/eval-harness.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/index.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/integration-outbound.md",
@@ -381,12 +386,12 @@
     {
       "path": ".framework/src/instructions/reference/functions/integrations.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/invites.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/item-progress.md",
@@ -396,7 +401,7 @@
     {
       "path": ".framework/src/instructions/reference/functions/kb.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/logs.md",
@@ -426,12 +431,12 @@
     {
       "path": ".framework/src/instructions/reference/functions/prompt-configs.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/roles.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/security.md",
@@ -441,7 +446,7 @@
     {
       "path": ".framework/src/instructions/reference/functions/system-cron.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/reference/functions/system.md",
@@ -456,12 +461,12 @@
     {
       "path": ".framework/src/instructions/reference/functions/timers.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/trigger-scheduler.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/functions/triggers.md",
@@ -471,42 +476,42 @@
     {
       "path": ".framework/src/instructions/reference/functions/types.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/seeds.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/reference/shared-modules.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/reference/spine-config.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/roles.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/runtime-collaboration.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/runtime-detail.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/runtime-list.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/security.md",
@@ -516,27 +521,27 @@
     {
       "path": ".framework/src/instructions/tasks/add-a-pipeline.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/add-a-role.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/add-a-timer.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/add-a-trigger.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/add-a-type.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/add-a-webhook.md",
@@ -551,37 +556,37 @@
     {
       "path": ".framework/src/instructions/tasks/add-an-integration.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/build-a-custom-page.md",
       "class": "living:shipped-book",
-      "verified_against": "8a0dc59"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/declare-your-environments.md",
       "class": "living:shipped-book",
-      "verified_against": "11191b1"
+      "verified_against": "90c7e6d"
     },
     {
       "path": ".framework/src/instructions/tasks/document-your-app.md",
       "class": "living:shipped-book",
-      "verified_against": "11191b1"
+      "verified_against": "90c7e6d"
     },
     {
       "path": ".framework/src/instructions/tasks/onboard-client-staff.md",
       "class": "living:shipped-book",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/tasks/package-and-install-an-app.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/register-an-app.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/rotate-an-api-key.md",
@@ -591,27 +596,27 @@
     {
       "path": ".framework/src/instructions/tasks/serve-public-content.md",
       "class": "living:shipped-book",
-      "verified_against": "ba58de9"
+      "verified_against": "f0b7b0b"
     },
     {
       "path": ".framework/src/instructions/tasks/set-up-monitoring.md",
       "class": "living:shipped-book",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/src/instructions/tasks/test-your-code.md",
       "class": "living:shipped-book",
-      "verified_against": "fd571fc"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/upgrade-many-projects.md",
       "class": "living:shipped-book",
-      "verified_against": "3a67b9d"
+      "verified_against": "e140eef"
     },
     {
       "path": ".framework/src/instructions/tasks/write-a-function.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/src/instructions/tasks/write-a-migration.md",
@@ -621,7 +626,7 @@
     {
       "path": ".framework/src/instructions/tasks/write-a-smoke-test.md",
       "class": "living:shipped-book",
-      "verified_against": "3a67b9d"
+      "verified_against": "e140eef"
     },
     {
       "path": ".framework/src/instructions/testing.md",
@@ -631,7 +636,7 @@
     {
       "path": ".framework/src/instructions/timers.md",
       "class": "living:shipped-book",
-      "verified_against": "6c7c604"
+      "verified_against": "5f7c326"
     },
     {
       "path": ".framework/src/instructions/triggers.md",
@@ -641,47 +646,47 @@
     {
       "path": ".framework/src/instructions/types.md",
       "class": "living:shipped-book",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/AGENTS.md",
       "class": "living:shipped-template",
-      "verified_against": "bba1da2"
+      "verified_against": "2b10c7e"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-ai-agent/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-automation/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-integration/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/templates/agent/skills/spine-architect/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-decision-capture/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-docs-sync/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/templates/agent/skills/spine-install-app/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-install/SKILL.md",
@@ -696,12 +701,12 @@
     {
       "path": ".framework/templates/agent/skills/spine-new-app/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-new-function/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-new-type/SKILL.md",
@@ -711,32 +716,37 @@
     {
       "path": ".framework/templates/agent/skills/spine-operate/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
+    },
+    {
+      "path": ".framework/templates/agent/skills/spine-public-app/SKILL.md",
+      "class": "living:shipped-template",
+      "verified_against": "f0b7b0b"
     },
     {
       "path": ".framework/templates/agent/skills/spine-schema/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-ship/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/templates/agent/skills/spine-test/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": ".framework/templates/agent/skills/spine-troubleshoot/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ba57738"
+      "verified_against": "ab73809"
     },
     {
       "path": ".framework/templates/agent/skills/spine-upgrade/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "1929705"
+      "verified_against": "eb49fb4"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/entities/knowledge.md",
