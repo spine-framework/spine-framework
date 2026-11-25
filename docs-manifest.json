@@ -1,6 +1,6 @@
 {
-  "version": "0.10.2",
-  "commit": "daa572ad0de66ff2f01c6bb704899c06928299c5",
+  "version": "0.10.3",
+  "commit": "35829ae27eb5de21e5e67991aa361a92a5bfbe14",
   "generated": "2026-11-25",
   "files": [
     {
@@ -126,7 +126,7 @@
     {
       "path": ".framework/src/instructions/guide/01-install-and-first-run.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "85b2802"
     },
     {
       "path": ".framework/src/instructions/guide/02-project-map.md",
@@ -181,7 +181,7 @@
     {
       "path": ".framework/src/instructions/notifications.md",
       "class": "living:shipped-book",
-      "verified_against": "5f7c326"
+      "verified_against": "85b2802"
     },
     {
       "path": ".framework/src/instructions/observability.md",
@@ -651,7 +651,7 @@
     {
       "path": ".framework/templates/agent/AGENTS.md",
       "class": "living:shipped-template",
-      "verified_against": "2b10c7e"
+      "verified_against": "85b2802"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-ai-agent/SKILL.md",
