@@ -1,7 +1,7 @@
 {
-  "version": "0.10.3",
-  "commit": "35829ae27eb5de21e5e67991aa361a92a5bfbe14",
-  "generated": "2026-11-25",
+  "version": "0.10.4",
+  "commit": "c94462cb695f359c133ba58823bc8bb680a5f58b",
+  "generated": "2026-11-26",
   "files": [
     {
       "path": ".framework/src/instructions/accounts.md",
@@ -21,7 +21,7 @@
     {
       "path": ".framework/src/instructions/api-keys.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/apps.md",
@@ -41,7 +41,7 @@
     {
       "path": ".framework/src/instructions/concepts/auth-and-api-keys.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/concepts/automation.md",
@@ -56,12 +56,12 @@
     {
       "path": ".framework/src/instructions/concepts/core-vs-custom.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/concepts/decision-records.md",
       "class": "living:shipped-book",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/concepts/design-schema.md",
@@ -106,7 +106,7 @@
     {
       "path": ".framework/src/instructions/concepts/team-conventions.md",
       "class": "living:shipped-book",
-      "verified_against": "e140eef"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/concepts/tenancy.md",
@@ -126,12 +126,12 @@
     {
       "path": ".framework/src/instructions/guide/01-install-and-first-run.md",
       "class": "living:shipped-book",
-      "verified_against": "85b2802"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/guide/02-project-map.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/guide/03-domain-model.md",
@@ -146,12 +146,12 @@
     {
       "path": ".framework/src/instructions/guide/05-glossary.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/guide/06-join-an-existing-project.md",
       "class": "living:shipped-book",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/integrations.md",
@@ -201,27 +201,27 @@
     {
       "path": ".framework/src/instructions/operations/recovery.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/operations/security-checklist.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/operations/troubleshooting.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/operations/upgrade.md",
       "class": "living:shipped-book",
-      "verified_against": "a672d6b"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/operations/versioning.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/people.md",
@@ -246,7 +246,7 @@
     {
       "path": ".framework/src/instructions/README.md",
       "class": "living:shipped-book",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/reference/api/admin-data.md",
@@ -256,7 +256,7 @@
     {
       "path": ".framework/src/instructions/reference/api/auth.md",
       "class": "living:shipped-book",
-      "verified_against": "3ff4b85"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/reference/api/errors-and-envelopes.md",
@@ -271,7 +271,7 @@
     {
       "path": ".framework/src/instructions/reference/cli.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/reference/database.md",
@@ -331,7 +331,7 @@
     {
       "path": ".framework/src/instructions/reference/functions/api-keys.md",
       "class": "living:shipped-book",
-      "verified_against": "761dfb9"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/reference/functions/apps.md",
@@ -371,7 +371,7 @@
     {
       "path": ".framework/src/instructions/reference/functions/index.md",
       "class": "living:shipped-book",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/reference/functions/integration-outbound.md",
@@ -566,7 +566,7 @@
     {
       "path": ".framework/src/instructions/tasks/declare-your-environments.md",
       "class": "living:shipped-book",
-      "verified_against": "90c7e6d"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/tasks/document-your-app.md",
@@ -591,7 +591,7 @@
     {
       "path": ".framework/src/instructions/tasks/rotate-an-api-key.md",
       "class": "living:shipped-book",
-      "verified_against": "1ceeac5"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/tasks/serve-public-content.md",
@@ -611,7 +611,7 @@
     {
       "path": ".framework/src/instructions/tasks/upgrade-many-projects.md",
       "class": "living:shipped-book",
-      "verified_against": "e140eef"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/src/instructions/tasks/write-a-function.md",
@@ -656,7 +656,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-add-ai-agent/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-add-automation/SKILL.md",
@@ -666,17 +666,17 @@
     {
       "path": ".framework/templates/agent/skills/spine-add-integration/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-architect/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-decision-capture/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-docs-sync/SKILL.md",
@@ -691,7 +691,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-install/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "699d419"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-migration/SKILL.md",
@@ -706,7 +706,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-new-function/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-new-type/SKILL.md",
@@ -716,7 +716,7 @@
     {
       "path": ".framework/templates/agent/skills/spine-operate/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-public-app/SKILL.md",
@@ -741,12 +741,12 @@
     {
       "path": ".framework/templates/agent/skills/spine-troubleshoot/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "ab73809"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": ".framework/templates/agent/skills/spine-upgrade/SKILL.md",
       "class": "living:shipped-template",
-      "verified_against": "eb49fb4"
+      "verified_against": "eb8a2fe"
     },
     {
       "path": "custom/apps/answer-once/agent/instructions/entities/knowledge.md",
